@@ -19,7 +19,7 @@ import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
 
 const BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
   ? 'http://127.0.0.1:8000/api' 
-  : 'http://13.201.72.131:8000/api';
+  : 'http://13.201.72.131/api';
 const PALETTES = {
   vibrant: ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#f97316', '#06b6d4', '#84cc16'],
   pastel: ['#a5b4fc', '#c4b5fd', '#f9a8d4', '#fcd34d', '#6ee7b7', '#93c5fd', '#fca5a5', '#fdba74', '#67e8f9', '#bef264'],

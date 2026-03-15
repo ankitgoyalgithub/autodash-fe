@@ -161,6 +161,66 @@ button { cursor: pointer; }
 .app { display: flex; height: 100vh; overflow: hidden; background: var(--theme-bg-app); transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .main-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; position: relative; }
 
+/* ─── MAIN HEADER STRIP ──────────────────────────────────── */
+.main-header-strip {
+  height: 64px;
+  background: var(--theme-bg-header);
+  border-bottom: 1px solid var(--theme-border);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 24px;
+  flex-shrink: 0;
+  backdrop-filter: var(--theme-blur);
+  z-index: 20;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--theme-accent);
+  color: white;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.user-profile span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--theme-text-main);
+}
+
+.logout-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text-muted);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-300);
+  color: #dc2626;
+}
+
+.public-page {
+  background: var(--theme-bg-app);
+  min-height: 100vh;
+}
+
 /* ─── SIDEBAR ────────────────────────────────────────────── */
 /* ─── SIDEBAR (MAIN) ────────────────────────────────────── */
 .sidebar {

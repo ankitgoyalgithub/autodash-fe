@@ -14,6 +14,8 @@ import {
 } from 'recharts';
 import logo from './assets/logo.png';
 import './App.css';
+import Login from './components/Login';
+import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
 
 const BASE = 'http://127.0.0.1:8000/api';
 const PALETTES = {
@@ -34,7 +36,7 @@ const FONTS = [
 ];
 const COLORS = PALETTES.vibrant;
 
-type View = 'home' | 'dashboards' | 'workspace';
+type View = 'home' | 'dashboards' | 'workspace' | 'public';
 
 interface Datasource { id: number; name: string; host: string; port: number; database: string; username: string; }
 interface Project { id: number; name: string; description: string; emoji: string; color: string; chart_count: number; datasource: Datasource | null; updated_at: string; created_at: string; }
@@ -1163,8 +1165,50 @@ function Workspace({ project, onBack, initialThreadId }: { project: Project; onB
 
 
 
-/* ─── APP ROOT ───────────────────────────────────────────── */
-export default function App() {
+
+/* ─── PUBLIC VIEW ───────────────────────────────────────── */
+function PublicDashboardView({ base }: { base: string }) {
+  const { slug } = useParams<{ slug: string }>();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchPublic = async () => {
+      try {
+        const r = await axios.get(`${base}/public/${slug}/`);
+        setData(r.data);
+      } catch (e: any) {
+        setError(e.response?.data?.error || 'Dashboard not found.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPublic();
+  }, [slug, base]);
+
+  if (loading) return <div className="loading-state"><Loader2 size={24} className="spin"/><p>Loading dashboard...</p></div>;
+  if (error) return <div className="empty"><AlertCircle size={48}/><p>{error}</p></div>;
+
+  return (
+    <div className="page public-page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">{data.title}</h1>
+          <p className="page-sub">Project: {data.project_name} • Created on {new Date(data.created_at).toLocaleDateString()}</p>
+        </div>
+      </div>
+      <div className="charts-grid">
+        {data.results_data.map((card: any, i: number) => (
+          <InsightCard key={i} card={card} layout="grid" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── MAIN APP CONTENT ───────────────────────────────────── */
+function MainAppContent({ token, user, onLogout }: { token: string, user: any, onLogout: () => void }) {
   const [view, setView] = useState<View>('home');
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
@@ -1172,10 +1216,16 @@ export default function App() {
   const [initialThreadId, setInitialThreadId] = useState<number | undefined>(undefined);
   const [showNewModal, setShowNewModal] = useState(false);
 
+  // Set auth header for all requests in this component
+  useEffect(() => {
+    axios.defaults.headers.common['Authorization'] = `Token ${token}`;
+  }, [token]);
+
   const fetchBasics = async () => {
     try { const r = await axios.get(`${BASE}/projects/`); setProjects(r.data); } catch {}
     try { const r = await axios.get(`${BASE}/datasources/`); setDatasources(r.data); } catch {}
   };
+  
   useEffect(() => { fetchBasics(); }, []);
 
   const handleCreateProject = async (data: object) => {
@@ -1211,7 +1261,7 @@ export default function App() {
         onSelectProject={openProject}
         onSelectThread={(tId) => {
           setInitialThreadId(tId);
-          setView('workspace'); // Ensure we are in workspace view
+          setView('workspace');
         }}
         onAddThread={() => {
           setInitialThreadId(undefined);
@@ -1221,6 +1271,14 @@ export default function App() {
       />
 
       <div className="main-area">
+        <header className="main-header-strip">
+          <div className="user-profile">
+            <div className="user-icon">{user?.username?.[0].toUpperCase()}</div>
+            <span>{user?.username}</span>
+            <button className="logout-btn" onClick={onLogout}>Logout</button>
+          </div>
+        </header>
+
         {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} />}
         {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.id)} />}
         {view === 'workspace' && activeProject && (
@@ -1234,5 +1292,42 @@ export default function App() {
 
       {showNewModal && <NewProjectModal datasources={datasources} onClose={() => setShowNewModal(false)} onCreate={handleCreateProject} />}
     </div>
+  );
+}
+
+/* ─── APP ROOT ───────────────────────────────────────────── */
+export default function App() {
+  const [token, setToken] = useState<string | null>(localStorage.getItem('autodash_token'));
+  const [user, setUser] = useState<any>(JSON.parse(localStorage.getItem('autodash_user') || 'null'));
+
+  const handleLogin = (newToken: string, userData: any) => {
+    setToken(newToken);
+    setUser(userData);
+    localStorage.setItem('autodash_token', newToken);
+    localStorage.setItem('autodash_user', JSON.stringify(userData));
+    axios.defaults.headers.common['Authorization'] = `Token ${newToken}`;
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('autodash_token');
+    localStorage.removeItem('autodash_user');
+    delete axios.defaults.headers.common['Authorization'];
+  };
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/view/:slug" element={<PublicDashboardView base={BASE} />} />
+        <Route path="*" element={
+          !token ? (
+            <Login onLogin={handleLogin} base={BASE} />
+          ) : (
+            <MainAppContent token={token} user={user} onLogout={handleLogout} />
+          )
+        } />
+      </Routes>
+    </BrowserRouter>
   );
 }

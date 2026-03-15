@@ -15,7 +15,7 @@ import {
 import logo from './assets/logo.png';
 import './App.css';
 import Login from './components/Login';
-import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
 
 const BASE = 'http://127.0.0.1:8000/api';
 const PALETTES = {

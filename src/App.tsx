@@ -522,7 +522,6 @@ function Sidebar({ view, setView, projects, activeProject, activeThreadId, onSel
         </button>
       </nav>
 
-      <div className="sidebar-section-label">My Projects</div>
       <div className="sidebar-projects">
         {projects.map(p => (
           <div key={p.id}>
@@ -545,6 +544,16 @@ function Sidebar({ view, setView, projects, activeProject, activeThreadId, onSel
           </div>
         ))}
         <button className="sidebar-new-project" onClick={onNewProject}><Plus size={14}/> New project</button>
+      </div>
+
+      <div className="sidebar-footer">
+        <div className="user-profile-mini">
+          <div className="user-icon-sm">{(localStorage.getItem('autodash_user') ? JSON.parse(localStorage.getItem('autodash_user') || '{}').username?.[0].toUpperCase() : 'U')}</div>
+          <div className="user-info">
+            <span className="user-name">{JSON.parse(localStorage.getItem('autodash_user') || '{}').username || 'User'}</span>
+            <button className="logout-link" onClick={() => { localStorage.clear(); window.location.href = '/'; }}>Logout</button>
+          </div>
+        </div>
       </div>
     </aside>
   );
@@ -1197,6 +1206,9 @@ function PublicDashboardView({ base }: { base: string }) {
           <h1 className="page-title">{data.title}</h1>
           <p className="page-sub">Project: {data.project_name} • Created on {new Date(data.created_at).toLocaleDateString()}</p>
         </div>
+        <button className="btn-primary" onClick={() => window.location.href = '/'}>
+          <LayoutDashboard size={15}/> Back to Dashboard
+        </button>
       </div>
       <div className="charts-grid">
         {data.results_data.map((card: any, i: number) => (

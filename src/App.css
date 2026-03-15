@@ -199,22 +199,7 @@ button { cursor: pointer; }
   color: var(--theme-text-main);
 }
 
-.logout-btn {
-  padding: 6px 12px;
-  background: transparent;
-  border: 1px solid var(--theme-border);
-  color: var(--theme-text-muted);
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  transition: all 0.2s;
-}
 
-.logout-btn:hover {
-  background: var(--gray-50);
-  border-color: var(--gray-300);
-  color: #dc2626;
-}
 
 .public-page {
   background: var(--theme-bg-app);
@@ -369,14 +354,64 @@ button { cursor: pointer; }
 .proj-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj-count { font-size: 0.7rem; font-weight: 600; background: var(--gray-200); color: var(--gray-600); padding: 1px 6px; border-radius: 100px; flex-shrink: 0; }
 
-.sidebar-new-project {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; border-radius: var(--radius-sm);
-  font-size: 0.84rem; font-weight: 500; color: var(--gray-400);
-  background: transparent; border: none; text-align: left; width: 100%;
-  transition: all 0.15s; margin-top: 4px;
-}
 .sidebar-new-project:hover { color: var(--indigo-600); background: var(--indigo-50); }
+
+/* ─── SIDEBAR FOOTER ─────────────────────────────────────── */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid var(--theme-border);
+  background: var(--theme-bg-sidebar);
+}
+
+.user-profile-mini {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-icon-sm {
+  width: 32px;
+  height: 32px;
+  background: var(--theme-accent);
+  color: white;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--theme-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logout-link {
+  font-size: 0.75rem;
+  color: var(--theme-text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  transition: color 0.15s;
+  width: fit-content;
+}
+
+.logout-link:hover {
+  color: #dc2626;
+  text-decoration: underline;
+}
 
 /* ─── PAGE SHELL ─────────────────────────────────────────── */
 .page { flex: 1; overflow-y: auto; padding: 28px 36px; }

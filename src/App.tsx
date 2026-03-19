@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import Login from './components/Login';
+import LandingPage from './components/LandingPage';
 import { BASE } from './components/constants';
 import { Sidebar } from './components/Sidebar';
 import { ProjectsHome, NewProjectModal } from './components/ProjectsHome';
@@ -43,7 +44,7 @@ export interface DashboardCard {
   y?: number;
   w?: number;
   h?: number;
-  data: Record<string, string | number>[];
+  data: Record<string, any>[];
   chart_type: string;
   title: string;
   insight: string;
@@ -52,6 +53,15 @@ export interface DashboardCard {
   filters?: { column: string; options: (string | number)[] }[];
   group_by_options?: string[];
   drill_down?: { column: string; target_metric: string; hint: string; };
+  is_analytics?: boolean;
+  anomaly_info?: {
+    anomalies: any[];
+    normal_range: [number, number];
+    severity: 'low' | 'medium' | 'high';
+    anomaly_count: number;
+    mean: number;
+  };
+  matrix_config?: { x_col: string; y_col: string; label_col: string };
   stats?: {
     trend?: 'upward' | 'downward' | 'stable';
     trend_pct?: number;
@@ -205,13 +215,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/view/:slug" element={<PublicDashboardView />} />
-        <Route path="*" element={
-          !token ? (
-            <Login onLogin={handleLogin} base={BASE} />
-          ) : (
-            <MainAppContent token={token} user={user} onLogout={handleLogout} />
-          )
-        } />
+        <Route path="/" element={!token ? <LandingPage /> : <MainAppContent token={token} user={user} onLogout={handleLogout} />} />
+        <Route path="/login" element={!token ? <Login onLogin={handleLogin} base={BASE} /> : <Navigate to="/" replace />} />
+        <Route path="*" element={!token ? <LandingPage /> : <MainAppContent token={token} user={user} onLogout={handleLogout} />} />
       </Routes>
     </BrowserRouter>
   );

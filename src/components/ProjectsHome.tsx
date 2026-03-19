@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { X, Plus, Database, CheckCircle2, Clock, BarChart2, ChevronRight } from 'lucide-react';
+import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import axios from 'axios';
 import type { Datasource, Project } from '../App';
 import { BASE, EMOJIS, PALETTES } from './constants';
 import { DatasourceEditForm } from './DatasourcesManagement';
+
+// ─── New Project Modal ────────────────────────────────────────────────────────
 
 export function NewProjectModal({ datasources, onClose, onCreate }: {
   datasources: Datasource[];
@@ -93,47 +95,152 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
   );
 }
 
+// ─── Project thumbnail card ───────────────────────────────────────────────────
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+function ProjectThumbCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
+  // Build a subtle dual-tone gradient from the project color
+  const c = p.color;
+  const thumbStyle: React.CSSProperties = {
+    background: `linear-gradient(135deg, ${c}55 0%, ${c}22 60%, ${c}0d 100%)`,
+  };
+
+  return (
+    <button className="canva-proj-card" onClick={onOpen}>
+      {/* Thumbnail preview area */}
+      <div className="canva-proj-thumb" style={thumbStyle}>
+        <span className="canva-proj-emoji">{p.emoji}</span>
+        {/* Decorative blobs */}
+        <div className="canva-proj-blob blob-1" style={{ background: c + '30' }} />
+        <div className="canva-proj-blob blob-2" style={{ background: c + '20' }} />
+      </div>
+
+      {/* Info area */}
+      <div className="canva-proj-info">
+        <div className="canva-proj-title">{p.name}</div>
+        <div className="canva-proj-meta">
+          <div className="canva-proj-avatar" style={{ background: c }}>{p.emoji}</div>
+          <span className="canva-proj-date">
+            <Clock size={10} /> Edited {timeAgo(p.updated_at)}
+          </span>
+          {p.chart_count > 0 && (
+            <span className="canva-proj-charts">
+              <BarChart2 size={10} /> {p.chart_count}
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ─── Projects Home ────────────────────────────────────────────────────────────
+
 export function ProjectsHome({ projects, onOpen, onNewProject }: {
   projects: Project[];
   onOpen: (p: Project) => void;
   onNewProject: () => void;
 }) {
-  return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Projects</h1>
-          <p className="page-sub">Each project is a dashboard workspace connected to a datasource</p>
-        </div>
-        <button className="btn-primary" onClick={onNewProject}><Plus size={15}/> New Project</button>
-      </div>
+  const [search, setSearch] = useState('');
 
-      {projects.length === 0 ? (
-        <div className="empty">
-          <div className="empty-art">📊</div>
-          <h3>Create your first project</h3>
-          <p>Connect a database, describe your goals, and AutoDashboard builds the charts.</p>
-          <button className="btn-primary" onClick={onNewProject}><Plus size={15}/> New Project</button>
+  const filtered = projects.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    (p.description || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Split into recents (last 4 updated) and all
+  const recents = [...filtered].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 4);
+
+  return (
+    <div className="canva-home">
+
+      {/* ── Page hero header ── */}
+      <div className="canva-home-hero">
+        <h1 className="canva-home-title">All projects</h1>
+
+        {/* Search bar */}
+        <div className="canva-search-wrap">
+          <Search size={16} className="canva-search-icon" />
+          <input
+            className="canva-search-input"
+            placeholder="Search across all content"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <SlidersHorizontal size={15} className="canva-search-filter-icon" />
         </div>
-      ) : (
-        <div className="projects-grid">
-          {projects.map(p => (
-            <button key={p.id} className="proj-card" onClick={() => onOpen(p)} style={{ '--proj-color': p.color } as React.CSSProperties}>
-              <div className="proj-card-emoji" style={{ background: p.color + '18', border: `1.5px solid ${p.color}30` }}>{p.emoji}</div>
-              <div className="proj-card-body">
-                <h3>{p.name}</h3>
-                {p.description && <p>{p.description}</p>}
-                <div className="proj-card-meta">
-                  {p.datasource && <span><Database size={11}/>{p.datasource.database}</span>}
-                  <span><BarChart2 size={11}/>{p.chart_count} charts</span>
-                  <span><Clock size={11}/>{new Date(p.updated_at).toLocaleDateString()}</span>
-                </div>
-              </div>
-              <div className="proj-card-arrow" style={{color: p.color}}><ChevronRight size={16}/></div>
+
+        {/* Filter chips */}
+        <div className="canva-filter-row">
+          {['Type', 'Category', 'Owner', 'Date modified'].map(f => (
+            <button key={f} className="canva-filter-chip">
+              {f} <ChevronDown size={12} />
             </button>
           ))}
+          <div style={{ flex: 1 }} />
+          <button className="btn-primary canva-new-btn" onClick={onNewProject}>
+            <Plus size={14} /> New project
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* ── Content area ── */}
+      <div className="canva-home-content">
+
+        {projects.length === 0 ? (
+          <div className="canva-empty">
+            <div className="canva-empty-art">📊</div>
+            <h3>Create your first project</h3>
+            <p>Connect a database, describe your goals, and AutoDashboard builds the charts.</p>
+            <button className="btn-primary" onClick={onNewProject}><Plus size={15} /> New project</button>
+          </div>
+        ) : (
+          <>
+            {/* Recents section */}
+            {recents.length > 0 && !search && (
+              <section className="canva-section">
+                <h2 className="canva-section-title">Recents</h2>
+                <div className="canva-recents-row">
+                  {recents.map(p => (
+                    <ProjectThumbCard key={p.id} p={p} onOpen={() => onOpen(p)} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Designs / All projects section */}
+            <section className="canva-section">
+              <h2 className="canva-section-title">{search ? `Results for "${search}"` : 'Designs'}</h2>
+              {filtered.length === 0 ? (
+                <p className="canva-no-results">No projects match your search.</p>
+              ) : (
+                <div className="canva-designs-grid">
+                  {/* New project card */}
+                  {!search && (
+                    <button className="canva-new-card" onClick={onNewProject}>
+                      <div className="canva-new-card-icon"><Plus size={28} /></div>
+                      <span>New project</span>
+                    </button>
+                  )}
+                  {filtered.map(p => (
+                    <ProjectThumbCard key={p.id} p={p} onOpen={() => onOpen(p)} />
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </div>
     </div>
   );
 }

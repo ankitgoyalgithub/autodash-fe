@@ -3,11 +3,12 @@ import {
   Eye, EyeOff, X, FileText, AlertCircle, Sparkles, TrendingUp,
   BarChart2, LineChart, PieChart as PieIcon, AreaChart as AreaIcon, Layers, LayoutList,
   DollarSign, ShoppingCart, Users, ArrowUpRight, ArrowDownRight, Package, Percent,
-  CreditCard,
+  CreditCard, FlaskConical,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer,
   LineChart as ReLineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart,
+  ReferenceLine, ReferenceArea,
 } from 'recharts';
 import type { DashboardCard } from '../App';
 import { COLORS } from './constants';
@@ -452,6 +453,337 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
           </ComposedChart>
         </ResponsiveContainer>
       );
+      // ── Analytics: Forecast ──────────────────────────────────────────────────
+      case 'forecast': {
+        const valKey = dataKeys[0] || '';
+        const transformed = displayData.map(r => ({
+          ...r,
+          actual:   r.is_forecast ? null : r[valKey],
+          forecast: r.is_forecast ? r[valKey] : null,
+          upper:    r[`${valKey}_upper`] ?? null,
+          lower:    r[`${valKey}_lower`] ?? null,
+        }));
+        const boundaryLabel = transformed.filter(r => !r.is_forecast).slice(-1)[0]?.[xKey];
+        return (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <ComposedChart data={transformed} margin={{ top: 8, right: 24, left: 0, bottom: 5 }}>
+              <defs>
+                <linearGradient id="ci-band" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={activeColors[0]} stopOpacity={0.18}/>
+                  <stop offset="95%" stopColor={activeColors[0]} stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
+              <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
+              <YAxis tickFormatter={v => formatAxisTick(v, valKey)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
+              <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }}/>
+              <Legend iconType="circle"/>
+              {/* Confidence band */}
+              <Area type="monotone" dataKey="upper" stroke="none" fill="url(#ci-band)" legendType="none" name="Upper bound"/>
+              {/* Actual line — solid */}
+              <Line type="monotone" dataKey="actual" stroke={activeColors[0]} strokeWidth={3} dot={{ r: 3, fill: activeColors[0] }} name={valKey} connectNulls={false}/>
+              {/* Forecast line — dashed */}
+              <Line type="monotone" dataKey="forecast" stroke={activeColors[0]} strokeWidth={2} strokeDasharray="7 4" dot={{ r: 4, fill: '#fff', stroke: activeColors[0], strokeWidth: 2 }} name="Forecast" connectNulls={false}/>
+              {boundaryLabel !== undefined && (
+                <ReferenceLine x={String(boundaryLabel)} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: '▶ Forecast', position: 'insideTopRight', fontSize: 10, fill: '#94a3b8' }}/>
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+        );
+      }
+
+      // ── Analytics: Priority Matrix ────────────────────────────────────────────
+      case 'priority_matrix': {
+        const cols = displayData[0] ? Object.keys(displayData[0]) : [];
+        const xColKey = card.matrix_config?.x_col
+          || cols.find(c => !['quadrant','priority_rank'].includes(c) && typeof displayData[0][c] === 'number') || '';
+        const yColKey = card.matrix_config?.y_col
+          || cols.filter(c => !['quadrant','priority_rank'].includes(c) && typeof displayData[0][c] === 'number')[1] || '';
+        const labelKey = card.matrix_config?.label_col
+          || cols.find(c => typeof displayData[0][c] === 'string' && c !== 'quadrant') || '';
+        if (!xColKey || !yColKey) return <div className="dp-empty">Priority matrix data unavailable</div>;
+
+        const xVals = displayData.map(r => Number(r[xColKey]));
+        const yVals = displayData.map(r => Number(r[yColKey]));
+        const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
+        const yMin = Math.min(...yVals), yMax = Math.max(...yVals);
+        const xRange = xMax - xMin || 1;
+        const yRange = yMax - yMin || 1;
+
+        const QUAD_COLORS: Record<string, string> = {
+          'Quick Win':     '#10b981',
+          'Major Project': '#6366f1',
+          'Fill-In':       '#f59e0b',
+          'Avoid':         '#ef4444',
+        };
+        const QUAD_BG: Record<string, string> = {
+          'Quick Win':     '#10b98110',
+          'Major Project': '#6366f110',
+          'Fill-In':       '#f59e0b10',
+          'Avoid':         '#ef444410',
+        };
+
+        return (
+          <div style={{ position: 'relative', width: '100%', height: chartHeight, userSelect: 'none' }}>
+            {/* Quadrant backgrounds */}
+            <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 2 }}>
+              {[
+                { label: '⚡ Quick Win',      color: '#10b981', bg: QUAD_BG['Quick Win'] },
+                { label: '🚀 Major Project',  color: '#6366f1', bg: QUAD_BG['Major Project'] },
+                { label: '📋 Fill-In',        color: '#f59e0b', bg: QUAD_BG['Fill-In'] },
+                { label: '✗ Avoid',           color: '#ef4444', bg: QUAD_BG['Avoid'] },
+              ].map(q => (
+                <div key={q.label} style={{ background: q.bg, border: `1.5px solid ${q.color}30`, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: q.color, opacity: 0.9 }}>
+                  {q.label}
+                </div>
+              ))}
+            </div>
+            {/* Dots SVG */}
+            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
+              {displayData.map((row, i) => {
+                const px = ((Number(row[xColKey]) - xMin) / xRange) * 88 + 6;
+                const py = 100 - (((Number(row[yColKey]) - yMin) / yRange) * 88 + 6);
+                const qColor = QUAD_COLORS[String(row.quadrant)] || activeColors[0];
+                const lbl = String(row[labelKey] || '').slice(0, 14);
+                return (
+                  <g key={i}>
+                    <circle cx={`${px}%`} cy={`${py}%`} r={8} fill={qColor} fillOpacity={0.85}/>
+                    <text x={`${px}%`} y={`${py}%`} dy={-12} textAnchor="middle" fontSize={9} fill="#334155" fontWeight={600}>{lbl}</text>
+                  </g>
+                );
+              })}
+            </svg>
+            {/* Axis labels */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: 10, color: '#94a3b8', pointerEvents: 'none' }}>
+              ← {xColKey} (effort) →
+            </div>
+            <div style={{ position: 'absolute', top: '50%', left: 0, fontSize: 10, color: '#94a3b8', transform: 'rotate(-90deg) translateX(-50%)', transformOrigin: 'left center', pointerEvents: 'none' }}>
+              ↑ {yColKey}
+            </div>
+          </div>
+        );
+      }
+
+      // ── Analytics: Trend Decomposition ────────────────────────────────────────
+      case 'trend': {
+        const trendKeys = Object.keys(displayData[0] || {}).filter(k =>
+          k !== xKey && !['is_forecast', 'momentum_pct', 'is_anomaly', 'deviation_factor'].includes(k)
+        );
+        const origKey = trendKeys[0] || '';
+        const maKeys  = trendKeys.filter(k => k.startsWith('ma_'));
+        return (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <ComposedChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
+              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
+              <YAxis tickFormatter={v => formatAxisTick(v, origKey)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
+              <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }}/>
+              <Legend iconType="circle"/>
+              <Bar dataKey={origKey} fill={`${activeColors[0]}55`} radius={[3,3,0,0]} name={origKey}/>
+              {maKeys.map((k, i) => (
+                <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i + 1] || '#f59e0b'} strokeWidth={2.5} dot={false} name={k.replace('_', ' ')}/>
+              ))}
+            </ComposedChart>
+          </ResponsiveContainer>
+        );
+      }
+
+      // ── Analytics: Pareto ──────────────────────────────────────────────────────
+      case 'pareto': {
+        const catKey  = xKey;
+        const valKey2 = dataKeys[0] || '';
+        return (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <ComposedChart data={displayData} margin={{ top: 5, right: 40, left: 0, bottom: 40 }}>
+              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
+              <XAxis dataKey={catKey} tick={{ fontSize: 10, fill: '#64748b' }} angle={-30} textAnchor="end" height={55} axisLine={false} tickLine={false}/>
+              <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => formatAxisTick(v, valKey2)} axisLine={false} tickLine={false} width={56}/>
+              <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={36}/>
+              <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }}/>
+              <Legend iconType="circle"/>
+              <Bar yAxisId="left" dataKey={valKey2} radius={[6,6,0,0]} name={valKey2}>
+                {displayData.map((entry: any, idx: number) => (
+                  <Cell key={idx} fill={entry.is_vital_few ? activeColors[0] : '#cbd5e1'}/>
+                ))}
+              </Bar>
+              <Line yAxisId="right" type="monotone" dataKey="cumulative_pct" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} name="Cumulative %"/>
+              <ReferenceLine yAxisId="right" y={80} stroke="#ef4444" strokeDasharray="5 3" label={{ value: '80%', position: 'insideRight', fontSize: 10, fill: '#ef4444' }}/>
+            </ComposedChart>
+          </ResponsiveContainer>
+        );
+      }
+
+      // ── Analytics: Heatmap (Correlation) ─────────────────────────────────────
+      case 'heatmap': {
+        const allCols2 = [...new Set(displayData.flatMap(r => [String(r.col_a), String(r.col_b)]))];
+        const corrMap: Record<string, number> = {};
+        displayData.forEach(r => { corrMap[`${r.col_a}|${r.col_b}`] = Number(r.correlation); });
+
+        const corrColor = (v: number): string => {
+          if (v >  0.7) return '#1d4ed8';
+          if (v >  0.4) return '#3b82f6';
+          if (v >  0.1) return '#93c5fd';
+          if (v >= -0.1) return '#f8fafc';
+          if (v >= -0.4) return '#fca5a5';
+          if (v >= -0.7) return '#f87171';
+          return '#dc2626';
+        };
+        const textOnCorr = (v: number): string => Math.abs(v) > 0.4 ? '#fff' : '#334155';
+        const cSize = Math.max(36, Math.min(80, 300 / Math.max(allCols2.length, 1)));
+
+        return (
+          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: chartHeight + 40, padding: '4px 0' }}>
+            <div style={{ display: 'inline-grid', gridTemplateColumns: `80px ${allCols2.map(() => `${cSize}px`).join(' ')}`, gap: 3 }}>
+              {/* Header */}
+              <div/>
+              {allCols2.map(c => (
+                <div key={c} title={c} style={{ width: cSize, fontSize: 9, textAlign: 'center', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 2px', fontWeight: 600 }}>
+                  {c.slice(0, 8)}
+                </div>
+              ))}
+              {/* Rows */}
+              {allCols2.map(rowCol => (
+                <>
+                  <div key={`lbl-${rowCol}`} title={rowCol} style={{ fontSize: 9, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600, display: 'flex', alignItems: 'center', paddingRight: 4 }}>
+                    {rowCol.slice(0, 12)}
+                  </div>
+                  {allCols2.map(colCol => {
+                    const v = corrMap[`${rowCol}|${colCol}`] ?? 1;
+                    return (
+                      <div key={`${rowCol}|${colCol}`} title={`${rowCol} × ${colCol}: ${v.toFixed(2)}`} style={{ width: cSize, height: cSize, background: corrColor(v), borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: textOnCorr(v) }}>
+                        {v.toFixed(2)}
+                      </div>
+                    );
+                  })}
+                </>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
+      // ── Analytics: Anomaly Detection ──────────────────────────────────────────
+      case 'anomaly': {
+        const aInfo = (card as any).anomaly_info;
+        const valKey3 = dataKeys[0] || '';
+        return (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
+              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
+              <YAxis tickFormatter={v => formatAxisTick(v, valKey3)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
+              <RTooltip formatter={(val: any, name: any, p: any) => {
+                const isAnomaly = p.payload?.is_anomaly;
+                return [formatCompact(Number(val)) + (isAnomaly ? ' ⚠ ANOMALY' : ''), String(name)];
+              }} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }}/>
+              <Legend iconType="circle"/>
+              {aInfo?.normal_range && (
+                <ReferenceArea y1={aInfo.normal_range[0]} y2={aInfo.normal_range[1]} fill="#10b98108" stroke="#10b98140" strokeDasharray="4 4" label={{ value: 'Normal range', position: 'insideTopRight', fontSize: 9, fill: '#10b981' }}/>
+              )}
+              <Bar dataKey={valKey3} name={valKey3} radius={[4,4,0,0]}>
+                {displayData.map((entry: any, idx: number) => (
+                  <Cell key={idx} fill={entry.is_anomaly ? '#ef4444' : activeColors[0]}/>
+                ))}
+              </Bar>
+            </ComposedChart>
+          </ResponsiveContainer>
+        );
+      }
+
+      case 'timeline': {
+        const TL_COLORS = ['#374f6e', '#e6a817', '#c0395a', '#1b6ca8', '#2abaab', '#6366f1', '#10b981'];
+        return (
+          <div style={{ position: 'relative', padding: '20px 0 8px', width: '100%' }}>
+            {/* Vertical spine */}
+            <div style={{
+              position: 'absolute', left: '50%', top: 0, bottom: 0,
+              width: 2, background: 'var(--gray-200, #e2e8f0)', transform: 'translateX(-50%)',
+            }} />
+            {displayData.map((row, idx) => {
+              const label     = String(row[xKey] ?? '');
+              const titleVal  = dataKeys[0] ? String(row[dataKeys[0]] ?? '') : '';
+              const descVal   = dataKeys[1] ? String(row[dataKeys[1]] ?? '') : '';
+              const isLeft    = idx % 2 === 0;
+              const color     = TL_COLORS[idx % TL_COLORS.length];
+
+              const banner = (
+                <div style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                  {/* Left-pointing arrow for right-side entries */}
+                  {!isLeft && (
+                    <div style={{
+                      width: 0, height: 0,
+                      borderTop: '20px solid transparent',
+                      borderBottom: '20px solid transparent',
+                      borderRight: `13px solid ${color}`,
+                    }} />
+                  )}
+                  <div style={{
+                    background: color, color: '#fff',
+                    padding: '10px 20px',
+                    borderRadius: isLeft ? '6px 0 0 6px' : '0 6px 6px 0',
+                    fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em',
+                    whiteSpace: 'nowrap',
+                  }}>{label}</div>
+                  {/* Right-pointing arrow for left-side entries */}
+                  {isLeft && (
+                    <div style={{
+                      width: 0, height: 0,
+                      borderTop: '20px solid transparent',
+                      borderBottom: '20px solid transparent',
+                      borderLeft: `13px solid ${color}`,
+                    }} />
+                  )}
+                </div>
+              );
+
+              const card = (titleVal || descVal) ? (
+                <div style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid var(--gray-200, #e2e8f0)',
+                  borderRadius: 10, padding: '12px 16px', marginTop: 10,
+                }}>
+                  {titleVal && (
+                    <div style={{
+                      fontSize: '0.78rem', fontWeight: 700, color: 'var(--gray-700, #344054)',
+                      marginBottom: descVal ? 5 : 0,
+                      textTransform: 'uppercase', letterSpacing: '0.05em',
+                    }}>{titleVal}</div>
+                  )}
+                  {descVal && (
+                    <div style={{ fontSize: '0.82rem', color: 'var(--gray-500, #667085)', lineHeight: 1.55 }}>
+                      {descVal}
+                    </div>
+                  )}
+                </div>
+              ) : null;
+
+              return (
+                <div key={idx} style={{
+                  display: 'grid', gridTemplateColumns: '1fr 40px 1fr',
+                  alignItems: 'start', marginBottom: 28,
+                }}>
+                  {/* Left column */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingRight: 20 }}>
+                    {isLeft && <>{banner}{card}</>}
+                  </div>
+                  {/* Dot on spine */}
+                  <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 13, position: 'relative', zIndex: 1 }}>
+                    <div style={{
+                      width: 14, height: 14, borderRadius: '50%',
+                      border: `3px solid ${color}`, background: 'var(--theme-bg-card, #fff)',
+                      flexShrink: 0,
+                    }} />
+                  </div>
+                  {/* Right column */}
+                  <div style={{ paddingLeft: 20 }}>
+                    {!isLeft && <>{banner}{card}</>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
       default: return (
         <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
@@ -487,6 +819,11 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
             <div className="chart-title-row">
               {type === 'text' ? <FileText size={15} className="chart-title-icon" /> : <TrendingUp size={15} className="chart-title-icon" />}
               <h4>{card.title}</h4>
+              {card.is_analytics && (
+                <span className="analytics-badge" title="Generated by Advanced Analytics Engine">
+                  <FlaskConical size={10}/> Analytics
+                </span>
+              )}
             </div>
             <div className={`chart-controls ${type === 'metric' ? 'metric-controls' : ''}`}>
               {type !== 'metric' && (card.type === 'chart' || !card.type) && (
@@ -496,6 +833,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                   <button className={chartType === 'area' ? 'active' : ''} onClick={() => setChartType('area')} title="Area chart"><AreaIcon size={13} /></button>
                   <button className={chartType === 'line' ? 'active' : ''} onClick={() => setChartType('line')} title="Line chart"><LineChart size={13} /></button>
                   <button className={chartType === 'pie' ? 'active' : ''} onClick={() => setChartType('pie')} title="Pie chart"><PieIcon size={13} /></button>
+                  <button className={chartType === 'timeline' ? 'active' : ''} onClick={() => setChartType('timeline')} title="Timeline" style={{ fontSize: 10, fontWeight: 700, padding: '0 4px', letterSpacing: '0.02em' }}>TL</button>
                 </div>
               )}
               <button className={`sql-btn ${showSql ? 'active' : ''}`} onClick={() => setShowSql(s => !s)}>
@@ -551,7 +889,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
           </div>
         )
       )}
-      {!isPoster && type !== 'metric' && card.stats && (() => {
+      {!isPoster && type !== 'metric' && chartType !== 'timeline' && card.stats && (() => {
         const s = card.stats;
         const badges: { label: string; className: string }[] = [];
         if (s.trend) {

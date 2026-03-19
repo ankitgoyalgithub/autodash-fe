@@ -3,6 +3,7 @@ import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
+  Brain, ChevronRight,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -10,6 +11,147 @@ import logo from '../assets/logo.png';
 import type { Project, DashboardCard, HistoryEntry, UploadedFile } from '../App';
 import { BASE, THEMES, FONTS, PALETTES, TEMPLATES } from './constants';
 import { InsightCard } from './InsightCard';
+
+// ─── HITL Types ───────────────────────────────────────────────────────────────
+
+interface HITLField {
+  id: string;
+  label: string;
+  type: 'select' | 'number' | 'text';
+  options?: string[];
+  default?: string;
+  hint?: string;
+}
+
+interface HITLRequest {
+  id: string;
+  question: string;
+  type: 'select' | 'number' | 'text' | 'form';
+  options?: string[];
+  default?: string;
+  fields?: HITLField[];
+  placeholder?: string;
+}
+
+// ─── HITL Card ────────────────────────────────────────────────────────────────
+
+function HITLCard({ request, onAnswer, projectColor }: {
+  request: HITLRequest;
+  onAnswer: (questionId: string, answer: any) => void;
+  projectColor: string;
+}) {
+  const [simpleAnswer, setSimpleAnswer] = useState<string>(
+    request.default || request.options?.[0] || ''
+  );
+  const [formValues, setFormValues] = useState<Record<string, string>>(() => {
+    if (request.fields) {
+      return Object.fromEntries(
+        request.fields.map(f => [f.id, f.default || f.options?.[0] || ''])
+      );
+    }
+    return {};
+  });
+
+  const handleSubmit = () => {
+    if (request.type === 'form') {
+      onAnswer(request.id, formValues);
+    } else {
+      onAnswer(request.id, simpleAnswer);
+    }
+  };
+
+  return (
+    <div className="hitl-card">
+      <div className="hitl-header">
+        <Brain size={14} className="hitl-brain-icon"/>
+        <span className="hitl-label">Input Required</span>
+      </div>
+      <p className="hitl-question">{request.question}</p>
+
+      {/* Simple select */}
+      {request.type === 'select' && request.options && (
+        <div className="hitl-options-grid">
+          {request.options.map(opt => (
+            <button
+              key={opt}
+              className={`hitl-option ${simpleAnswer === opt ? 'selected' : ''}`}
+              style={simpleAnswer === opt ? { borderColor: projectColor, background: projectColor + '18', color: projectColor } : {}}
+              onClick={() => setSimpleAnswer(opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Simple number */}
+      {request.type === 'number' && (
+        <input
+          type="number"
+          className="hitl-input"
+          value={simpleAnswer}
+          onChange={e => setSimpleAnswer(e.target.value)}
+          placeholder={request.placeholder || 'Enter a number'}
+        />
+      )}
+
+      {/* Simple text */}
+      {request.type === 'text' && (
+        <input
+          type="text"
+          className="hitl-input"
+          value={simpleAnswer}
+          onChange={e => setSimpleAnswer(e.target.value)}
+          placeholder={request.placeholder || 'Type your answer…'}
+        />
+      )}
+
+      {/* Form (compound fields) */}
+      {request.type === 'form' && request.fields && (
+        <div className="hitl-form">
+          {request.fields.map(field => (
+            <div key={field.id} className="hitl-field">
+              <label className="hitl-field-label">
+                {field.label}
+                {field.hint && <span className="hitl-field-hint"> — {field.hint}</span>}
+              </label>
+              {field.type === 'select' && field.options ? (
+                <div className="hitl-options-grid hitl-options-sm">
+                  {field.options.map(opt => (
+                    <button
+                      key={opt}
+                      className={`hitl-option ${formValues[field.id] === opt ? 'selected' : ''}`}
+                      style={formValues[field.id] === opt ? { borderColor: projectColor, background: projectColor + '18', color: projectColor } : {}}
+                      onClick={() => setFormValues(prev => ({ ...prev, [field.id]: opt }))}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <input
+                  type={field.type === 'number' ? 'number' : 'text'}
+                  className="hitl-input"
+                  value={formValues[field.id] || ''}
+                  onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        className="hitl-submit-btn"
+        style={{ background: projectColor }}
+        onClick={handleSubmit}
+      >
+        Continue <ChevronRight size={13}/>
+      </button>
+    </div>
+  );
+}
+
 
 function ThemePicker({ selected, onSelect }: { selected: any; onSelect: (t: any) => void }) {
   const [open, setOpen] = useState(false);
@@ -61,6 +203,10 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const [pendingTableRequest, setPendingTableRequest] = useState<string | null>(null);
   const [tableHints] = useState<string[]>([]);
   const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
+  // HITL state
+  const [pendingHITL, setPendingHITL] = useState<HITLRequest | null>(null);
+  const [hitlResponses, setHitlResponses] = useState<Record<string, any>>({});
+  const [hitlQueryRef, setHitlQueryRef] = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
@@ -132,7 +278,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
     return [...new Set(words.filter(w => !stopWords.has(w) && w.length > 3))];
   };
 
-  const handleSubmit = async (promptOverride?: string) => {
+  const handleSubmit = async (promptOverride?: string, hitlResponsesOverride?: Record<string, any>) => {
     if (!promptOverride && !query.trim() && uploads.length === 0) return;
     const promptText = promptOverride || query.trim() || 'Build dashboard from the uploaded reference images.';
     const imgContexts = uploads.map(u => u.image_context).filter(Boolean);
@@ -141,6 +287,9 @@ export function Workspace({ project, onBack, initialThreadId }: {
     // If backend asked for table names, extract hints from this message
     const hints = pendingTableRequest ? extractTableHints(promptText) : tableHints;
     if (pendingTableRequest) setPendingTableRequest(null);
+
+    // Use provided HITL responses or accumulated ones
+    const currentHITLResponses = hitlResponsesOverride ?? hitlResponses;
 
     setOptimisticPrompt(promptText);
     setLoading(true); setError(''); setQuery(''); setUploads([]);
@@ -154,9 +303,20 @@ export function Workspace({ project, onBack, initialThreadId }: {
         reference_images: imgUrls,
         existing_charts: activeEntry?.results_data || [],
         table_hints: hints,
+        hitl_responses: currentHITLResponses,
       });
 
       const newThreadId = r.data.thread_id;
+
+      // Analytics agent (or other agent) needs human input
+      if (r.data.action === 'hitl_required') {
+        setPendingHITL(r.data.hitl_request);
+        setHitlQueryRef(promptText);
+        if (!currentThreadId && newThreadId) setCurrentThreadId(newThreadId);
+        setOptimisticPrompt(null);
+        setLoading(false);
+        return;
+      }
 
       // Backend couldn't find user tables — show inline prompt asking for table names
       if (r.data.action === 'request_table_names') {
@@ -165,6 +325,11 @@ export function Workspace({ project, onBack, initialThreadId }: {
         setOptimisticPrompt(null);
         return;
       }
+
+      // Clear HITL state on successful response
+      setHitlResponses({});
+      setPendingHITL(null);
+      setHitlQueryRef('');
 
       const suggestedThemeId = r.data.suggested_theme;
       const suggestedLayout = r.data.suggested_layout;
@@ -261,6 +426,14 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const handleDrillDown = (card: DashboardCard, dimension: string, value: string | number) => {
     const drillPrompt = `I want to drill down into "${value}" for the dimension "${dimension}" in the context of the "${card.title}" chart from the previous query "${activeEntry?.query}". Please show me more detailed insights for this specific slice.`;
     handleSubmit(drillPrompt);
+  };
+
+  const handleHITLAnswer = async (questionId: string, answer: any) => {
+    // Accumulate the answer and re-run the original query
+    const newResponses = { ...hitlResponses, [questionId]: answer };
+    setHitlResponses(newResponses);
+    setPendingHITL(null);
+    await handleSubmit(hitlQueryRef, newResponses);
   };
 
   const activeColors = PALETTES[palette as keyof typeof PALETTES];
@@ -452,6 +625,21 @@ export function Workspace({ project, onBack, initialThreadId }: {
                     <p>{pendingTableRequest}</p>
                     <span className="table-request-hint">Type table names in the chat below, e.g. "analyze the orders and customers tables"</span>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {pendingHITL && (
+            <div className="convo-block">
+              <div className="ai-msg">
+                <div className="ai-avatar"><img src={logo} alt="AI"/></div>
+                <div className="charts-wrap">
+                  <HITLCard
+                    request={pendingHITL}
+                    onAnswer={handleHITLAnswer}
+                    projectColor={project.color}
+                  />
                 </div>
               </div>
             </div>

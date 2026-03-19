@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Eye, EyeOff, X, FileText, AlertCircle, Sparkles, Activity, TrendingUp,
+  Eye, EyeOff, X, FileText, AlertCircle, Sparkles, TrendingUp,
   BarChart2, LineChart, PieChart as PieIcon, AreaChart as AreaIcon, Layers, LayoutList,
-  DollarSign, ShoppingCart, Users, Hash, ArrowUpRight, ArrowDownRight, Package, Percent,
-  CreditCard, TrendingDown, Activity as ActivityIcon,
+  DollarSign, ShoppingCart, Users, ArrowUpRight, ArrowDownRight, Package, Percent,
+  CreditCard,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer,
@@ -100,10 +100,11 @@ function formatAxisTick(val: any, dataKey?: string): string {
   return prefix + formatCompact(val);
 }
 
-function formatTooltipValue(val: any, name: string): [string, string] {
-  if (typeof val !== 'number') return [String(val ?? ''), name];
-  const prefix = isCurrencyKey(name) ? '$' : '';
-  return [prefix + formatCompact(val), name];
+function formatTooltipValue(val: any, name: string | number | undefined): [string, string] {
+  const nameStr = String(name ?? '');
+  if (typeof val !== 'number') return [String(val ?? ''), nameStr];
+  const prefix = isCurrencyKey(nameStr) ? '$' : '';
+  return [prefix + formatCompact(val), nameStr];
 }
 
 export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters }: {

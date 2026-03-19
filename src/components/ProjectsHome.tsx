@@ -118,7 +118,7 @@ export function ProjectsHome({ projects, onOpen, onNewProject }: {
       ) : (
         <div className="projects-grid">
           {projects.map(p => (
-            <button key={p.id} className="proj-card" onClick={() => onOpen(p)}>
+            <button key={p.id} className="proj-card" onClick={() => onOpen(p)} style={{ '--proj-color': p.color } as React.CSSProperties}>
               <div className="proj-card-emoji" style={{ background: p.color + '18', border: `1.5px solid ${p.color}30` }}>{p.emoji}</div>
               <div className="proj-card-body">
                 <h3>{p.name}</h3>

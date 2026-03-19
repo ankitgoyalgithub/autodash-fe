@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Eye, EyeOff, X, FileText, AlertCircle, Sparkles, Activity, TrendingUp,
   BarChart2, LineChart, PieChart as PieIcon, AreaChart as AreaIcon, Layers, LayoutList,
+  DollarSign, ShoppingCart, Users, Hash, ArrowUpRight, ArrowDownRight, Package, Percent,
+  CreditCard, TrendingDown, Activity as ActivityIcon,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer,
@@ -10,20 +12,46 @@ import {
 import type { DashboardCard } from '../App';
 import { COLORS } from './constants';
 
-export function DataTableModal({ title, data, onClose }: { title: string; data: any[]; onClose: () => void }) {
+function parseDateLabelToMs(label: string): number | null {
+  const s = String(label).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s).getTime();
+  if (/^\d{4}$/.test(s)) return new Date(`${s}-01-01`).getTime();
+  if (/^\d{4}-\d{2}$/.test(s)) return new Date(`${s}-01`).getTime();
+  const monYear = s.match(/^([A-Za-z]{3,9})\s+(\d{4})$/);
+  if (monYear) { const t = new Date(`${monYear[1]} 1, ${monYear[2]}`).getTime(); if (!isNaN(t)) return t; }
+  const quarter = s.match(/^Q(\d)\s+(\d{4})$/i);
+  if (quarter) return new Date(`${quarter[2]}-${String((+quarter[1] - 1) * 3 + 1).padStart(2, '0')}-01`).getTime();
+  return null;
+}
+
+function sortByDateLabel(data: any[], xKey: string): any[] {
+  if (data.length < 2) return data;
+  const samples = data.slice(0, Math.min(5, data.length));
+  const parseable = samples.filter(r => parseDateLabelToMs(String(r[xKey] ?? '')) !== null).length;
+  if (parseable < Math.ceil(samples.length / 2)) return data;
+  return [...data].sort((a, b) => {
+    const ta = parseDateLabelToMs(String(a[xKey] ?? '')) ?? 0;
+    const tb = parseDateLabelToMs(String(b[xKey] ?? '')) ?? 0;
+    return ta - tb;
+  });
+}
+
+export function DataTableDrawer({ title, data, onClose }: { title: string; data: any[]; onClose: () => void }) {
   if (!data?.length) return null;
   const cols = Object.keys(data[0]);
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-wide" onClick={e => e.stopPropagation()}>
-        <div className="modal-head">
-          <div className="modal-title-combined">
-            <FileText size={18} />
-            <h2>Source Data: {title}</h2>
+    <>
+      <div className="drawer-backdrop" onClick={onClose} />
+      <div className="data-drawer">
+        <div className="drawer-header">
+          <div className="drawer-title">
+            <FileText size={16} />
+            <span>{title}</span>
           </div>
-          <button className="icon-btn" onClick={onClose}><X size={20}/></button>
+          <div className="drawer-meta">{data.length} rows</div>
+          <button className="icon-btn" onClick={onClose}><X size={18}/></button>
         </div>
-        <div className="modal-body premium-scrollbar">
+        <div className="drawer-body">
           <div className="data-table-wrap">
             <table className="data-table">
               <thead>
@@ -31,22 +59,54 @@ export function DataTableModal({ title, data, onClose }: { title: string; data: 
               </thead>
               <tbody>
                 {data.map((row, i) => (
-                  <tr key={i}>{cols.map(col => <td key={col}>{row[col]}</td>)}</tr>
+                  <tr key={i}>{cols.map(col => <td key={col}>{String(row[col] ?? '')}</td>)}</tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-        <div className="modal-footer">
-          <span className="data-count">{data.length} rows total</span>
-          <button className="btn-primary" onClick={onClose}>Close</button>
-        </div>
       </div>
-    </div>
+    </>
   );
 }
 
-export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown }: {
+function formatCompact(v: number): string {
+  const abs = Math.abs(v);
+  if (abs >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  return parseFloat(v.toFixed(2)).toLocaleString();
+}
+
+function isCurrencyKey(key: string): boolean {
+  return /revenue|sales|profit|cost|price|amount|budget|spend|earning|income|value|gmv|arr|mrr|ltv|cac|fee|payment|invoice/i.test(key);
+}
+
+function getMetricMeta(title: string): { Icon: any; color: string } {
+  const t = (title || '').toLowerCase();
+  if (/revenue|earning|income|profit|gmv|arr|mrr/.test(t)) return { Icon: DollarSign, color: '#10b981' };
+  if (/sale/.test(t)) return { Icon: ShoppingCart, color: '#06b6d4' };
+  if (/order|purchase|transaction/.test(t)) return { Icon: Package, color: '#6366f1' };
+  if (/customer|user|visitor|client|contact/.test(t)) return { Icon: Users, color: '#06b6d4' };
+  if (/cost|expense|spend|budget/.test(t)) return { Icon: CreditCard, color: '#f59e0b' };
+  if (/rate|ratio|percent|pct|margin/.test(t)) return { Icon: Percent, color: '#8b5cf6' };
+  if (/trend|growth|change/.test(t)) return { Icon: TrendingUp, color: '#10b981' };
+  return { Icon: BarChart2, color: '#06b6d4' };
+}
+
+function formatAxisTick(val: any, dataKey?: string): string {
+  if (typeof val !== 'number') return String(val ?? '');
+  const prefix = dataKey && isCurrencyKey(dataKey) ? '$' : '';
+  return prefix + formatCompact(val);
+}
+
+function formatTooltipValue(val: any, name: string): [string, string] {
+  if (typeof val !== 'number') return [String(val ?? ''), name];
+  const prefix = isCurrencyKey(name) ? '$' : '';
+  return [prefix + formatCompact(val), name];
+}
+
+export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters }: {
   card: DashboardCard;
   layout?: 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
   onUpdate?: (updates: Partial<DashboardCard>) => void;
@@ -55,6 +115,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
   font?: string;
   colors?: string[];
   posterTheme?: string;
+  globalFilters?: Record<string, string | number | null>;
 }) {
   const [chartType, setChartType] = useState(card.chart_type);
   const [showSql, setShowSql] = useState(false);
@@ -66,9 +127,19 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   const filteredData = useMemo(() => {
-    if (!activeFilter) return card.data;
-    return card.data.filter(row => row[activeFilter.column] === activeFilter.value);
-  }, [card.data, activeFilter]);
+    let data = card.data;
+    if (activeFilter) {
+      data = data.filter(row => row[activeFilter.column] === activeFilter.value);
+    }
+    if (globalFilters) {
+      for (const [col, val] of Object.entries(globalFilters)) {
+        if (val !== null && val !== undefined && data.some(r => col in r)) {
+          data = data.filter(row => row[col] === val);
+        }
+      }
+    }
+    return data;
+  }, [card.data, activeFilter, globalFilters]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!editMode || layout !== 'poster') return;
@@ -177,8 +248,11 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     return str;
   };
 
+  // Normalize legacy size names to new taxonomy
+  const _sizeNorm: Record<string, string> = { mini: 's', small: 's', medium: 'm', large: 'l', tall: 'l', wide: 'xl', full: 'xxl', 'ultra-wide': 'xxl' };
   const type = card.type || (card.data?.length === 1 && Object.keys(card.data?.[0] || {}).length <= 2 ? 'metric' : 'chart');
-  const size = card.size || (type === 'metric' ? 'small' : type === 'text' ? 'full' : 'medium');
+  const rawSize = card.size ? (_sizeNorm[card.size] || card.size) : (type === 'metric' ? 's' : type === 'text' ? 'xxl' : 'l');
+  const size = rawSize;
 
   const renderContent = () => {
     let resolvedType = card.type;
@@ -189,26 +263,72 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     }
 
     if (resolvedType === 'metric') {
-      const val = card.data?.[0] ? Object.values(card.data[0])[0] : 'N/A';
+      // Find the best value to display: prefer the first numeric column,
+      // skip string labels like dates ("Apr 2023") that land in col 0
+      let valueKey = '';
+      let val: string | number = 'N/A';
+      if (card.data?.[0]) {
+        const entries = Object.entries(card.data[0]);
+        // First pass: find first numeric value
+        for (const [k, v] of entries) {
+          if (typeof v === 'number') { valueKey = k; val = v; break; }
+          if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) {
+            valueKey = k; val = Number(v); break;
+          }
+        }
+        // Fallback: use last entry (usually the measure, not the date label)
+        if (val === 'N/A' && entries.length > 0) {
+          const [k, v] = entries[entries.length - 1];
+          valueKey = k; val = v as string | number;
+        }
+      }
+      const isCurr = isCurrencyKey(valueKey || card.title);
+      const formatted = typeof val === 'number'
+        ? (isCurr ? '$' : '') + formatCompact(val)
+        : String(val ?? 'N/A');
+      const s = card.stats;
+      const trendDir = s?.trend;
+      const trendPct = s?.trend_pct ?? s?.total_change_pct;
+      const { Icon: MetricIcon, color: iconColor } = getMetricMeta(card.title);
+
       if (isPoster) {
         const textColor = posterTheme === 'dark' ? '#f8fafc' : '#0f172a';
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', paddingTop: 8 }}>
-            <div style={{ fontSize: 52, fontWeight: 700, lineHeight: 1, color: textColor, fontFamily: font || 'inherit' }}>
-              {typeof val === 'number' ? val.toLocaleString() : String(val)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
+            <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1.1, color: textColor, fontFamily: font || 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {formatted}
             </div>
-            {card.insight && (
-              <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 12, fontStyle: 'italic' }}>
-                {card.insight}
-              </div>
-            )}
           </div>
         );
       }
+
+      const isUp = trendDir === 'upward';
+      const isDown = trendDir === 'downward';
+      const trendColor = isUp ? '#16a34a' : isDown ? '#dc2626' : '#64748b';
+      const trendBg = isUp ? '#dcfce7' : isDown ? '#fee2e2' : '#f1f5f9';
+
       return (
-        <div className="metric-content">
-          <div className="metric-value">{typeof val === 'number' ? val.toLocaleString() : val}</div>
-          <div className="metric-insight">{card.insight}</div>
+        <div className="kpi-card-body">
+          <div className="kpi-top-row">
+            <span className="kpi-title">{card.title}</span>
+            <div className="kpi-icon-circle" style={{ background: iconColor }}>
+              <MetricIcon size={18} color="#fff" strokeWidth={2} />
+            </div>
+          </div>
+          <div className="kpi-value">{formatted}</div>
+          {trendPct !== undefined && (
+            <div className="kpi-trend-row">
+              <div className="kpi-arrow-circle" style={{ background: trendBg }}>
+                {isDown
+                  ? <ArrowDownRight size={13} color={trendColor} strokeWidth={2.5} />
+                  : <ArrowUpRight size={13} color={trendColor} strokeWidth={2.5} />}
+              </div>
+              <span className="kpi-trend-pct" style={{ color: trendColor }}>
+                {isUp ? '+' : isDown ? '-' : ''}{Math.abs(trendPct).toFixed(1)}%
+              </span>
+              <span className="kpi-trend-label">vs prior period</span>
+            </div>
+          )}
         </div>
       );
     }
@@ -233,7 +353,13 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     const keys = Object.keys(filteredData[0]);
     const xKey = keys[0];
     const dataKeys = keys.slice(1);
-    const chartHeight = size === 'mini' ? 120 : size === 'tall' ? 480 : size === 'small' ? 180 : layout === 'single' ? 400 : 240;
+    const displayData = sortByDateLabel(filteredData, xKey);
+    const chartHeight = size === 's' ? 120
+      : size === 'm' ? 220
+      : size === 'l' ? 280
+      : size === 'xl' ? 320
+      : size === 'xxl' ? 360
+      : layout === 'single' ? 400 : 280;
     // Poster mode: clean charts with no grid lines
     const gridStroke = isPoster ? 'transparent' : '#f1f5f9';
     const gridDash = isPoster ? '0' : '3 3';
@@ -247,11 +373,11 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     switch (chartType) {
       case 'line': return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <ReLineChart data={filteredData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
+          <ReLineChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <RTooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
             <Legend iconType="circle" />
             {dataKeys.map((k, i) => <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6 }} />)}
           </ReLineChart>
@@ -260,10 +386,10 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       case 'pie': return (
         <ResponsiveContainer width="100%" height={chartHeight}>
           <PieChart>
-            <RTooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
+            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
             <Legend iconType="circle" />
             <Pie
-              data={filteredData}
+              data={displayData}
               cx="50%" cy="50%"
               innerRadius={size === 'small' ? 40 : 60}
               outerRadius={size === 'small' ? 60 : 80}
@@ -273,14 +399,14 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               labelLine={false}
               onClick={(data: any) => onDrillDown && data?.name !== undefined && onDrillDown(xKey, data.name as string | number)}
             >
-              {filteredData.map((_: any, i: number) => <Cell key={i} fill={activeColors[i % activeColors.length]} />)}
+              {displayData.map((_: any, i: number) => <Cell key={i} fill={activeColors[i % activeColors.length]} />)}
             </Pie>
           </PieChart>
         </ResponsiveContainer>
       );
       case 'area': return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <AreaChart data={filteredData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
+          <AreaChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <defs>
               {dataKeys.map((k, i) => (
                 <linearGradient key={k} id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -291,8 +417,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
             </defs>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <RTooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
             <Legend iconType="circle" />
             {dataKeys.map((k, i) => (
               <Area key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} fillOpacity={1} fill={`url(#grad-${i})`} strokeWidth={3} />
@@ -302,11 +428,11 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       );
       case 'stacked_bar': return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <BarChart data={filteredData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
+          <BarChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <RTooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
             <Legend iconType="circle" />
             {dataKeys.map((k, i) => <Bar key={k} dataKey={k} stackId="a" fill={activeColors[i % activeColors.length]} radius={i === dataKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />)}
           </BarChart>
@@ -314,11 +440,11 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       );
       case 'combo_bar_line': return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <ComposedChart data={filteredData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
+          <ComposedChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <RTooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
             <Legend iconType="circle" />
             <Bar dataKey={dataKeys[0]} fill={activeColors[0]} radius={[6, 6, 0, 0]} barSize={40} />
             {dataKeys.slice(1).map((k, i) => <Line key={k} type="monotone" dataKey={k} stroke={activeColors[(i + 1) % activeColors.length]} strokeWidth={3} dot={{ r: 4, fill: '#fff' }} />)}
@@ -327,11 +453,11 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       );
       default: return (
         <ResponsiveContainer width="100%" height={chartHeight}>
-          <BarChart data={filteredData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
+          <BarChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <RTooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
             <Legend iconType="circle" />
             {dataKeys.map((k, i) => <Bar key={k} dataKey={k} fill={activeColors[i % activeColors.length]} radius={[6, 6, 0, 0]} />)}
           </BarChart>
@@ -347,7 +473,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       style={cardStyle}
       onMouseDown={handleMouseDown}
     >
-      <div className="chart-card-head">
+      {type === 'metric' && !isPoster ? null : <div className="chart-card-head">
         {isPoster ? (
           <div className="poster-card-label" style={{
             fontSize: 11, fontWeight: 600, letterSpacing: '0.12em',
@@ -358,11 +484,11 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         ) : (
           <>
             <div className="chart-title-row">
-              {type === 'metric' ? <Activity size={15} className="chart-title-icon" /> : type === 'text' ? <FileText size={15} className="chart-title-icon" /> : <TrendingUp size={15} className="chart-title-icon" />}
+              {type === 'text' ? <FileText size={15} className="chart-title-icon" /> : <TrendingUp size={15} className="chart-title-icon" />}
               <h4>{card.title}</h4>
             </div>
-            <div className="chart-controls">
-              {(card.type === 'chart' || !card.type) && (
+            <div className={`chart-controls ${type === 'metric' ? 'metric-controls' : ''}`}>
+              {type !== 'metric' && (card.type === 'chart' || !card.type) && (
                 <div className="type-toggle">
                   <button className={chartType === 'bar' ? 'active' : ''} onClick={() => setChartType('bar')} title="Bar chart"><BarChart2 size={13} /></button>
                   <button className={chartType === 'stacked_bar' ? 'active' : ''} onClick={() => setChartType('stacked_bar')} title="Stacked Bar"><Layers size={13} /></button>
@@ -374,10 +500,12 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               <button className={`sql-btn ${showSql ? 'active' : ''}`} onClick={() => setShowSql(s => !s)}>
                 {showSql ? <EyeOff size={12} /> : <Eye size={12} />} SQL
               </button>
-              <button className="view-data-btn" onClick={() => setShowData(true)}>
-                <LayoutList size={12} /> Data
-              </button>
-              {card.filters && card.filters.length > 0 && (
+              {type !== 'metric' && (
+                <button className="view-data-btn" onClick={() => setShowData(true)}>
+                  <LayoutList size={12} /> Data
+                </button>
+              )}
+              {type !== 'metric' && card.filters && card.filters.length > 0 && (
                 <div className="filter-dropdown-wrap">
                   <select
                     className="card-filter-select"
@@ -402,9 +530,9 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
             </div>
           </>
         )}
-      </div>
-      <div className="chart-body">{renderContent()}</div>
-      {showData && <DataTableModal title={card.title} data={card.data} onClose={() => setShowData(false)} />}
+      </div>}
+      <div className={type === 'metric' && !isPoster ? '' : 'chart-body'}>{renderContent()}</div>
+      {showData && <DataTableDrawer title={card.title} data={card.data} onClose={() => setShowData(false)} />}
       {(type === 'chart') && card.insight && (
         isPoster ? (
           <div style={{
@@ -422,6 +550,34 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
           </div>
         )
       )}
+      {!isPoster && type !== 'metric' && card.stats && (() => {
+        const s = card.stats;
+        const badges: { label: string; className: string }[] = [];
+        if (s.trend) {
+          const arrow = s.trend === 'upward' ? '↑' : s.trend === 'downward' ? '↓' : '→';
+          const pct = s.trend_pct !== undefined ? ` ${s.trend_pct > 0 ? '+' : ''}${s.trend_pct.toFixed(1)}%` : '';
+          badges.push({ label: `${arrow}${pct}`, className: `stat-badge trend-${s.trend}` });
+        }
+        if (s.total_change_pct !== undefined) {
+          const arrow = s.total_change_pct >= 0 ? '↑' : '↓';
+          badges.push({ label: `${arrow} ${Math.abs(s.total_change_pct).toFixed(1)}% overall`, className: 'stat-badge trend-neutral' });
+        }
+        if (s.top_pct !== undefined) {
+          badges.push({ label: `Top = ${s.top_pct}%`, className: 'stat-badge stat-concentration' });
+        }
+        if (s.pareto_pct !== undefined && s.pareto_pct >= 70) {
+          badges.push({ label: `Pareto ${s.pareto_pct}%`, className: 'stat-badge stat-pareto' });
+        }
+        if (s.outliers && s.outliers.length > 0) {
+          badges.push({ label: `⚠ ${s.outliers.length} outlier${s.outliers.length > 1 ? 's' : ''}`, className: 'stat-badge stat-outlier' });
+        }
+        if (!badges.length) return null;
+        return (
+          <div className="stat-badges-row">
+            {badges.map((b, i) => <span key={i} className={b.className}>{b.label}</span>)}
+          </div>
+        );
+      })()}
       {showSql && card.sql && <pre className="sql-pre">{card.sql}</pre>}
 
       {editMode && layout === 'poster' && (

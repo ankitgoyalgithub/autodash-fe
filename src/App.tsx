@@ -38,7 +38,7 @@ export interface Project {
 
 export interface DashboardCard {
   type?: 'chart' | 'metric' | 'text';
-  size?: 'mini' | 'small' | 'medium' | 'wide' | 'full' | 'tall';
+  size?: 's' | 'm' | 'l' | 'xl' | 'xxl' | 'mini' | 'small' | 'medium' | 'wide' | 'full' | 'tall';
   x?: number;
   y?: number;
   w?: number;
@@ -52,6 +52,20 @@ export interface DashboardCard {
   filters?: { column: string; options: (string | number)[] }[];
   group_by_options?: string[];
   drill_down?: { column: string; target_metric: string; hint: string; };
+  stats?: {
+    trend?: 'upward' | 'downward' | 'stable';
+    trend_pct?: number;
+    total_change_pct?: number;
+    top_label?: string;
+    top_value?: number;
+    top_pct?: number;
+    pareto_pct?: number;
+    y_sum?: number;
+    y_max?: number;
+    peak_label?: string;
+    outliers?: { label: string; value: number }[];
+    row_count?: number;
+  };
 }
 
 export interface HistoryEntry {
@@ -62,6 +76,7 @@ export interface HistoryEntry {
   created_at: string;
   is_deployed?: boolean;
   deploy_slug?: string;
+  narrative?: string;
 }
 
 export interface DashboardThread {
@@ -81,7 +96,7 @@ export interface UploadedFile {
 
 // ─── Main App Content ─────────────────────────────────────────────────────────
 
-function MainAppContent({ token, user, onLogout }: { token: string; user: any; onLogout: () => void }) {
+function MainAppContent({ token }: { token: string; user?: any; onLogout?: () => void }) {
   const [view, setView] = useState<View>('home');
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
@@ -147,14 +162,6 @@ function MainAppContent({ token, user, onLogout }: { token: string; user: any; o
       />
 
       <div className="main-area">
-        <header className="main-header-strip">
-          <div className="user-profile">
-            <div className="user-icon">{user?.username?.[0].toUpperCase()}</div>
-            <span>{user?.username}</span>
-            <button className="logout-btn" onClick={onLogout}>Logout</button>
-          </div>
-        </header>
-
         {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} />}
         {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.id)} />}
         {view === 'datasources' && <DatasourcesManagement datasources={datasources} onRefresh={fetchBasics} />}

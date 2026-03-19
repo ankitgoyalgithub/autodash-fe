@@ -39,11 +39,29 @@ export function PublicDashboardView() {
           <LayoutDashboard size={15}/> Back to Dashboard
         </button>
       </div>
-      <div className="charts-grid">
-        {data.results_data.map((card: any, i: number) => (
-          <InsightCard key={i} card={card} layout="grid" />
-        ))}
-      </div>
+      {(() => {
+        const sorted = [...data.results_data].sort((a: any, b: any) => {
+          const aM = a.type === 'metric' || a.size === 'mini' || a.size === 'small' ? 0 : 1;
+          const bM = b.type === 'metric' || b.size === 'mini' || b.size === 'small' ? 0 : 1;
+          return aM - bM;
+        });
+        const metrics = sorted.filter((c: any) => c.type === 'metric' || c.size === 'mini' || c.size === 'small');
+        const charts = sorted.filter((c: any) => c.type !== 'metric' && c.size !== 'mini' && c.size !== 'small');
+        return (
+          <>
+            {metrics.length > 0 && (
+              <div className="metrics-strip">
+                {metrics.map((card: any, i: number) => <InsightCard key={i} card={card} layout="grid" />)}
+              </div>
+            )}
+            {charts.length > 0 && (
+              <div className="charts-strip">
+                {charts.map((card: any, i: number) => <InsightCard key={`c${i}`} card={card} layout="grid" />)}
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }

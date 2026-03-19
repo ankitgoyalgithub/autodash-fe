@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
-  Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus,
+  Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -58,7 +58,11 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const [activeSideTab, setActiveSideTab] = useState<'templates' | 'themes' | 'layouts' | null>(null);
   const [optimisticPrompt, setOptimisticPrompt] = useState<string | null>(null);
   const [posterTheme, setPosterTheme] = useState<'light' | 'dark' | 'branded' | 'newspaper'>('light');
+  const [pendingTableRequest, setPendingTableRequest] = useState<string | null>(null);
+  const [tableHints] = useState<string[]>([]);
+  const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +92,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
       setHistory([]);
       setActiveEntry(null);
     }
+    setGlobalFilters({});
   }, [currentThreadId, fetchThreadHistory]);
 
   useEffect(() => {
@@ -120,11 +125,22 @@ export function Workspace({ project, onBack, initialThreadId }: {
     setUploading(false);
   };
 
+  const extractTableHints = (text: string): string[] => {
+    // Extract snake_case / identifier-looking words that could be table names
+    const words = text.match(/\b[a-z][a-z0-9_]{2,}\b/g) || [];
+    const stopWords = new Set(['the','and','for','with','show','give','make','build','from','that','this','into','over','all','top','how','what','where','when','more','less','using','about','table','tables','chart','data','analyze','analysis','dashboard','insights','insight','use','please','want','need','can','you']);
+    return [...new Set(words.filter(w => !stopWords.has(w) && w.length > 3))];
+  };
+
   const handleSubmit = async (promptOverride?: string) => {
     if (!promptOverride && !query.trim() && uploads.length === 0) return;
     const promptText = promptOverride || query.trim() || 'Build dashboard from the uploaded reference images.';
     const imgContexts = uploads.map(u => u.image_context).filter(Boolean);
     const imgUrls = uploads.map(u => u.url);
+
+    // If backend asked for table names, extract hints from this message
+    const hints = pendingTableRequest ? extractTableHints(promptText) : tableHints;
+    if (pendingTableRequest) setPendingTableRequest(null);
 
     setOptimisticPrompt(promptText);
     setLoading(true); setError(''); setQuery(''); setUploads([]);
@@ -136,9 +152,20 @@ export function Workspace({ project, onBack, initialThreadId }: {
         thread_id: currentThreadId,
         image_contexts: imgContexts,
         reference_images: imgUrls,
+        existing_charts: activeEntry?.results_data || [],
+        table_hints: hints,
       });
 
       const newThreadId = r.data.thread_id;
+
+      // Backend couldn't find user tables — show inline prompt asking for table names
+      if (r.data.action === 'request_table_names') {
+        setPendingTableRequest(r.data.message);
+        if (!currentThreadId && newThreadId) setCurrentThreadId(newThreadId);
+        setOptimisticPrompt(null);
+        return;
+      }
+
       const suggestedThemeId = r.data.suggested_theme;
       const suggestedLayout = r.data.suggested_layout;
       const suggestedFont = r.data.suggested_font;
@@ -238,8 +265,13 @@ export function Workspace({ project, onBack, initialThreadId }: {
 
   const activeColors = PALETTES[palette as keyof typeof PALETTES];
 
-  const renderCards = (cards: DashboardCard[]) =>
-    cards.map((card, i) => (
+  const renderCards = (cards: DashboardCard[]) => {
+    const sorted = [...cards].sort((a, b) => {
+      const aM = a.type === 'metric' || a.size === 's' || a.size === 'mini' || a.size === 'small' ? 0 : 1;
+      const bM = b.type === 'metric' || b.size === 's' || b.size === 'mini' || b.size === 'small' ? 0 : 1;
+      return aM - bM;
+    });
+    return sorted.map((card, i) => (
       <InsightCard
         key={i}
         card={card}
@@ -250,8 +282,10 @@ export function Workspace({ project, onBack, initialThreadId }: {
         posterTheme={posterTheme}
         onUpdate={(u) => handleUpdateCard(card, u)}
         onDrillDown={(dim, val) => handleDrillDown(card, dim, val)}
+        globalFilters={globalFilters}
       />
     ));
+  };
 
   return (
     <div className={`workspace theme-${theme.id}`}>
@@ -396,14 +430,32 @@ export function Workspace({ project, onBack, initialThreadId }: {
               >
                 <div className="ai-avatar"><img src={logo} alt="AI"/></div>
                 <div className="charts-wrap">
+                  {entry.narrative && (
+                    <p className="ai-narrative">{entry.narrative}</p>
+                  )}
                   <div className="ai-intro">
                     <Sparkles size={14}/>
-                    <span>Generated {entry.results_data?.length || 0} charts</span>
+                    <span>{entry.results_data?.length || 0} charts · click to view</span>
                   </div>
                 </div>
               </button>
             </div>
           ))}
+
+          {pendingTableRequest && (
+            <div className="convo-block">
+              <div className="ai-msg">
+                <div className="ai-avatar"><img src={logo} alt="AI"/></div>
+                <div className="charts-wrap">
+                  <div className="table-request-card">
+                    <AlertCircle size={14} className="table-request-icon"/>
+                    <p>{pendingTableRequest}</p>
+                    <span className="table-request-hint">Type table names in the chat below, e.g. "analyze the orders and customers tables"</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {optimisticPrompt && (
             <div className="convo-block">
@@ -441,22 +493,32 @@ export function Workspace({ project, onBack, initialThreadId }: {
             </div>
           )}
           <div className="composer-box">
-            <button className="comp-icon" onClick={() => fileRef.current?.click()}>
-              {uploading ? <Loader2 size={16} className="spin"/> : <Upload size={16}/>}
-            </button>
-            <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.csv" style={{ display: 'none' }} onChange={e => handleUpload(e.target.files)}/>
             <textarea
+              ref={textareaRef}
               className="comp-textarea"
-              placeholder="Tell AI what to build..."
+              placeholder="Ask AI to build charts, refine existing ones, or add new insights…"
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={e => {
+                setQuery(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+              }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
               rows={1}
             />
-            <button className="comp-send" style={{ background: project.color }} onClick={() => handleSubmit()} disabled={loading || (!query.trim() && !uploads.length)}>
-              {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
-            </button>
+            <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.csv" style={{ display: 'none' }} onChange={e => handleUpload(e.target.files)}/>
+            <div className="composer-actions">
+              <div className="composer-actions-left">
+                <button className="comp-icon" onClick={() => fileRef.current?.click()} title="Attach file">
+                  {uploading ? <Loader2 size={16} className="spin"/> : <Upload size={16}/>}
+                </button>
+              </div>
+              <button className="comp-send" style={{ background: project.color }} onClick={() => handleSubmit()} disabled={loading || (!query.trim() && !uploads.length)}>
+                {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
+              </button>
+            </div>
           </div>
+          <p className="comp-hint">Enter to send · Shift+Enter for new line</p>
         </div>
       </div>
 
@@ -538,6 +600,51 @@ export function Workspace({ project, onBack, initialThreadId }: {
             </div>
           )}
 
+          {activeEntry && (() => {
+            const allFilters: { column: string; options: (string | number)[] }[] = [];
+            const seen = new Set<string>();
+            for (const card of activeEntry.results_data || []) {
+              for (const f of card.filters || []) {
+                if (!seen.has(f.column)) {
+                  seen.add(f.column);
+                  allFilters.push(f);
+                } else {
+                  const existing = allFilters.find(x => x.column === f.column);
+                  if (existing) {
+                    const newOpts = f.options.filter(o => !existing.options.includes(o));
+                    existing.options = [...existing.options, ...newOpts];
+                  }
+                }
+              }
+            }
+            return allFilters.length > 0 ? (
+              <div className="global-filter-bar">
+                <div className="gf-label"><Filter size={13}/> Filters</div>
+                {allFilters.map(f => (
+                  <div key={f.column} className="gf-group">
+                    <span className="gf-col-name">{f.column.replace(/_/g, ' ')}</span>
+                    <div className="gf-chips">
+                      <button
+                        className={`gf-chip ${!globalFilters[f.column] ? 'active' : ''}`}
+                        onClick={() => setGlobalFilters(prev => { const n = {...prev}; delete n[f.column]; return n; })}
+                      >All</button>
+                      {f.options.map(opt => (
+                        <button
+                          key={String(opt)}
+                          className={`gf-chip ${globalFilters[f.column] === opt ? 'active' : ''}`}
+                          onClick={() => setGlobalFilters(prev => ({...prev, [f.column]: prev[f.column] === opt ? null : opt}))}
+                        >{String(opt)}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {Object.values(globalFilters).some(v => v !== null) && (
+                  <button className="gf-clear" onClick={() => setGlobalFilters({})}>Clear all</button>
+                )}
+              </div>
+            ) : null;
+          })()}
+
           {activeEntry && (
             <div className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''}`}>
               {theme.id === 'canva' ? (
@@ -559,7 +666,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
                   ) : layout === 'exec' ? (
                     <div className="exec-grid">
                       <div className="exec-metrics">
-                        {renderCards(activeEntry.results_data.filter(c => c.size === 'small' || c.size === 'mini' || c.type === 'metric').slice(0, 4))}
+                        {renderCards(activeEntry.results_data.filter(c => c.size === 'small' || c.size === 'mini' || c.type === 'metric'))}
                       </div>
                       <div className="exec-charts">
                         {renderCards(activeEntry.results_data.filter(c => c.size !== 'small' && c.size !== 'mini' && c.type !== 'metric'))}
@@ -590,9 +697,24 @@ export function Workspace({ project, onBack, initialThreadId }: {
                     <div ref={posterRef} className={`poster-canvas poster-theme-${posterTheme}`}>
                       {renderCards(activeEntry.results_data)}
                     </div>
-                  ) : (
-                    renderCards(activeEntry.results_data)
-                  )}
+                  ) : (() => {
+                    const metricCards = activeEntry.results_data.filter(c => c.type === 'metric' || c.size === 's' || c.size === 'mini' || c.size === 'small');
+                    const chartCards = activeEntry.results_data.filter(c => c.type !== 'metric' && c.size !== 's' && c.size !== 'mini' && c.size !== 'small');
+                    return (
+                      <>
+                        {metricCards.length > 0 && (
+                          <div className="metrics-strip">
+                            {renderCards(metricCards)}
+                          </div>
+                        )}
+                        {chartCards.length > 0 && (
+                          <div className="charts-strip">
+                            {renderCards(chartCards)}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>

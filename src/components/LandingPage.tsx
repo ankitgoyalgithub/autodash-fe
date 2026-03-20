@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.svg';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -28,8 +28,8 @@ export default function LandingPage() {
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <div className="lp-nav-brand">
-            <img src={logo} alt="AutoDash" className="lp-nav-logo" />
-            <span className="lp-nav-name">AutoDash</span>
+            <img src={logo} alt="Lumio" className="lp-nav-logo" />
+            <span className="lp-nav-name">Lumio</span>
           </div>
           <div className="lp-nav-links">
             <a href="#features" className="lp-nav-link">Features</a>
@@ -62,7 +62,7 @@ export default function LandingPage() {
 
           <p className="lp-hero-sub">
             Connect your PostgreSQL database, describe what you need,
-            and AutoDash builds pixel-perfect charts, advanced analytics,
+            and Lumio builds pixel-perfect charts, advanced analytics,
             and executive dashboards — in seconds.
           </p>
 
@@ -240,7 +240,7 @@ export default function LandingPage() {
               num: '01',
               icon: '🔌',
               title: 'Connect your database',
-              desc: 'Add your PostgreSQL connection details. AutoDash automatically discovers your schema, tables, and data types.',
+              desc: 'Add your PostgreSQL connection details. Lumio automatically discovers your schema, tables, and data types.',
             },
             {
               num: '02',
@@ -273,7 +273,7 @@ export default function LandingPage() {
             <div className="lp-section-tag">Advanced Analytics</div>
             <h2 className="lp-analytics-h2">Beyond charts —<br/><span className="lp-grad-text">real intelligence</span></h2>
             <p className="lp-analytics-desc">
-              AutoDash doesn't just visualize your data. It runs a dedicated analytics engine
+              Lumio doesn't just visualize your data. It runs a dedicated analytics engine
               on top of every dashboard to surface patterns you'd otherwise miss.
             </p>
             <ul className="lp-analytics-list">
@@ -352,9 +352,9 @@ export default function LandingPage() {
           Your data has a story.<br/>
           <span className="lp-grad-text">Let AI tell it.</span>
         </h2>
-        <p className="lp-cta-sub">Join teams using AutoDash to turn raw data into actionable intelligence.</p>
+        <p className="lp-cta-sub">Join teams using Lumio to turn raw data into actionable intelligence.</p>
         <button className="lp-cta-primary lp-cta-large" onClick={() => navigate('/login')}>
-          Launch AutoDash
+          Launch Lumio
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
       </section>
@@ -363,10 +363,10 @@ export default function LandingPage() {
       <footer className="lp-footer">
         <div className="lp-footer-inner">
           <div className="lp-footer-brand">
-            <img src={logo} alt="AutoDash" className="lp-footer-logo" />
-            <span className="lp-footer-name">AutoDash</span>
+            <img src={logo} alt="Lumio" className="lp-footer-logo" />
+            <span className="lp-footer-name">Lumio</span>
           </div>
-          <p className="lp-footer-copy">© 2025 AutoDash. Built with AI, for humans.</p>
+          <p className="lp-footer-copy">© 2025 Lumio. Built with AI, for humans.</p>
           <button className="lp-footer-signin" onClick={() => navigate('/login')}>
             Sign in →
           </button>

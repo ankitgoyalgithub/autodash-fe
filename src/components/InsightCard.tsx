@@ -108,6 +108,167 @@ function formatTooltipValue(val: any, name: string | number | undefined): [strin
   return [prefix + formatCompact(val), nameStr];
 }
 
+function prettifyCol(col: string): string {
+  return col.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ── Custom Tooltip ────────────────────────────────────────────────────────────
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const visible = payload.filter((p: any) => p.value !== null && p.value !== undefined && p.type !== 'none');
+  if (!visible.length) return null;
+  return (
+    <div className="chart-tooltip">
+      {label !== undefined && label !== '' && (
+        <div className="ct-label">{String(label)}</div>
+      )}
+      {visible.map((p: any, i: number) => {
+        const name = prettifyCol(String(p.name ?? p.dataKey ?? ''));
+        const [fmtVal] = formatTooltipValue(p.value, p.name ?? p.dataKey);
+        return (
+          <div key={i} className="ct-row">
+            <span className="ct-dot" style={{ background: p.color || p.fill }} />
+            <span className="ct-name">{name}</span>
+            <span className="ct-value">{fmtVal}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Custom Anomaly Tooltip (adds ⚠ flag) ─────────────────────────────────────
+function AnomalyTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0];
+  if (!p) return null;
+  const isAnomaly = p.payload?.is_anomaly;
+  const [fmtVal] = formatTooltipValue(p.value, p.name ?? p.dataKey);
+  return (
+    <div className="chart-tooltip">
+      {label !== undefined && label !== '' && (
+        <div className="ct-label">{String(label)}</div>
+      )}
+      <div className="ct-row">
+        <span className="ct-dot" style={{ background: isAnomaly ? '#ef4444' : p.color }} />
+        <span className="ct-name">{prettifyCol(String(p.name ?? p.dataKey ?? ''))}</span>
+        <span className="ct-value">
+          {fmtVal}
+          {isAnomaly && <span className="ct-anomaly-flag">⚠ Anomaly</span>}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── Custom Legend ─────────────────────────────────────────────────────────────
+function ChartLegend({ payload }: any) {
+  if (!payload?.length) return null;
+  const visible = payload.filter((p: any) => p.type !== 'none');
+  if (!visible.length) return null;
+  return (
+    <div className="chart-legend">
+      {visible.map((p: any, i: number) => (
+        <div key={i} className="cl-item">
+          <span className="cl-dot" style={{ background: p.color }} />
+          <span className="cl-name">{prettifyCol(String(p.value ?? ''))}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatCellValue(val: any, col: string): string {
+  if (val === null || val === undefined) return '—';
+  if (typeof val === 'number') {
+    if (isCurrencyKey(col)) return '$' + formatCompact(val);
+    if (Number.isInteger(val)) return val.toLocaleString();
+    return parseFloat(val.toFixed(2)).toLocaleString();
+  }
+  return String(val);
+}
+
+function TableInsight({ data, colors }: { data: any[]; colors: string[] }) {
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  if (!data?.length) return null;
+  const cols = Object.keys(data[0]);
+
+  const sorted = useMemo(() => {
+    if (!sortCol) return data;
+    return [...data].sort((a, b) => {
+      const av = a[sortCol]; const bv = b[sortCol];
+      if (av === null || av === undefined) return 1;
+      if (bv === null || bv === undefined) return -1;
+      const cmp = typeof av === 'number' && typeof bv === 'number'
+        ? av - bv : String(av).localeCompare(String(bv));
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [data, sortCol, sortDir]);
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('desc'); }
+  };
+
+  const isNumeric = (col: string) => data.slice(0, 5).some(r => typeof r[col] === 'number');
+  const accentColor = colors[0] || '#6366f1';
+
+  return (
+    <div className="insight-table-wrap">
+      <table className="insight-table">
+        <thead>
+          <tr>
+            {cols.map((col, i) => (
+              <th
+                key={col}
+                className={`${isNumeric(col) ? 'num' : ''} ${sortCol === col ? 'sorted' : ''}`}
+                onClick={() => handleSort(col)}
+                style={sortCol === col ? { color: accentColor } : undefined}
+              >
+                <span className="th-inner">
+                  {prettifyCol(col)}
+                  <span className="sort-icon">
+                    {sortCol === col ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
+                  </span>
+                </span>
+                {i === 0 && <div className="th-accent" style={{ background: accentColor }} />}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row, ri) => (
+            <tr key={ri}>
+              {cols.map((col, ci) => {
+                const val = row[col];
+                const numeric = typeof val === 'number';
+                return (
+                  <td key={col} className={numeric ? 'num' : ''}>
+                    {ci === 0 && (
+                      <span className="row-rank" style={{ background: accentColor + '18', color: accentColor }}>
+                        {ri + 1}
+                      </span>
+                    )}
+                    {numeric && isCurrencyKey(col) ? (
+                      <span className="cell-currency">{formatCellValue(val, col)}</span>
+                    ) : numeric ? (
+                      <span className="cell-num">{formatCellValue(val, col)}</span>
+                    ) : (
+                      <span className="cell-text">{formatCellValue(val, col)}</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters }: {
   card: DashboardCard;
   layout?: 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
@@ -379,8 +540,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
-            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
-            <Legend iconType="circle" />
+            <RTooltip content={ChartTooltip} />
+            <Legend content={ChartLegend} />
             {dataKeys.map((k, i) => <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6 }} />)}
           </ReLineChart>
         </ResponsiveContainer>
@@ -388,8 +549,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       case 'pie': return (
         <ResponsiveContainer width="100%" height={chartHeight}>
           <PieChart>
-            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
-            <Legend iconType="circle" />
+            <RTooltip content={ChartTooltip} />
+            <Legend content={ChartLegend} />
             <Pie
               data={displayData}
               cx="50%" cy="50%"
@@ -420,8 +581,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
-            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
-            <Legend iconType="circle" />
+            <RTooltip content={ChartTooltip} />
+            <Legend content={ChartLegend} />
             {dataKeys.map((k, i) => (
               <Area key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} fillOpacity={1} fill={`url(#grad-${i})`} strokeWidth={3} />
             ))}
@@ -434,8 +595,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
-            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
-            <Legend iconType="circle" />
+            <RTooltip content={ChartTooltip} />
+            <Legend content={ChartLegend} />
             {dataKeys.map((k, i) => <Bar key={k} dataKey={k} stackId="a" fill={activeColors[i % activeColors.length]} radius={i === dataKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />)}
           </BarChart>
         </ResponsiveContainer>
@@ -446,8 +607,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
-            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
-            <Legend iconType="circle" />
+            <RTooltip content={ChartTooltip} />
+            <Legend content={ChartLegend} />
             <Bar dataKey={dataKeys[0]} fill={activeColors[0]} radius={[6, 6, 0, 0]} barSize={40} />
             {dataKeys.slice(1).map((k, i) => <Line key={k} type="monotone" dataKey={k} stroke={activeColors[(i + 1) % activeColors.length]} strokeWidth={3} dot={{ r: 4, fill: '#fff' }} />)}
           </ComposedChart>
@@ -476,8 +637,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
               <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v => formatAxisTick(v, valKey)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
-              <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }}/>
-              <Legend iconType="circle"/>
+              <RTooltip content={ChartTooltip} />
+              <Legend content={ChartLegend} />
               {/* Confidence band */}
               <Area type="monotone" dataKey="upper" stroke="none" fill="url(#ci-band)" legendType="none" name="Upper bound"/>
               {/* Actual line — solid */}
@@ -577,8 +738,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
               <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v => formatAxisTick(v, origKey)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
-              <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }}/>
-              <Legend iconType="circle"/>
+              <RTooltip content={ChartTooltip} />
+              <Legend content={ChartLegend} />
               <Bar dataKey={origKey} fill={`${activeColors[0]}55`} radius={[3,3,0,0]} name={origKey}/>
               {maKeys.map((k, i) => (
                 <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i + 1] || '#f59e0b'} strokeWidth={2.5} dot={false} name={k.replace('_', ' ')}/>
@@ -599,8 +760,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               <XAxis dataKey={catKey} tick={{ fontSize: 10, fill: '#64748b' }} angle={-30} textAnchor="end" height={55} axisLine={false} tickLine={false}/>
               <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => formatAxisTick(v, valKey2)} axisLine={false} tickLine={false} width={56}/>
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={36}/>
-              <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }}/>
-              <Legend iconType="circle"/>
+              <RTooltip content={ChartTooltip} />
+              <Legend content={ChartLegend} />
               <Bar yAxisId="left" dataKey={valKey2} radius={[6,6,0,0]} name={valKey2}>
                 {displayData.map((entry: any, idx: number) => (
                   <Cell key={idx} fill={entry.is_vital_few ? activeColors[0] : '#cbd5e1'}/>
@@ -672,11 +833,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
               <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v => formatAxisTick(v, valKey3)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
-              <RTooltip formatter={(val: any, name: any, p: any) => {
-                const isAnomaly = p.payload?.is_anomaly;
-                return [formatCompact(Number(val)) + (isAnomaly ? ' ⚠ ANOMALY' : ''), String(name)];
-              }} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }}/>
-              <Legend iconType="circle"/>
+              <RTooltip content={AnomalyTooltip} />
+              <Legend content={ChartLegend} />
               {aInfo?.normal_range && (
                 <ReferenceArea y1={aInfo.normal_range[0]} y2={aInfo.normal_range[1]} fill="#10b98108" stroke="#10b98140" strokeDasharray="4 4" label={{ value: 'Normal range', position: 'insideTopRight', fontSize: 9, fill: '#10b981' }}/>
               )}
@@ -784,14 +942,17 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
           </div>
         );
       }
+      case 'table': {
+        return <TableInsight data={displayData} colors={activeColors} />;
+      }
       default: return (
         <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
             <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
-            <RTooltip formatter={formatTooltipValue} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: 'var(--shadow-lg)' }} />
-            <Legend iconType="circle" />
+            <RTooltip content={ChartTooltip} />
+            <Legend content={ChartLegend} />
             {dataKeys.map((k, i) => <Bar key={k} dataKey={k} fill={activeColors[i % activeColors.length]} radius={[6, 6, 0, 0]} />)}
           </BarChart>
         </ResponsiveContainer>

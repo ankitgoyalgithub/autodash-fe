@@ -201,7 +201,7 @@ export function ProjectsHome({ projects, onOpen, onNewProject }: {
           <div className="canva-empty">
             <div className="canva-empty-art">📊</div>
             <h3>Create your first project</h3>
-            <p>Connect a database, describe your goals, and AutoDashboard builds the charts.</p>
+            <p>Connect a database, describe your goals, and Lumio builds the charts.</p>
             <button className="btn-primary" onClick={onNewProject}><Plus size={15} /> New project</button>
           </div>
         ) : (

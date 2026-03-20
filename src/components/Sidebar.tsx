@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LayoutGrid, BarChart3, Database, Plus, ChevronRight, ChevronLeft, Hash } from 'lucide-react';
 import axios from 'axios';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.svg';
 import type { View, Project, DashboardThread } from '../App';
 import { BASE } from './constants';
 
@@ -40,8 +40,8 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
 
       {/* ── Logo ── */}
       <div className="sidebar-logo">
-        <img src={logo} alt="AutoDashboard" className="logo-img" />
-        {!collapsed && <span className="logo-name">AutoDash</span>}
+        <img src={logo} alt="Lumio" className="logo-img" />
+        {!collapsed && <span className="logo-name">Lumio</span>}
       </div>
 
       {/* ── Create button ── */}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Mail, Loader2, Sparkles, ChevronRight, LayoutDashboard } from 'lucide-react';
-import logo from '../assets/logo.png';
+import logo from '../assets/logo.svg';
 
 interface LoginProps {
   onLogin: (token: string, userData: any) => void;
@@ -68,9 +68,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
       <div className="login-form-area">
         <div className="login-card glass">
           <div className="login-header">
-            <img src={logo} alt="AutoDashboard" className="login-logo" />
+            <img src={logo} alt="Lumio" className="login-logo" />
             <h2>Welcome back</h2>
-            <p>Log in to your AutoDashboard account</p>
+            <p>Log in to your Lumio account</p>
           </div>
 
           <form onSubmit={handleSubmit} className="auth-form">

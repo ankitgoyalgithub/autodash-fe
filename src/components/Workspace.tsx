@@ -7,9 +7,9 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
-import logo from '../assets/logo.png';
-import type { Project, DashboardCard, HistoryEntry, UploadedFile } from '../App';
-import { BASE, THEMES, FONTS, PALETTES, TEMPLATES } from './constants';
+import logo from '../assets/logo.svg';
+import type { Project, DashboardCard, HistoryEntry, UploadedFile, DashboardFilter } from '../App';
+import { BASE, THEMES, FONTS, PALETTES, TEMPLATES, INFOGRAPHIC_TEMPLATES } from './constants';
 import { InsightCard } from './InsightCard';
 
 // ─── HITL Types ───────────────────────────────────────────────────────────────
@@ -178,6 +178,18 @@ function ThemePicker({ selected, onSelect }: { selected: any; onSelect: (t: any)
   );
 }
 
+const THEME_VISUALS: Record<string, { bg: string; sidebar: string; card: string; accent: string }> = {
+  'light':         { bg: '#f5f7fa',  sidebar: '#ffffff',          card: '#ffffff',              accent: '#6366f1' },
+  'dark-pro':      { bg: '#0f172a',  sidebar: '#1e293b',          card: '#1e293b',              accent: '#818cf8' },
+  'midnight':      { bg: '#030712',  sidebar: '#111827',          card: '#111827',              accent: '#4f46e5' },
+  'glassmorphism': { bg: '#dde1e7',  sidebar: 'rgba(255,255,255,0.55)', card: 'rgba(255,255,255,0.6)', accent: '#6366f1' },
+  'corporate':     { bg: '#f1f5f9',  sidebar: '#0f172a',          card: '#ffffff',              accent: '#2563eb' },
+  'sunset':        { bg: '#1a1020',  sidebar: '#231430',          card: '#2a1838',              accent: '#f97316' },
+  'ocean':         { bg: '#0c1222',  sidebar: '#111d35',          card: '#152040',              accent: '#06b6d4' },
+  'neon':          { bg: '#0a0a0a',  sidebar: '#121212',          card: '#1a1a1a',              accent: '#a855f7' },
+  'canva':         { bg: '#f0edf9',  sidebar: '#ffffff',          card: '#ffffff',              accent: '#7d2ae8' },
+};
+
 export function Workspace({ project, onBack, initialThreadId }: {
   project: Project;
   onBack: () => void;
@@ -200,9 +212,12 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const [activeSideTab, setActiveSideTab] = useState<'templates' | 'themes' | 'layouts' | null>(null);
   const [optimisticPrompt, setOptimisticPrompt] = useState<string | null>(null);
   const [posterTheme, setPosterTheme] = useState<'light' | 'dark' | 'branded' | 'newspaper'>('light');
+  const [infographicTemplate, setInfographicTemplate] = useState<string | null>(null);
   const [pendingTableRequest, setPendingTableRequest] = useState<string | null>(null);
   const [tableHints] = useState<string[]>([]);
   const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
+  const [dashboardFilters, setDashboardFilters] = useState<DashboardFilter[]>([]);
+  const [filterLoading, setFilterLoading] = useState(false);
   // HITL state
   const [pendingHITL, setPendingHITL] = useState<HITLRequest | null>(null);
   const [hitlResponses, setHitlResponses] = useState<Record<string, any>>({});
@@ -239,6 +254,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
       setActiveEntry(null);
     }
     setGlobalFilters({});
+    setDashboardFilters([]);
   }, [currentThreadId, fetchThreadHistory]);
 
   useEffect(() => {
@@ -330,6 +346,11 @@ export function Workspace({ project, onBack, initialThreadId }: {
       setHitlResponses({});
       setPendingHITL(null);
       setHitlQueryRef('');
+
+      if (r.data.dashboard_filters?.length) {
+        setDashboardFilters(r.data.dashboard_filters);
+        setGlobalFilters({});
+      }
 
       const suggestedThemeId = r.data.suggested_theme;
       const suggestedLayout = r.data.suggested_layout;
@@ -428,6 +449,41 @@ export function Workspace({ project, onBack, initialThreadId }: {
     handleSubmit(drillPrompt);
   };
 
+  const handleFilterChange = async (column: string, value: string | number | null) => {
+    const newFilters = { ...globalFilters, [column]: value };
+    if (value === null) delete newFilters[column];
+    setGlobalFilters(newFilters);
+
+    const activeFilters = Object.fromEntries(Object.entries(newFilters).filter(([, v]) => v !== null));
+    if (!activeEntry || Object.keys(activeFilters).length === 0) return;
+
+    // Re-run all chart SQLs with the active filters
+    const charts = (activeEntry.results_data || [])
+      .map((c, i) => ({ index: i, sql: c.sql }))
+      .filter(c => c.sql);
+
+    if (!charts.length) return;
+    setFilterLoading(true);
+    try {
+      const r = await axios.post(`${BASE}/filter/`, {
+        project_id: project.id,
+        charts,
+        filter_overrides: activeFilters,
+      });
+      const updatedResults = [...activeEntry.results_data];
+      for (const res of r.data.results || []) {
+        if (!res.error && res.data) {
+          updatedResults[res.index] = { ...updatedResults[res.index], data: res.data };
+        }
+      }
+      setActiveEntry({ ...activeEntry, results_data: updatedResults });
+    } catch (e) {
+      console.error('Filter API error:', e);
+    } finally {
+      setFilterLoading(false);
+    }
+  };
+
   const handleHITLAnswer = async (questionId: string, answer: any) => {
     // Accumulate the answer and re-run the original query
     const newResponses = { ...hitlResponses, [questionId]: answer };
@@ -461,7 +517,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
   };
 
   return (
-    <div className={`workspace theme-${theme.id}`}>
+    <div className={`workspace ${theme.id === 'canva' ? 'theme-canva' : ''}`}>
 
       <div className="workspace-sidebar glass">
         <button className={activeSideTab === 'templates' ? 'active' : ''} onClick={() => setActiveSideTab(s => s === 'templates' ? null : 'templates')} title="Templates"><LayoutTemplate size={20}/><small>Design</small></button>
@@ -487,45 +543,74 @@ export function Workspace({ project, onBack, initialThreadId }: {
               </div>
             )}
             {activeSideTab === 'themes' && (
-              <div className="theme-mini-list-container">
-                <header className="sub-header">Color Theme</header>
-                <div className="theme-mini-list">
-                  {THEMES.map(t => (
-                    <button key={t.id} className={`theme-mini-item ${theme.id === t.id ? 'active' : ''}`} onClick={() => setTheme(t)}>
-                      <div className="theme-mini-preview" style={{
-                        background: t.id === 'light' ? '#fff' :
-                                   t.id === 'dark-pro' ? '#1e293b' :
-                                   t.id === 'canva' ? 'linear-gradient(135deg, #00c4cc, #7d2ae8)' :
-                                   t.id === 'neon' ? 'linear-gradient(135deg, #a855f7, #ec4899)' :
-                                   'linear-gradient(135deg, #6366f1, #a855f7)',
-                      }}></div>
-                      <span>{t.name}</span>
-                    </button>
-                  ))}
+              <div className="style-panel">
+
+                {/* ── Dashboard Theme ── */}
+                <div className="style-section">
+                  <div className="style-section-label">Dashboard Theme</div>
+                  <div className="theme-visual-grid">
+                    {THEMES.map(t => {
+                      const v = THEME_VISUALS[t.id];
+                      return (
+                        <button key={t.id} className={`theme-visual-card ${theme.id === t.id ? 'active' : ''}`} onClick={() => setTheme(t)}>
+                          <div className="tvc-preview" style={{ background: v.bg }}>
+                            <div className="tvc-sidebar" style={{ background: v.sidebar }} />
+                            <div className="tvc-body">
+                              <div className="tvc-topbar" style={{ background: v.accent, opacity: 0.85 }} />
+                              <div className="tvc-cards">
+                                <div className="tvc-card" style={{ background: v.card }} />
+                                <div className="tvc-card" style={{ background: v.card }} />
+                                <div className="tvc-card tvc-card-wide" style={{ background: v.card }} />
+                              </div>
+                            </div>
+                          </div>
+                          <span className="tvc-name">{t.name}</span>
+                          {theme.id === t.id && <span className="tvc-check">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <hr className="config-divider" />
-                <header className="sub-header">Chart Palette</header>
-                <div className="layout-grid-select" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                  {Object.keys(PALETTES).map(p => (
-                    <button key={p} className={`palette-btn ${palette === p ? 'active' : ''}`} onClick={() => setPalette(p)} style={{ display: 'flex', gap: '4px', padding: '8px', border: '1px solid var(--theme-border)', borderRadius: '8px', background: 'var(--theme-bg-app)' }}>
-                      {PALETTES[p as keyof typeof PALETTES].slice(0, 4).map(c => <div key={c} style={{ width: 12, height: 12, borderRadius: '50%', background: c }} />)}
-                    </button>
-                  ))}
+
+                <div className="style-divider" />
+
+                {/* ── Chart Palette ── */}
+                <div className="style-section">
+                  <div className="style-section-label">Chart Palette</div>
+                  <div className="palette-visual-grid">
+                    {Object.entries(PALETTES).map(([p, colors]) => (
+                      <button key={p} className={`palette-visual-card ${palette === p ? 'active' : ''}`} onClick={() => setPalette(p)}>
+                        <div className="pvc-swatches">
+                          {colors.slice(0, 6).map(c => (
+                            <div key={c} className="pvc-dot" style={{ background: c }} />
+                          ))}
+                        </div>
+                        <span className="pvc-name">{p.charAt(0).toUpperCase() + p.slice(1)}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <hr className="config-divider" />
-                <header className="sub-header">Typography</header>
-                <div className="theme-mini-list">
-                  {FONTS.map(f => (
-                    <button key={f.id} className={`theme-mini-item ${font.id === f.id ? 'active' : ''}`} onClick={() => setFont(f)}>
-                      <span style={{ fontFamily: f.value, fontSize: '0.9rem' }}>{f.name}</span>
-                    </button>
-                  ))}
+
+                <div className="style-divider" />
+
+                {/* ── Typography ── */}
+                <div className="style-section">
+                  <div className="style-section-label">Typography</div>
+                  <div className="font-visual-grid">
+                    {FONTS.map(f => (
+                      <button key={f.id} className={`font-visual-card ${font.id === f.id ? 'active' : ''}`} onClick={() => setFont(f)}>
+                        <span className="fvc-sample" style={{ fontFamily: f.value }}>Aa</span>
+                        <span className="fvc-name">{f.name.split(' ')[0]}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
               </div>
             )}
             {activeSideTab === 'layouts' && (
               <div className="layout-options">
-                <button className={`layout-option ${layoutMode === 'dashboard' ? 'active' : ''}`} onClick={() => { setLayoutMode('dashboard'); if (layout === 'poster') setLayout('grid'); }}>
+                <button className={`layout-option ${layoutMode === 'dashboard' ? 'active' : ''}`} onClick={() => { setLayoutMode('dashboard'); if (layout === 'poster') setLayout('grid'); setInfographicTemplate(null); }}>
                   <LayoutGrid size={16}/>
                   <div><strong>Dashboard</strong><p>Classic grid for multi-chart reports</p></div>
                 </button>
@@ -533,6 +618,42 @@ export function Workspace({ project, onBack, initialThreadId }: {
                   <LayoutList size={16}/>
                   <div><strong>Poster / Infographic</strong><p>Rich, canvas-like narrative poster</p></div>
                 </button>
+
+                {/* ── Infographic Templates ── */}
+                {layoutMode === 'infographic' && (
+                  <div className="infographic-tpl-section">
+                    <div className="style-section-label" style={{ marginBottom: 8 }}>Infographic Template</div>
+                    <div className="infographic-tpl-list">
+                      {INFOGRAPHIC_TEMPLATES.map(tpl => (
+                        <button
+                          key={tpl.id}
+                          className={`infographic-tpl-card ${infographicTemplate === tpl.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setInfographicTemplate(tpl.id);
+                            setPosterTheme(tpl.posterTheme);
+                          }}
+                        >
+                          <div className="itpl-preview">
+                            <div className="itpl-prev-bg" style={{ background: tpl.preview[0] }}>
+                              <div className="itpl-prev-card" style={{ background: tpl.preview[1] }} />
+                              <div className="itpl-prev-card" style={{ background: tpl.preview[1] }} />
+                            </div>
+                            <div className="itpl-accent-bar" style={{ background: tpl.accent }} />
+                          </div>
+                          <div className="itpl-info">
+                            <span className="itpl-icon">{tpl.icon}</span>
+                            <div>
+                              <div className="itpl-name">{tpl.name}</div>
+                              <div className="itpl-desc">{tpl.desc}</div>
+                            </div>
+                          </div>
+                          {infographicTemplate === tpl.id && <span className="itpl-check">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <hr className="config-divider" />
                 <div className="layout-sub-options">
                   <header>View Mode</header>
@@ -711,7 +832,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
       </div>
 
       {/* ── RIGHT: Live Dashboard Panel ───────────────────── */}
-      <div className="dashboard-panel">
+      <div className={`dashboard-panel theme-${theme.id}`}>
         <div className="dp-header">
           {activeEntry ? (
             <div className="dp-header-main">
@@ -788,50 +909,50 @@ export function Workspace({ project, onBack, initialThreadId }: {
             </div>
           )}
 
-          {activeEntry && (() => {
-            const allFilters: { column: string; options: (string | number)[] }[] = [];
-            const seen = new Set<string>();
-            for (const card of activeEntry.results_data || []) {
-              for (const f of card.filters || []) {
-                if (!seen.has(f.column)) {
-                  seen.add(f.column);
-                  allFilters.push(f);
-                } else {
-                  const existing = allFilters.find(x => x.column === f.column);
-                  if (existing) {
-                    const newOpts = f.options.filter(o => !existing.options.includes(o));
-                    existing.options = [...existing.options, ...newOpts];
-                  }
-                }
-              }
-            }
-            return allFilters.length > 0 ? (
-              <div className="global-filter-bar">
-                <div className="gf-label"><Filter size={13}/> Filters</div>
-                {allFilters.map(f => (
-                  <div key={f.column} className="gf-group">
-                    <span className="gf-col-name">{f.column.replace(/_/g, ' ')}</span>
+          {activeEntry && dashboardFilters.length > 0 && (
+            <div className="global-filter-bar">
+              <div className="gf-label">
+                <Filter size={13}/>
+                {filterLoading ? <Loader2 size={11} className="spin"/> : 'Filters'}
+              </div>
+              {dashboardFilters.map(f => (
+                <div key={f.column} className="gf-group">
+                  <span className="gf-col-name">{f.label || f.column.replace(/_/g, ' ')}</span>
+                  {f.values.length > 8 ? (
+                    <select
+                      className="gf-select"
+                      value={String(globalFilters[f.column] ?? '')}
+                      onChange={e => handleFilterChange(f.column, e.target.value || null)}
+                    >
+                      <option value="">All</option>
+                      {f.values.map(v => (
+                        <option key={String(v)} value={String(v)}>{String(v)}</option>
+                      ))}
+                    </select>
+                  ) : (
                     <div className="gf-chips">
                       <button
                         className={`gf-chip ${!globalFilters[f.column] ? 'active' : ''}`}
-                        onClick={() => setGlobalFilters(prev => { const n = {...prev}; delete n[f.column]; return n; })}
+                        onClick={() => handleFilterChange(f.column, null)}
                       >All</button>
-                      {f.options.map(opt => (
+                      {f.values.map(v => (
                         <button
-                          key={String(opt)}
-                          className={`gf-chip ${globalFilters[f.column] === opt ? 'active' : ''}`}
-                          onClick={() => setGlobalFilters(prev => ({...prev, [f.column]: prev[f.column] === opt ? null : opt}))}
-                        >{String(opt)}</button>
+                          key={String(v)}
+                          className={`gf-chip ${globalFilters[f.column] === v ? 'active' : ''}`}
+                          onClick={() => handleFilterChange(f.column, globalFilters[f.column] === v ? null : v)}
+                        >{String(v)}</button>
                       ))}
                     </div>
-                  </div>
-                ))}
-                {Object.values(globalFilters).some(v => v !== null) && (
-                  <button className="gf-clear" onClick={() => setGlobalFilters({})}>Clear all</button>
-                )}
-              </div>
-            ) : null;
-          })()}
+                  )}
+                </div>
+              ))}
+              {Object.values(globalFilters).some(v => v !== null) && (
+                <button className="gf-clear" onClick={() => { setGlobalFilters({}); }}>
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
 
           {activeEntry && (
             <div className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''}`}>
@@ -882,7 +1003,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
                       {renderCards(activeEntry.results_data)}
                     </div>
                   ) : layout === 'poster' ? (
-                    <div ref={posterRef} className={`poster-canvas poster-theme-${posterTheme}`}>
+                    <div ref={posterRef} className={`poster-canvas poster-theme-${posterTheme}${infographicTemplate ? ` infographic-tpl-${infographicTemplate}` : ''}`}>
                       {renderCards(activeEntry.results_data)}
                     </div>
                   ) : (() => {

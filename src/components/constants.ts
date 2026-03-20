@@ -37,6 +37,63 @@ export const THEMES = [
 
 export const EMOJIS = ['📊','📈','📉','🗂️','💡','🚀','🏆','💰','🌍','⚡','🎯','📦'];
 
+export const INFOGRAPHIC_TEMPLATES = [
+  {
+    id: 'annual-report',
+    name: 'Annual Report',
+    icon: '📋',
+    desc: 'Clean corporate layout with professional typography',
+    posterTheme: 'light' as const,
+    accent: '#2563eb',
+    preview: ['#f8fafc', '#ffffff', '#2563eb'],
+  },
+  {
+    id: 'exec-brief',
+    name: 'Executive Brief',
+    icon: '📊',
+    desc: 'Dark, authoritative — boardroom ready',
+    posterTheme: 'dark' as const,
+    accent: '#6366f1',
+    preview: ['#0f172a', '#1e293b', '#6366f1'],
+  },
+  {
+    id: 'brand-story',
+    name: 'Brand Story',
+    icon: '✨',
+    desc: 'Vivid gradient for social and marketing decks',
+    posterTheme: 'branded' as const,
+    accent: '#a855f7',
+    preview: ['#2d1b6e', '#3b1f8e', '#a855f7'],
+  },
+  {
+    id: 'press-release',
+    name: 'Press Release',
+    icon: '📰',
+    desc: 'Editorial newspaper style with bold headlines',
+    posterTheme: 'newspaper' as const,
+    accent: '#1f2937',
+    preview: ['#faf8f4', '#f3f0e8', '#1f2937'],
+  },
+  {
+    id: 'campaign-recap',
+    name: 'Campaign Recap',
+    icon: '🎯',
+    desc: 'High-energy marketing performance report',
+    posterTheme: 'branded' as const,
+    accent: '#ec4899',
+    preview: ['#1a0030', '#2d0052', '#ec4899'],
+  },
+  {
+    id: 'data-digest',
+    name: 'Data Digest',
+    icon: '🔬',
+    desc: 'Technical deep-dive with a cyberpunk edge',
+    posterTheme: 'dark' as const,
+    accent: '#06b6d4',
+    preview: ['#030712', '#0c1222', '#06b6d4'],
+  },
+];
+
 export const TEMPLATES = [
   { id: 'sales',      emoji: '💰', name: 'Sales Leader',        desc: 'Revenue trends, top customers, product breakdown',       prompt: 'Build me a comprehensive Sales Leader Dashboard' },
   { id: 'marketing',  emoji: '📣', name: 'Marketing Analyst',   desc: 'Customer acquisition, retention, regional reach',         prompt: 'Build me a Marketing Analytics Dashboard' },

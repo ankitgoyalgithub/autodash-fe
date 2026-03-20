@@ -14,13 +14,25 @@
       <stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/>
     </radialGradient>
   </defs>
+
+  <!-- Background -->
   <rect width="48" height="48" rx="13" fill="url(#bg)"/>
+  <!-- Inner glow -->
   <rect width="48" height="48" rx="13" fill="url(#glow)"/>
+
+  <!-- Ascending bars -->
   <rect x="7.5"  y="30" width="7.5" height="11" rx="2.5" fill="url(#bars)" opacity="0.55"/>
   <rect x="19.5" y="21" width="7.5" height="20" rx="2.5" fill="url(#bars)" opacity="0.78"/>
   <rect x="31.5" y="11" width="7.5" height="30" rx="2.5" fill="url(#bars)"/>
-  <polyline points="11.25,30 23.25,21 35.25,11" stroke="white" stroke-width="1.75"
-    stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.35" fill="none"/>
-  <circle cx="35.25" cy="11" r="5" fill="white" fill-opacity="0.18"/>
-  <circle cx="35.25" cy="11" r="3" fill="white" fill-opacity="0.95"/>
+
+  <!-- Trend sparkline -->
+  <polyline
+    points="11.25,30 23.25,21 35.25,11"
+    stroke="white" stroke-width="1.75"
+    stroke-linecap="round" stroke-linejoin="round"
+    stroke-opacity="0.35" fill="none"/>
+
+  <!-- Peak dot with halo -->
+  <circle cx="35.25" cy="11" r="5"   fill="white" fill-opacity="0.18"/>
+  <circle cx="35.25" cy="11" r="3"   fill="white" fill-opacity="0.95"/>
 </svg>

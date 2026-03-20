@@ -96,6 +96,12 @@ export interface DashboardThread {
   created_at: string;
 }
 
+export interface DashboardFilter {
+  column: string;
+  label: string;
+  values: (string | number)[];
+}
+
 export interface UploadedFile {
   url: string;
   path: string;

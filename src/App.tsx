@@ -161,6 +161,19 @@ function MainAppContent({ token }: { token: string; user?: any; onLogout?: () =>
     setView('workspace');
   };
 
+  const handleTemplateApplied = (
+    project: Project,
+    threadId: number,
+    _dashboards: any[],
+    _narrative: string,
+    _suggestedTheme: string
+  ) => {
+    setProjects(prev => [project, ...prev]);
+    setActiveProject(project);
+    setInitialThreadId(threadId);
+    setView('workspace');
+  };
+
   return (
     <div className="app">
       <Sidebar
@@ -178,7 +191,7 @@ function MainAppContent({ token }: { token: string; user?: any; onLogout?: () =>
       />
 
       <div className="main-area">
-        {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} />}
+        {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} datasources={datasources} onApplied={handleTemplateApplied} />}
         {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.id)} />}
         {view === 'datasources' && <DatasourcesManagement datasources={datasources} onRefresh={fetchBasics} />}
         {view === 'workspace' && activeProject && (

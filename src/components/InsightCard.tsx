@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
   Eye, EyeOff, X, FileText, AlertCircle, Sparkles, TrendingUp,
   BarChart2, LineChart, PieChart as PieIcon, AreaChart as AreaIcon, Layers, LayoutList,
-  DollarSign, ShoppingCart, Users, ArrowUpRight, ArrowDownRight, Package, Percent,
+  DollarSign, ShoppingCart, Users, Package, Percent,
   CreditCard, FlaskConical,
 } from 'lucide-react';
 import {
@@ -269,7 +270,7 @@ function TableInsight({ data, colors }: { data: any[]; colors: string[] }) {
   );
 }
 
-export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters }: {
+export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters, index }: {
   card: DashboardCard;
   layout?: 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
   onUpdate?: (updates: Partial<DashboardCard>) => void;
@@ -279,6 +280,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
   colors?: string[];
   posterTheme?: string;
   globalFilters?: Record<string, string | number | null>;
+  index?: number;
 }) {
   const [chartType, setChartType] = useState(card.chart_type);
   const [showSql, setShowSql] = useState(false);
@@ -294,15 +296,15 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     if (activeFilter) {
       data = data.filter(row => row[activeFilter.column] === activeFilter.value);
     }
-    if (globalFilters) {
+    if (globalFilters && !card.is_analytics) {
       for (const [col, val] of Object.entries(globalFilters)) {
         if (val !== null && val !== undefined && data.some(r => col in r)) {
-          data = data.filter(row => row[col] === val);
+          data = data.filter(row => String(row[col]) === String(val));
         }
       }
     }
     return data;
-  }, [card.data, activeFilter, globalFilters]);
+  }, [card.data, activeFilter, globalFilters, card.is_analytics]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!editMode || layout !== 'poster') return;
@@ -467,30 +469,28 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
 
       const isUp = trendDir === 'upward';
       const isDown = trendDir === 'downward';
-      const trendColor = isUp ? '#16a34a' : isDown ? '#dc2626' : '#64748b';
-      const trendBg = isUp ? '#dcfce7' : isDown ? '#fee2e2' : '#f1f5f9';
+      const trendColor = isUp ? '#10b981' : isDown ? '#ef4444' : '#64748b';
+      const trendBg = isUp ? 'rgba(16,185,129,0.12)' : isDown ? 'rgba(239,68,68,0.12)' : 'rgba(100,116,139,0.1)';
 
       return (
         <div className="kpi-card-body">
           <div className="kpi-top-row">
             <span className="kpi-title">{card.title}</span>
-            <div className="kpi-icon-circle" style={{ background: iconColor }}>
-              <MetricIcon size={18} color="#fff" strokeWidth={2} />
+            <div className="kpi-icon-wrap" style={{ background: iconColor + '1a', border: `1px solid ${iconColor}30` }}>
+              <MetricIcon size={16} color={iconColor} strokeWidth={2} />
             </div>
           </div>
           <div className="kpi-value">{formatted}</div>
-          {trendPct !== undefined && (
+          {trendPct !== undefined ? (
             <div className="kpi-trend-row">
-              <div className="kpi-arrow-circle" style={{ background: trendBg }}>
-                {isDown
-                  ? <ArrowDownRight size={13} color={trendColor} strokeWidth={2.5} />
-                  : <ArrowUpRight size={13} color={trendColor} strokeWidth={2.5} />}
-              </div>
-              <span className="kpi-trend-pct" style={{ color: trendColor }}>
+              <span className="kpi-trend-badge" style={{ background: trendBg, color: trendColor }}>
+                {isDown ? '↓' : isUp ? '↑' : '→'}{' '}
                 {isUp ? '+' : isDown ? '-' : ''}{Math.abs(trendPct).toFixed(1)}%
               </span>
               <span className="kpi-trend-label">vs prior period</span>
             </div>
+          ) : (
+            <div className="kpi-spacer" />
           )}
         </div>
       );
@@ -526,6 +526,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     // Poster mode: clean charts with no grid lines
     const gridStroke = isPoster ? 'transparent' : '#f1f5f9';
     const gridDash = isPoster ? '0' : '3 3';
+    const tickColor = 'var(--chart-tick-color, #64748b)';
 
     const onChartClick = (state: any) => {
       if (state && state.activeLabel !== undefined && onDrillDown) {
@@ -538,8 +539,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         <ResponsiveContainer width="100%" height={chartHeight}>
           <ReLineChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
-            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
             <RTooltip content={ChartTooltip} />
             <Legend content={ChartLegend} />
             {dataKeys.map((k, i) => <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6 }} />)}
@@ -579,8 +580,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               ))}
             </defs>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
-            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
             <RTooltip content={ChartTooltip} />
             <Legend content={ChartLegend} />
             {dataKeys.map((k, i) => (
@@ -593,8 +594,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
-            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
             <RTooltip content={ChartTooltip} />
             <Legend content={ChartLegend} />
             {dataKeys.map((k, i) => <Bar key={k} dataKey={k} stackId="a" fill={activeColors[i % activeColors.length]} radius={i === dataKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />)}
@@ -605,8 +606,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         <ResponsiveContainer width="100%" height={chartHeight}>
           <ComposedChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
-            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
             <RTooltip content={ChartTooltip} />
             <Legend content={ChartLegend} />
             <Bar dataKey={dataKeys[0]} fill={activeColors[0]} radius={[6, 6, 0, 0]} barSize={40} />
@@ -635,8 +636,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-              <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v => formatAxisTick(v, valKey)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
+              <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
+              <YAxis tickFormatter={v => formatAxisTick(v, valKey)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
               <RTooltip content={ChartTooltip} />
               <Legend content={ChartLegend} />
               {/* Confidence band */}
@@ -736,8 +737,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
           <ResponsiveContainer width="100%" height={chartHeight}>
             <ComposedChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v => formatAxisTick(v, origKey)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
+              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
+              <YAxis tickFormatter={v => formatAxisTick(v, origKey)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
               <RTooltip content={ChartTooltip} />
               <Legend content={ChartLegend} />
               <Bar dataKey={origKey} fill={`${activeColors[0]}55`} radius={[3,3,0,0]} name={origKey}/>
@@ -757,8 +758,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
           <ResponsiveContainer width="100%" height={chartHeight}>
             <ComposedChart data={displayData} margin={{ top: 5, right: 40, left: 0, bottom: 40 }}>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-              <XAxis dataKey={catKey} tick={{ fontSize: 10, fill: '#64748b' }} angle={-30} textAnchor="end" height={55} axisLine={false} tickLine={false}/>
-              <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => formatAxisTick(v, valKey2)} axisLine={false} tickLine={false} width={56}/>
+              <XAxis dataKey={catKey} tick={{ fontSize: 10, fill: tickColor }} angle={-30} textAnchor="end" height={55} axisLine={false} tickLine={false}/>
+              <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: tickColor }} tickFormatter={v => formatAxisTick(v, valKey2)} axisLine={false} tickLine={false} width={56}/>
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={36}/>
               <RTooltip content={ChartTooltip} />
               <Legend content={ChartLegend} />
@@ -831,8 +832,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
           <ResponsiveContainer width="100%" height={chartHeight}>
             <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v => formatAxisTick(v, valKey3)} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60}/>
+              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
+              <YAxis tickFormatter={v => formatAxisTick(v, valKey3)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
               <RTooltip content={AnomalyTooltip} />
               <Legend content={ChartLegend} />
               {aInfo?.normal_range && (
@@ -949,8 +950,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         <ResponsiveContainer width="100%" height={chartHeight}>
           <BarChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
             <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
-            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={60} />
+            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
             <RTooltip content={ChartTooltip} />
             <Legend content={ChartLegend} />
             {dataKeys.map((k, i) => <Bar key={k} dataKey={k} fill={activeColors[i % activeColors.length]} radius={[6, 6, 0, 0]} />)}
@@ -961,11 +962,14 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
   };
 
   return (
-    <div
+    <motion.div
       ref={cardRef}
       className={`chart-card type-${type} size-${size} ${layout || 'grid'} ${editMode ? 'edit-mode' : ''}`}
       style={cardStyle}
       onMouseDown={handleMouseDown}
+      initial={{ opacity: 0, y: 18, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.45, delay: (index || 0) * 0.055, ease: [0.16, 1, 0.3, 1] }}
     >
       {type === 'metric' && !isPoster ? null : <div className="chart-card-head">
         {isPoster ? (
@@ -994,7 +998,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                   <button className={chartType === 'area' ? 'active' : ''} onClick={() => setChartType('area')} title="Area chart"><AreaIcon size={13} /></button>
                   <button className={chartType === 'line' ? 'active' : ''} onClick={() => setChartType('line')} title="Line chart"><LineChart size={13} /></button>
                   <button className={chartType === 'pie' ? 'active' : ''} onClick={() => setChartType('pie')} title="Pie chart"><PieIcon size={13} /></button>
-                  <button className={chartType === 'timeline' ? 'active' : ''} onClick={() => setChartType('timeline')} title="Timeline" style={{ fontSize: 10, fontWeight: 700, padding: '0 4px', letterSpacing: '0.02em' }}>TL</button>
+                  <button className={chartType === 'timeline' ? 'active' : ''} onClick={() => setChartType('timeline')} title="Timeline"><span style={{fontSize:9,fontWeight:800}}>TL</span></button>
                 </div>
               )}
               <button className={`sql-btn ${showSql ? 'active' : ''}`} onClick={() => setShowSql(s => !s)}>
@@ -1094,6 +1098,6 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
           <div style={{ width: 4, height: 4, borderRight: '2px solid #fff', borderBottom: '2px solid #fff', transform: 'translate(-2px, -2px)' }} />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

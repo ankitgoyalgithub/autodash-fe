@@ -4,6 +4,7 @@ import axios from 'axios';
 import type { Datasource, Project } from '../App';
 import { BASE, EMOJIS, PALETTES } from './constants';
 import { DatasourceEditForm } from './DatasourcesManagement';
+import { DesignTemplates } from './DesignTemplates';
 
 // ─── New Project Modal ────────────────────────────────────────────────────────
 
@@ -146,10 +147,12 @@ function ProjectThumbCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
 
 // ─── Projects Home ────────────────────────────────────────────────────────────
 
-export function ProjectsHome({ projects, onOpen, onNewProject }: {
+export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onApplied }: {
   projects: Project[];
   onOpen: (p: Project) => void;
   onNewProject: () => void;
+  datasources: Datasource[];
+  onApplied: (project: Project, threadId: number, dashboards: any[], narrative: string, suggestedTheme: string) => void;
 }) {
   const [search, setSearch] = useState('');
 
@@ -197,49 +200,54 @@ export function ProjectsHome({ projects, onOpen, onNewProject }: {
       {/* ── Content area ── */}
       <div className="canva-home-content">
 
-        {projects.length === 0 ? (
-          <div className="canva-empty">
-            <div className="canva-empty-art">📊</div>
-            <h3>Create your first project</h3>
-            <p>Connect a database, describe your goals, and Lumio builds the charts.</p>
-            <button className="btn-primary" onClick={onNewProject}><Plus size={15} /> New project</button>
-          </div>
-        ) : (
-          <>
-            {/* Recents section */}
-            {recents.length > 0 && !search && (
-              <section className="canva-section">
-                <h2 className="canva-section-title">Recents</h2>
-                <div className="canva-recents-row">
-                  {recents.map(p => (
-                    <ProjectThumbCard key={p.id} p={p} onOpen={() => onOpen(p)} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Designs / All projects section */}
-            <section className="canva-section">
-              <h2 className="canva-section-title">{search ? `Results for "${search}"` : 'Designs'}</h2>
-              {filtered.length === 0 ? (
-                <p className="canva-no-results">No projects match your search.</p>
-              ) : (
-                <div className="canva-designs-grid">
-                  {/* New project card */}
-                  {!search && (
-                    <button className="canva-new-card" onClick={onNewProject}>
-                      <div className="canva-new-card-icon"><Plus size={28} /></div>
-                      <span>New project</span>
-                    </button>
-                  )}
-                  {filtered.map(p => (
-                    <ProjectThumbCard key={p.id} p={p} onOpen={() => onOpen(p)} />
-                  ))}
-                </div>
-              )}
-            </section>
-          </>
+        {/* Templates section — always shown */}
+        {!search && (
+          <section className="canva-section">
+            <DesignTemplates datasources={datasources} onApplied={onApplied} />
+          </section>
         )}
+
+        {/* Recents section */}
+        {recents.length > 0 && !search && (
+          <section className="canva-section">
+            <h2 className="canva-section-title">Recents</h2>
+            <div className="canva-recents-row">
+              {recents.map(p => (
+                <ProjectThumbCard key={p.id} p={p} onOpen={() => onOpen(p)} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Your Projects section */}
+        <section className="canva-section">
+          <h2 className="canva-section-title">
+            {search ? `Results for "${search}"` : 'Your Projects'}
+          </h2>
+          {filtered.length === 0 && !search ? (
+            <div className="canva-empty" style={{ padding: '32px 0' }}>
+              <div className="canva-empty-art">📊</div>
+              <h3>No projects yet</h3>
+              <p>Pick a template above or create a blank project to get started.</p>
+              <button className="btn-primary" onClick={onNewProject}><Plus size={15} /> New project</button>
+            </div>
+          ) : filtered.length === 0 && search ? (
+            <p className="canva-no-results">No projects match your search.</p>
+          ) : (
+            <div className="canva-designs-grid">
+              {/* New project card */}
+              {!search && (
+                <button className="canva-new-card" onClick={onNewProject}>
+                  <div className="canva-new-card-icon"><Plus size={28} /></div>
+                  <span>New project</span>
+                </button>
+              )}
+              {filtered.map(p => (
+                <ProjectThumbCard key={p.id} p={p} onOpen={() => onOpen(p)} />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

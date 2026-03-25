@@ -3,14 +3,160 @@ import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
-  Brain, ChevronRight,
+  Brain, ChevronRight, Wand2,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import logo from '../assets/logo.svg';
 import type { Project, DashboardCard, HistoryEntry, UploadedFile, DashboardFilter } from '../App';
 import { BASE, THEMES, FONTS, PALETTES, TEMPLATES, INFOGRAPHIC_TEMPLATES } from './constants';
 import { InsightCard } from './InsightCard';
+
+// ─── Draggable Cards Grid (default layout only) ───────────────────────────────
+// This component is ONLY used for grid/masonry/single layout.
+// Specialized layouts (exec, hub, split, etc.) use plain renderCards instead.
+
+type LayoutMode = 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
+
+interface DraggableCardsGridProps {
+  cards: DashboardCard[];
+  layout: LayoutMode;
+  editMode: boolean;
+  font: string;
+  colors: string[];
+  posterTheme: string;
+  globalFilters: Record<string, string | number | null>;
+  dragEnabled: boolean;
+  onUpdate: (card: DashboardCard, u: Partial<DashboardCard>) => void;
+  onDrillDown: (card: DashboardCard, dim: string, val: string | number) => void;
+  onReorder: (oldIndex: number, newIndex: number) => void;
+}
+
+function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme, globalFilters, dragEnabled, onUpdate, onDrillDown, onReorder }: DraggableCardsGridProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const metricCards = cards.filter(c => c.type === 'metric' || c.size === 's' || c.size === 'mini' || c.size === 'small');
+  const chartCards = cards.filter(c => c.type !== 'metric' && c.size !== 's' && c.size !== 'mini' && c.size !== 'small');
+
+  // Non-drag mode: original metrics-strip + charts-strip
+  if (!dragEnabled) {
+    return (
+      <>
+        {metricCards.length > 0 && (
+          <div className="metrics-strip">
+            {metricCards.map((card, i) => (
+              <InsightCard key={i} index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters}/>
+            ))}
+          </div>
+        )}
+        {chartCards.length > 0 && (
+          <div className="charts-strip">
+            {chartCards.map((card, i) => (
+              <InsightCard key={i} index={metricCards.length + i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters}/>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Drag mode: flat sortable grid of ALL cards
+  const ids = cards.map((_, i) => String(i));
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={(event) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const oldIdx = parseInt(String(active.id));
+        const newIdx = parseInt(String(over.id));
+        if (!isNaN(oldIdx) && !isNaN(newIdx)) onReorder(oldIdx, newIdx);
+      }}
+    >
+      <SortableContext items={ids} strategy={rectSortingStrategy}>
+        <div className="drag-cards-flat-grid">
+          {cards.map((card, i) => (
+            <SortableGridCard
+              key={String(i)}
+              id={String(i)}
+              card={card}
+              index={i}
+              layout={layout}
+              editMode={editMode}
+              font={font}
+              colors={colors}
+              posterTheme={posterTheme}
+              onUpdate={(u) => onUpdate(card, u)}
+              onDrillDown={(dim, val) => onDrillDown(card, dim, val)}
+              globalFilters={globalFilters}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+// Individual sortable card item — only used inside DraggableCardsGrid
+function SortableGridCard({ id, card, index, layout, editMode, font, colors, posterTheme, onUpdate, onDrillDown, globalFilters }: {
+  id: string; card: DashboardCard; index: number; layout: LayoutMode; editMode: boolean;
+  font: string; colors: string[]; posterTheme: string;
+  onUpdate: (u: Partial<DashboardCard>) => void;
+  onDrillDown: (dim: string, val: string | number) => void;
+  globalFilters: Record<string, string | number | null>;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  // Map card size to 12-column grid span — matches the CSS grid system
+  const s = card.size || '';
+  const t = card.type || '';
+  const gridColumnSpan =
+    s === 'full' || s === 'xxl' ? 'span 12' :
+    s === 'wide' || s === 'xl' ? 'span 8' :
+    s === 'l' || s === 'tall' ? 'span 6' :
+    s === 'mini' || s === 's' || s === 'small' || t === 'metric' ? 'span 3' :
+    'span 4'; // m / medium / default
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 9999 : 'auto',
+    gridColumn: gridColumnSpan,
+    cursor: isDragging ? 'grabbing' : 'grab',
+    outline: isDragging ? '2px dashed rgba(99,102,241,0.55)' : undefined,
+    borderRadius: isDragging ? '12px' : undefined,
+    minHeight: 0,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <InsightCard
+        index={index} card={card} layout={layout} editMode={editMode} font={font}
+        colors={colors} posterTheme={posterTheme} onUpdate={onUpdate}
+        onDrillDown={onDrillDown} globalFilters={globalFilters}
+      />
+    </div>
+  );
+}
 
 // ─── HITL Types ───────────────────────────────────────────────────────────────
 
@@ -222,6 +368,9 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const [pendingHITL, setPendingHITL] = useState<HITLRequest | null>(null);
   const [hitlResponses, setHitlResponses] = useState<Record<string, any>>({});
   const [hitlQueryRef, setHitlQueryRef] = useState<string>('');
+  // Drag-and-drop + layout optimizer
+  const [dragEnabled, setDragEnabled] = useState(false);
+  const [layoutOptimizing, setLayoutOptimizing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
@@ -257,8 +406,9 @@ export function Workspace({ project, onBack, initialThreadId }: {
     setDashboardFilters([]);
   }, [currentThreadId, fetchThreadHistory]);
 
+  // Persist results_data to backend after any change (debounced 1.5s)
   useEffect(() => {
-    if (!activeEntry || layout !== 'poster') return;
+    if (!activeEntry) return;
     const timer = setTimeout(async () => {
       try {
         await axios.patch(`${BASE}/history/`, {
@@ -266,11 +416,11 @@ export function Workspace({ project, onBack, initialThreadId }: {
           results_data: activeEntry.results_data,
         });
       } catch (err) {
-        console.error("Failed to persist layout:", err);
+        console.error("Failed to persist dashboard:", err);
       }
     }, 1500);
     return () => clearTimeout(timer);
-  }, [activeEntry?.results_data, activeEntry?.id, layout]);
+  }, [activeEntry?.results_data, activeEntry?.id]);
 
   useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history, loading, optimisticPrompt]);
 
@@ -339,6 +489,15 @@ export function Workspace({ project, onBack, initialThreadId }: {
         setPendingTableRequest(r.data.message);
         if (!currentThreadId && newThreadId) setCurrentThreadId(newThreadId);
         setOptimisticPrompt(null);
+        return;
+      }
+
+      // Clarification needed — show as inline message
+      if (r.data.action === 'clarification_needed') {
+        setPendingTableRequest(r.data.question);  // reuse the same UI slot
+        if (!currentThreadId && newThreadId) setCurrentThreadId(newThreadId);
+        setOptimisticPrompt(null);
+        setLoading(false);
         return;
       }
 
@@ -494,6 +653,38 @@ export function Workspace({ project, onBack, initialThreadId }: {
 
   const activeColors = PALETTES[palette as keyof typeof PALETTES];
 
+  // ── Drag reorder callback (called by DraggableCardsGrid) ────────────────────
+  const handleReorder = (oldIndex: number, newIndex: number) => {
+    if (!activeEntry) return;
+    const reordered = arrayMove([...activeEntry.results_data], oldIndex, newIndex);
+    setActiveEntry({ ...activeEntry, results_data: reordered });
+  };
+
+  // ── AI Layout Optimizer ──────────────────────────────────────────────────────
+  const handleOptimizeLayout = async () => {
+    if (!activeEntry || layoutOptimizing) return;
+    setLayoutOptimizing(true);
+    try {
+      const r = await axios.post(`${BASE}/layout-optimize/`, {
+        dashboard_id: activeEntry.id,
+        project_id: project.id,
+        cards: activeEntry.results_data,
+        query: activeEntry.query,
+      });
+      if (r.data.cards) {
+        setActiveEntry({ ...activeEntry, results_data: r.data.cards });
+      }
+      if (r.data.layout && r.data.layout !== layout) {
+        setLayout(r.data.layout);
+      }
+    } catch (e) {
+      console.error('Layout optimization failed', e);
+    } finally {
+      setLayoutOptimizing(false);
+    }
+  };
+
+  // ── Render cards: plain InsightCard array, used by all specialized layouts ───
   const renderCards = (cards: DashboardCard[]) => {
     const sorted = [...cards].sort((a, b) => {
       const aM = a.type === 'metric' || a.size === 's' || a.size === 'mini' || a.size === 'small' ? 0 : 1;
@@ -503,6 +694,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
     return sorted.map((card, i) => (
       <InsightCard
         key={i}
+        index={i}
         card={card}
         layout={layout}
         editMode={editMode}
@@ -832,7 +1024,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
       </div>
 
       {/* ── RIGHT: Live Dashboard Panel ───────────────────── */}
-      <div className={`dashboard-panel theme-${theme.id}`}>
+      <div className={`dashboard-panel theme-${theme.id}`} data-theme={theme.id}>
         <div className="dp-header">
           {activeEntry ? (
             <div className="dp-header-main">
@@ -854,6 +1046,21 @@ export function Workspace({ project, onBack, initialThreadId }: {
                   <button className={layout === 'masonry' ? 'active' : ''} onClick={() => setLayout('masonry')} title="Masonry View"><LayoutList size={15}/></button>
                   <button className={layout === 'single' ? 'active' : ''} onClick={() => setLayout('single')} title="Focus View"><Square size={15}/></button>
                 </div>
+                <button
+                  className={`dp-icon-btn ${dragEnabled ? 'dp-icon-btn--active' : ''}`}
+                  onClick={() => setDragEnabled(v => !v)}
+                  title={dragEnabled ? 'Disable drag to reorder' : 'Enable drag to reorder charts'}
+                >
+                  <Move size={14}/>
+                </button>
+                <button
+                  className="dp-icon-btn dp-optimize-btn"
+                  onClick={handleOptimizeLayout}
+                  disabled={layoutOptimizing}
+                  title="AI: Optimize layout"
+                >
+                  {layoutOptimizing ? <Loader2 size={14} className="spin"/> : <Wand2 size={14}/>}
+                </button>
                 {activeEntry.is_deployed ? (
                   <button className="undeploy-btn" onClick={handleUndeploy}><EyeOff size={14}/> Offline</button>
                 ) : (
@@ -1006,24 +1213,22 @@ export function Workspace({ project, onBack, initialThreadId }: {
                     <div ref={posterRef} className={`poster-canvas poster-theme-${posterTheme}${infographicTemplate ? ` infographic-tpl-${infographicTemplate}` : ''}`}>
                       {renderCards(activeEntry.results_data)}
                     </div>
-                  ) : (() => {
-                    const metricCards = activeEntry.results_data.filter(c => c.type === 'metric' || c.size === 's' || c.size === 'mini' || c.size === 'small');
-                    const chartCards = activeEntry.results_data.filter(c => c.type !== 'metric' && c.size !== 's' && c.size !== 'mini' && c.size !== 'small');
-                    return (
-                      <>
-                        {metricCards.length > 0 && (
-                          <div className="metrics-strip">
-                            {renderCards(metricCards)}
-                          </div>
-                        )}
-                        {chartCards.length > 0 && (
-                          <div className="charts-strip">
-                            {renderCards(chartCards)}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
+                  ) : (
+                    /* Default: grid / masonry / single — supports drag-and-drop */
+                    <DraggableCardsGrid
+                      cards={activeEntry.results_data}
+                      layout={layout}
+                      editMode={editMode}
+                      font={font.value}
+                      colors={activeColors}
+                      posterTheme={posterTheme}
+                      globalFilters={globalFilters}
+                      dragEnabled={dragEnabled}
+                      onUpdate={handleUpdateCard}
+                      onDrillDown={(card, dim, val) => handleDrillDown(card, dim, val)}
+                      onReorder={handleReorder}
+                    />
+                  )}
                 </div>
               )}
             </div>

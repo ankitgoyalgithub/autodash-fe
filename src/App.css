@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..700;1,14..32,300..700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..700;1,14..32,300..700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -2181,19 +2181,7 @@ button { cursor: pointer; }
   gap: 20px;
 }
 
-/* ── METRICS STRIP + CHARTS STRIP (default grid layout) ─── */
-.metrics-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-  width: 100%;
-}
-.charts-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-  width: 100%;
-}
+/* ── METRICS STRIP + CHARTS STRIP (defined authoritatively at end of file) ─── */
 
 /* Infographic Mode — clean, editorial */
 .infographic-mode { transition: all 0.3s ease; }
@@ -4039,3 +4027,1607 @@ button { cursor: pointer; }
   white-space: nowrap;
 }
 .lp-footer-signin:hover { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.5); }
+
+/* ─── TEMPLATE GALLERY ──────────────────────────────────── */
+
+.tpl-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.tpl-card {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1.5px solid var(--gray-200);
+  background: var(--white);
+  cursor: pointer;
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+  position: relative;
+}
+
+.tpl-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+  border-color: transparent;
+}
+
+.tpl-preview {
+  height: 140px;
+  display: flex;
+  align-items: flex-end;
+  padding: 16px 14px 10px;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.tpl-preview-charts {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  width: 100%;
+  height: 80px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Bar chart mockup */
+.tpl-mini-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  flex: 1;
+}
+.tpl-mini-bar span {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  background: rgba(255,255,255,0.7);
+  min-width: 6px;
+}
+
+/* Line chart mockup */
+.tpl-mini-line {
+  flex: 1.5;
+  height: 100%;
+}
+.tpl-mini-line svg {
+  width: 100%; height: 100%;
+  overflow: visible;
+}
+
+/* Pie chart mockup */
+.tpl-mini-pie {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Metric card mockup */
+.tpl-mini-metric {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  padding: 6px 8px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tpl-mini-metric-val {
+  width: 36px; height: 8px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 3px;
+}
+.tpl-mini-metric-lbl {
+  width: 28px; height: 5px;
+  background: rgba(255,255,255,0.45);
+  border-radius: 2px;
+}
+
+/* Area chart mockup */
+.tpl-mini-area {
+  flex: 1.5;
+  height: 100%;
+}
+.tpl-mini-area svg {
+  width: 100%; height: 100%;
+  overflow: visible;
+}
+
+/* Table mockup */
+.tpl-mini-table {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tpl-mini-table-row {
+  height: 7px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.6);
+}
+.tpl-mini-table-row:first-child {
+  background: rgba(255,255,255,0.9);
+}
+
+/* Template info area */
+.tpl-info {
+  padding: 12px 14px 14px;
+}
+.tpl-category {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--gray-400);
+  margin-bottom: 4px;
+}
+.tpl-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin-bottom: 4px;
+}
+.tpl-desc {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Hover overlay */
+.tpl-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.18s;
+  border-radius: 13px;
+}
+.tpl-card:hover .tpl-hover-overlay {
+  opacity: 1;
+}
+.tpl-hover-btn {
+  background: white;
+  color: #1e293b;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Apply Template Modal */
+.apply-tpl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.apply-tpl-modal {
+  background: white;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+.apply-tpl-modal-header {
+  padding: 24px 24px 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.apply-tpl-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.apply-tpl-emoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.apply-tpl-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.apply-tpl-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+.apply-tpl-body {
+  padding: 20px 24px 24px;
+}
+.apply-tpl-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.apply-tpl-ds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+.apply-tpl-ds-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+}
+.apply-tpl-ds-item:hover {
+  border-color: #6366f1;
+  background: #f5f3ff;
+}
+.apply-tpl-ds-item.selected {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+.apply-tpl-ds-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: #6366f1;
+}
+.apply-tpl-ds-info strong {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+.apply-tpl-ds-info span {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+.apply-tpl-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.apply-tpl-generating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px;
+  gap: 16px;
+  text-align: center;
+}
+.apply-tpl-gen-emoji {
+  font-size: 3rem;
+  animation: bounce 1s ease-in-out infinite;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.apply-tpl-gen-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.apply-tpl-gen-sub {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+.apply-tpl-gen-bar {
+  width: 100%;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.apply-tpl-gen-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  animation: progress-bar 35s linear forwards;
+  width: 0%;
+}
+@keyframes progress-bar {
+  0%   { width: 0%; }
+  30%  { width: 35%; }
+  60%  { width: 65%; }
+  85%  { width: 85%; }
+  100% { width: 92%; }
+}
+
+/* Template section in home */
+.tpl-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.tpl-see-all {
+  font-size: 0.8rem;
+  color: #6366f1;
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.tpl-see-all:hover { text-decoration: underline; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PREMIUM DASHBOARD DESIGN SYSTEM — 2025
+   Elevating the BI dashboard to world-class visual quality.
+   Inspired by: Grafana, Linear, Hex.tech, Retool
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Theme-aware CSS Variables ─────────────────────────────────── */
+:root {
+  --chart-tick-color: #94a3b8;
+  --chart-grid-color: rgba(148, 163, 184, 0.1);
+  --card-radius: 14px;
+  --card-padding: 18px 20px;
+}
+
+/* Dark themes: adjust chart colors */
+.theme-dark-pro,
+.theme-midnight,
+.theme-ocean,
+.theme-neon,
+.theme-sunset {
+  --chart-tick-color: #64748b;
+  --chart-grid-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Premium Card Foundation ───────────────────────────────────── */
+.chart-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--card-radius) !important;
+  transition: transform 0.25s cubic-bezier(.4,0,.2,1),
+              box-shadow 0.25s cubic-bezier(.4,0,.2,1),
+              border-color 0.2s ease !important;
+  animation: none !important; /* handled by framer-motion */
+}
+
+/* Gradient top accent line */
+.chart-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    var(--theme-accent) 0%,
+    color-mix(in srgb, var(--theme-accent) 30%, transparent) 60%,
+    transparent 100%
+  );
+  z-index: 2;
+  opacity: 0.8;
+}
+
+.chart-card:hover {
+  transform: translateY(-3px) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Dark theme card shadows */
+.theme-dark-pro .chart-card,
+.theme-midnight .chart-card,
+.theme-ocean .chart-card,
+.theme-neon .chart-card,
+.theme-sunset .chart-card {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.25) !important;
+  border-color: rgba(255,255,255,0.07) !important;
+}
+
+.theme-dark-pro .chart-card:hover,
+.theme-midnight .chart-card:hover,
+.theme-ocean .chart-card:hover {
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.2) !important;
+}
+
+/* Light theme card */
+.chart-card { box-shadow: 0 1px 3px rgba(16,24,40,0.08), 0 4px 12px rgba(16,24,40,0.04) !important; }
+.chart-card:hover { box-shadow: 0 8px 24px rgba(16,24,40,0.12) !important; }
+
+/* ── Premium KPI Metric Card ───────────────────────────────────── */
+.chart-card.type-metric {
+  padding: 18px 20px !important;
+  min-height: 136px;
+  gap: 0 !important;
+  cursor: default;
+}
+
+/* Subtle radial glow behind metric cards in dark mode */
+.theme-dark-pro .chart-card.type-metric,
+.theme-midnight .chart-card.type-metric,
+.theme-ocean .chart-card.type-metric {
+  background: radial-gradient(ellipse at 80% 10%, rgba(99,102,241,0.06) 0%, transparent 60%), var(--theme-bg-card) !important;
+}
+
+.kpi-card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0;
+}
+
+.kpi-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.kpi-title {
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  color: var(--theme-text-muted) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1.3 !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Hide old icon circle */
+.kpi-icon-circle { display: none !important; }
+
+.kpi-value {
+  font-size: 2.2rem !important;
+  font-weight: 800 !important;
+  color: var(--theme-text-main) !important;
+  letter-spacing: -2px !important;
+  line-height: 1.05 !important;
+  margin-bottom: 10px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'DM Sans', 'Inter', sans-serif;
+}
+
+.kpi-trend-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+}
+
+.kpi-trend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.kpi-trend-label {
+  font-size: 0.7rem !important;
+  color: var(--theme-text-muted) !important;
+  white-space: nowrap;
+}
+
+/* Hide old arrow circle (replaced by badge) */
+.kpi-arrow-circle { display: none !important; }
+.kpi-trend-pct { display: none !important; }
+
+.kpi-spacer { height: 24px; }
+
+/* ── Premium Chart Card Header ─────────────────────────────────── */
+.chart-card-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+  margin-bottom: 2px !important;
+}
+
+/* Hide the chart-title-icon (arrow/bar icon) for cleaner look */
+.chart-title-icon { display: none !important; }
+
+.chart-title-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.chart-card-head h4 {
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  color: var(--theme-text-main) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* ── Premium Chart Controls ────────────────────────────────────── */
+.chart-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  flex-shrink: 0 !important;
+}
+
+.type-toggle {
+  display: flex !important;
+  background: var(--theme-bg-app) !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 8px !important;
+  padding: 2px !important;
+  gap: 1px !important;
+  overflow: visible !important;
+}
+
+.type-toggle button {
+  padding: 4px 6px !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--theme-text-muted) !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: all 0.15s !important;
+}
+
+.type-toggle button:hover { color: var(--theme-text-main) !important; background: var(--theme-border) !important; }
+.type-toggle button.active { background: var(--theme-accent) !important; color: white !important; }
+.type-toggle button + button { border-left: none !important; }
+
+.sql-btn, .view-data-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  background: var(--theme-bg-app) !important;
+  color: var(--theme-text-muted) !important;
+  border: 1px solid var(--theme-border) !important;
+  transition: all 0.15s !important;
+}
+.sql-btn:hover, .view-data-btn:hover {
+  color: var(--theme-accent) !important;
+  border-color: var(--theme-accent) !important;
+  background: rgba(99,102,241,0.05) !important;
+}
+.sql-btn.active {
+  background: var(--theme-accent) !important;
+  color: white !important;
+  border-color: var(--theme-accent) !important;
+}
+
+/* ── Premium Analytics Badge ───────────────────────────────────── */
+.analytics-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  font-size: 0.6rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  padding: 2px 7px !important;
+  border-radius: 100px !important;
+  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.15)) !important;
+  color: #a78bfa !important;
+  border: 1px solid rgba(167,139,250,0.3) !important;
+  flex-shrink: 0 !important;
+}
+
+/* ── Premium Insight Row ───────────────────────────────────────── */
+.insight-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  border-left: 2px solid var(--theme-accent) !important;
+  border-radius: 0 !important;
+  padding: 5px 10px !important;
+  margin-top: 0 !important;
+}
+
+.insight-icon { color: var(--theme-accent); flex-shrink: 0; opacity: 0.7; }
+
+.insight-row p {
+  font-size: 0.77rem !important;
+  color: var(--theme-text-muted) !important;
+  line-height: 1.55 !important;
+  font-style: italic !important;
+}
+
+/* ── Premium Stat Badges ───────────────────────────────────────── */
+.stat-badges-row { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.stat-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-size: 0.67rem !important;
+  font-weight: 700 !important;
+  padding: 2px 8px !important;
+  border-radius: 100px !important;
+  letter-spacing: 0.02em !important;
+}
+
+.trend-upward   { background: rgba(16,185,129,0.12) !important; color: #10b981 !important; border: 1px solid rgba(16,185,129,0.25) !important; }
+.trend-downward { background: rgba(239,68,68,0.12) !important; color: #ef4444 !important; border: 1px solid rgba(239,68,68,0.25) !important; }
+.trend-neutral  { background: rgba(100,116,139,0.1) !important; color: #94a3b8 !important; border: 1px solid rgba(100,116,139,0.2) !important; }
+.stat-concentration { background: rgba(139,92,246,0.12) !important; color: #a78bfa !important; border: 1px solid rgba(139,92,246,0.25) !important; }
+.stat-pareto    { background: rgba(245,158,11,0.12) !important; color: #f59e0b !important; border: 1px solid rgba(245,158,11,0.25) !important; }
+.stat-outlier   { background: rgba(249,115,22,0.12) !important; color: #f97316 !important; border: 1px solid rgba(249,115,22,0.25) !important; }
+
+/* ── Premium Chart Tooltip (dark glass, all themes) ───────────── */
+.chart-tooltip {
+  background: rgba(10, 15, 30, 0.96) !important;
+  backdrop-filter: blur(20px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.1) !important;
+  min-width: 140px;
+  pointer-events: none;
+}
+
+.ct-label {
+  font-size: 0.66rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.07) !important;
+}
+
+.ct-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+
+.ct-dot {
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+}
+
+.ct-name {
+  font-size: 0.72rem !important;
+  color: #94a3b8 !important;
+  flex: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.ct-value {
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  color: #f1f5f9 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.ct-anomaly-flag {
+  margin-left: 6px;
+  font-size: 0.65rem;
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* ── Premium SQL Block ─────────────────────────────────────────── */
+.sql-pre {
+  background: rgba(0,0,0,0.25) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: 8px !important;
+  color: #94a3b8 !important;
+  font-size: 0.71rem !important;
+  line-height: 1.65 !important;
+  padding: 10px 14px !important;
+}
+
+/* Light mode sql */
+.theme-light .sql-pre,
+.theme-glassmorphism .sql-pre,
+.theme-corporate .sql-pre {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+/* ── Premium Global Filter Bar ─────────────────────────────────── */
+.global-filter-bar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 8px 20px !important;
+  background: var(--theme-bg-card) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.gf-label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: var(--theme-text-muted) !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  padding-right: 8px;
+  border-right: 1px solid var(--theme-border);
+}
+
+.gf-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+.gf-col-name {
+  font-size: 0.65rem !important;
+  font-weight: 600 !important;
+  color: var(--theme-text-muted) !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+  padding-right: 4px;
+}
+
+.gf-chips {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  flex-wrap: wrap !important;
+}
+
+.gf-chip {
+  padding: 3px 11px !important;
+  border-radius: 100px !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  background: var(--theme-bg-app) !important;
+  border: 1px solid var(--theme-border) !important;
+  color: var(--theme-text-muted) !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+  white-space: nowrap !important;
+}
+
+.gf-chip:hover {
+  border-color: var(--theme-accent) !important;
+  color: var(--theme-accent) !important;
+}
+
+.gf-chip.active {
+  background: var(--theme-accent) !important;
+  border-color: var(--theme-accent) !important;
+  color: white !important;
+  box-shadow: 0 0 10px rgba(99,102,241,0.25) !important;
+}
+
+.gf-select {
+  padding: 3px 28px 3px 12px !important;
+  border-radius: 100px !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  background: var(--theme-bg-app) !important;
+  border: 1px solid var(--theme-border) !important;
+  color: var(--theme-text-muted) !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+}
+.gf-select:focus { outline: none; border-color: var(--theme-accent) !important; }
+
+.gf-clear {
+  padding: 3px 10px !important;
+  border-radius: 100px !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  background: transparent !important;
+  border: 1px solid rgba(239,68,68,0.3) !important;
+  color: #ef4444 !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+  white-space: nowrap !important;
+  margin-left: auto;
+}
+.gf-clear:hover { background: rgba(239,68,68,0.08) !important; }
+
+/* ── Premium Dashboard Header ──────────────────────────────────── */
+.dp-header {
+  padding: 10px 20px !important;
+  min-height: 52px !important;
+}
+
+.dp-title {
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.dp-badge {
+  background: rgba(99,102,241,0.1) !important;
+  color: var(--theme-accent) !important;
+  border: 1px solid rgba(99,102,241,0.2) !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  padding: 2px 8px !important;
+  border-radius: 100px !important;
+}
+
+.dp-deployed-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  color: #10b981 !important;
+  background: rgba(16,185,129,0.1) !important;
+  padding: 2px 9px !important;
+  border-radius: 100px !important;
+  border: 1px solid rgba(16,185,129,0.25) !important;
+}
+
+.deploy-btn {
+  padding: 7px 16px !important;
+  border-radius: 8px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  background: var(--theme-accent) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.3) !important;
+  transition: all 0.2s !important;
+}
+.deploy-btn:hover { opacity: 0.88 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 14px rgba(99,102,241,0.4) !important; }
+
+.undeploy-btn {
+  padding: 6px 14px !important;
+  border-radius: 8px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  background: transparent !important;
+  color: #ef4444 !important;
+  border: 1px solid rgba(239,68,68,0.3) !important;
+  transition: all 0.2s !important;
+}
+.undeploy-btn:hover { background: rgba(239,68,68,0.08) !important; }
+
+/* ── Premium DP Content & Grid ─────────────────────────────────── */
+.dp-content { padding: 18px 20px !important; }
+
+/* metrics-strip / charts-strip / dp-grid — defined authoritatively at end of file */
+
+/* ── Premium Table Insight ─────────────────────────────────────── */
+.insight-table-wrap {
+  overflow-x: auto !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--theme-border) !important;
+}
+
+.insight-table { width: 100% !important; border-collapse: collapse !important; font-size: 0.79rem !important; }
+
+.insight-table thead th {
+  padding: 9px 14px !important;
+  text-align: left !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.07em !important;
+  color: var(--theme-text-muted) !important;
+  background: var(--theme-bg-app) !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+  white-space: nowrap !important;
+}
+
+.insight-table thead th.sorted { color: var(--theme-accent) !important; }
+.insight-table thead th.num { text-align: right !important; }
+
+.th-inner { display: flex !important; align-items: center !important; gap: 5px !important; }
+.sort-icon { opacity: 0.35 !important; font-size: 0.65rem !important; }
+.th-accent { height: 2px !important; margin-top: 4px !important; border-radius: 1px !important; }
+
+.insight-table tbody tr {
+  border-bottom: 1px solid var(--theme-border) !important;
+  transition: background 0.1s !important;
+}
+.insight-table tbody tr:last-child { border-bottom: none !important; }
+.insight-table tbody tr:hover { background: rgba(99,102,241,0.04) !important; }
+
+.insight-table tbody td {
+  padding: 9px 14px !important;
+  color: var(--theme-text-main) !important;
+  vertical-align: middle !important;
+}
+.insight-table tbody td.num { text-align: right !important; font-variant-numeric: tabular-nums !important; }
+
+.row-rank {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px; height: 20px;
+  border-radius: 6px !important;
+  font-size: 0.62rem !important;
+  font-weight: 700 !important;
+  margin-right: 8px !important;
+}
+.cell-currency { font-weight: 700 !important; font-variant-numeric: tabular-nums !important; }
+.cell-num { font-variant-numeric: tabular-nums !important; }
+
+/* ── Premium Chart Legend ──────────────────────────────────────── */
+.chart-legend {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  margin-top: 6px !important;
+  justify-content: center !important;
+}
+
+.cl-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.cl-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+.cl-name {
+  font-size: 0.72rem !important;
+  color: var(--theme-text-muted) !important;
+  font-weight: 500 !important;
+}
+
+/* ── Premium Drawer ────────────────────────────────────────────── */
+.data-drawer {
+  background: var(--theme-bg-card) !important;
+  border-left: 1px solid var(--theme-border) !important;
+  box-shadow: -20px 0 60px rgba(0,0,0,0.35) !important;
+  animation: drawerIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+@keyframes drawerIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.drawer-backdrop {
+  background: rgba(0,0,0,0.5) !important;
+  backdrop-filter: blur(4px) !important;
+  animation: fadeIn 0.2s !important;
+}
+
+.drawer-header {
+  padding: 14px 20px !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+}
+
+.drawer-title {
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  color: var(--theme-text-main) !important;
+}
+.drawer-meta { font-size: 0.73rem !important; color: var(--theme-text-muted) !important; }
+
+/* ── Premium DP Empty State ────────────────────────────────────── */
+.dp-empty h3 {
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  color: var(--theme-text-main) !important;
+}
+
+.dp-empty p {
+  font-size: 0.82rem !important;
+  color: var(--theme-text-muted) !important;
+  max-width: 310px;
+  line-height: 1.6;
+}
+
+/* ── Premium Chat Panel ────────────────────────────────────────── */
+.chat-panel {
+  width: 340px !important;
+}
+
+.chat-header {
+  background: var(--theme-bg-header) !important;
+  border-bottom: 1px solid var(--theme-border) !important;
+}
+
+.chat-header-project strong {
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  color: var(--theme-text-main) !important;
+}
+
+/* Message bubbles */
+.user-bubble {
+  border-radius: 16px 16px 4px 16px !important;
+  padding: 9px 14px !important;
+  max-width: 80% !important;
+}
+
+.user-bubble p { font-size: 0.86rem !important; }
+
+/* AI message */
+.ai-msg {
+  margin-bottom: 16px !important;
+}
+
+.ai-intro {
+  background: var(--theme-bg-card) !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+  font-size: 0.8rem !important;
+  gap: 6px !important;
+}
+
+.ai-narrative {
+  font-size: 0.8rem !important;
+  line-height: 1.6 !important;
+  border-radius: 8px !important;
+  padding: 9px 12px !important;
+}
+
+.thinking {
+  background: var(--theme-bg-card) !important;
+  border: 1px solid var(--theme-border) !important;
+  padding: 9px 18px !important;
+  font-size: 0.8rem !important;
+  border-radius: 100px !important;
+  align-self: flex-start !important;
+  margin-left: 46px !important;
+}
+
+/* ── Premium Composer ──────────────────────────────────────────── */
+.composer-box {
+  border-radius: 14px !important;
+  border: 1.5px solid var(--theme-border) !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.composer-box:focus-within {
+  border-color: var(--theme-accent) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important;
+}
+
+.comp-send {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 9px !important;
+}
+
+/* ── Premium HITL Card ─────────────────────────────────────────── */
+.hitl-card {
+  background: var(--theme-bg-app) !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+}
+
+.hitl-submit-btn {
+  padding: 8px 18px !important;
+  border-radius: 9px !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  color: white !important;
+  border: none !important;
+  margin-top: 4px !important;
+  transition: all 0.2s !important;
+}
+
+/* ── Premium Theme Picker ──────────────────────────────────────── */
+.theme-btn {
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  font-size: 0.78rem !important;
+  gap: 6px !important;
+}
+
+.theme-dropdown {
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3) !important;
+}
+
+.theme-opt { border-radius: 8px !important; font-size: 0.8rem !important; }
+
+/* ── Layout picker ─────────────────────────────────────────────── */
+.layout-picker.themed {
+  background: var(--theme-bg-app) !important;
+  border: 1px solid var(--theme-border) !important;
+  border-radius: 8px !important;
+  padding: 2px !important;
+}
+.layout-picker.themed button {
+  padding: 5px 8px !important;
+  border-radius: 6px !important;
+}
+.layout-picker.themed button.active {
+  background: var(--theme-accent) !important;
+  color: white !important;
+}
+.layout-picker.themed button + button { border-left: none !important; }
+
+/* ── Workspace Sidebar ─────────────────────────────────────────── */
+.workspace-sidebar button.active {
+  color: var(--theme-accent) !important;
+  background: rgba(99,102,241,0.08) !important;
+  border-left-color: var(--theme-accent) !important;
+}
+
+/* ── Config Panel ──────────────────────────────────────────────── */
+.config-panel-head h3 {
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+}
+
+/* ── Premium Error Card ────────────────────────────────────────── */
+.chart-card.error {
+  border-left: 3px solid #ef4444 !important;
+  background: rgba(239,68,68,0.04) !important;
+}
+
+/* ── Table Request Card (dark mode) ──────────────────────────── */
+.theme-dark-pro .table-request-card,
+.theme-midnight .table-request-card,
+.theme-ocean .chart-card .table-request-card {
+  background: rgba(245,158,11,0.07) !important;
+  border-color: rgba(245,158,11,0.35) !important;
+  color: #fbbf24 !important;
+}
+
+/* ── Poster Canvas Premium ─────────────────────────────────────── */
+.poster-canvas { border-radius: 12px; overflow: hidden; }
+
+/* ── Smooth chart body ─────────────────────────────────────────── */
+.chart-body { min-height: 0 !important; }
+
+/* ── Clean chart card (no bottom gap) ─────────────────────────── */
+.chart-card.type-chart { padding-bottom: 14px !important; }
+
+/* ── Priority matrix quadrant labels ──────────────────────────── */
+.theme-dark-pro text,
+.theme-midnight text,
+.theme-ocean text { fill: #cbd5e1 !important; }
+
+/* ── Dashboard Icon Buttons (drag / optimize) ──────────────────── */
+.dp-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1.5px solid var(--gray-200, #eaecf0);
+  background: var(--white, #fff);
+  color: var(--gray-500, #667085);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+.dp-icon-btn:hover {
+  border-color: var(--gray-400, #98a2b3);
+  color: var(--gray-700, #344054);
+  background: var(--gray-50, #f9fafb);
+}
+.dp-icon-btn--active {
+  border-color: #6366f1 !important;
+  background: rgba(99,102,241,0.08) !important;
+  color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+}
+.dp-optimize-btn {
+  border-color: #7c3aed44;
+  color: #7c3aed;
+}
+.dp-optimize-btn:hover {
+  border-color: #7c3aed;
+  background: rgba(124,58,237,0.07) !important;
+  color: #7c3aed;
+}
+.dp-optimize-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dark-theme overrides for icon buttons */
+.theme-dark-pro .dp-icon-btn,
+.theme-midnight .dp-icon-btn,
+.theme-ocean .dp-icon-btn {
+  border-color: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: #94a3b8;
+}
+.theme-dark-pro .dp-icon-btn:hover,
+.theme-midnight .dp-icon-btn:hover,
+.theme-ocean .dp-icon-btn:hover {
+  border-color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.09);
+  color: #e2e8f0;
+}
+
+/* Drag mode — show subtle handle cursor on all cards */
+.dp-charts .chart-card[style*="cursor: grab"],
+.dp-charts .chart-card[style*="cursor: grabbing"] {
+  user-select: none;
+}
+
+/* Drag overlay ghost card */
+.chart-card[style*="opacity: 0.4"] {
+  outline: 2px dashed rgba(99,102,241,0.5) !important;
+  outline-offset: 3px;
+}
+
+/* Flat sortable grid used in drag mode (grid/masonry/single layouts) */
+.drag-cards-flat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 4px 0;
+  width: 100%;
+}
+/* Each sortable wrapper should let InsightCard fill it */
+.drag-cards-flat-grid > div {
+  min-height: 0;
+}
+.drag-cards-flat-grid > div > .chart-card {
+  width: 100%;
+  height: 100%;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LAYOUT OVERHAUL — Enterprise-grade grid system
+   Fixes all layout modes with authoritative !important overrides
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 1. BASE CONTAINER ──────────────────────────────────────── */
+/* dp-grid is a flex column — each strip stacks vertically       */
+.dp-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  width: 100% !important;
+  padding: 0 !important;
+}
+
+/* ── 2. METRICS STRIP (KPI row) ─────────────────────────────── */
+/* Always a horizontal row of KPI cards                          */
+.metrics-strip {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin-bottom: 4px !important;
+}
+/* On narrow dashboard panel, drop to 2-col */
+@media (max-width: 1100px) {
+  .metrics-strip { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ── 3. CHARTS STRIP (main chart grid, 12 columns) ───────────── */
+/* Single authoritative definition — overrides all duplicates    */
+.charts-strip {
+  display: grid !important;
+  grid-template-columns: repeat(12, 1fr) !important;
+  gap: 16px !important;
+  width: 100% !important;
+  align-items: start !important;
+}
+
+/* Card span mapping — 12-column grid */
+.charts-strip .chart-card,
+.exec-charts .chart-card {
+  grid-column: span 6 !important; /* default: 2 per row */
+  min-height: 300px !important;
+}
+/* Explicit size overrides */
+.charts-strip .chart-card.size-mini,
+.charts-strip .chart-card.size-s,
+.charts-strip .chart-card.size-small,
+.exec-charts .chart-card.size-mini,
+.exec-charts .chart-card.size-s,
+.exec-charts .chart-card.size-small { grid-column: span 3 !important; min-height: 200px !important; }
+
+.charts-strip .chart-card.size-m,
+.charts-strip .chart-card.size-medium,
+.exec-charts .chart-card.size-m,
+.exec-charts .chart-card.size-medium { grid-column: span 4 !important; min-height: 280px !important; }
+
+.charts-strip .chart-card.size-l,
+.charts-strip .chart-card.size-large,
+.exec-charts .chart-card.size-l,
+.exec-charts .chart-card.size-large { grid-column: span 6 !important; min-height: 320px !important; }
+
+.charts-strip .chart-card.size-tall,
+.exec-charts .chart-card.size-tall { grid-column: span 6 !important; min-height: 480px !important; }
+
+.charts-strip .chart-card.size-wide,
+.charts-strip .chart-card.size-xl,
+.exec-charts .chart-card.size-wide,
+.exec-charts .chart-card.size-xl { grid-column: span 8 !important; min-height: 340px !important; }
+
+.charts-strip .chart-card.size-full,
+.charts-strip .chart-card.size-xxl,
+.exec-charts .chart-card.size-full,
+.exec-charts .chart-card.size-xxl { grid-column: span 12 !important; min-height: 380px !important; }
+
+/* Text blocks — compact */
+.charts-strip .chart-card.type-text,
+.exec-charts .chart-card.type-text { min-height: 120px !important; grid-column: span 4 !important; }
+
+/* ── 4. DRAG GRID (grid mode with drag enabled) ───────────────── */
+/* Same 12-col system as charts-strip                             */
+.drag-cards-flat-grid {
+  display: grid !important;
+  grid-template-columns: repeat(12, 1fr) !important;
+  gap: 16px !important;
+  width: 100% !important;
+  align-items: start !important;
+}
+.drag-cards-flat-grid > div {
+  min-height: 0 !important;
+  /* gridColumn is set inline by SortableGridCard from card.size */
+}
+.drag-cards-flat-grid > div > .chart-card {
+  width: 100% !important;
+  min-height: inherit !important;
+}
+
+/* ── 5. EXEC LAYOUT ─────────────────────────────────────────── */
+/* KPI row at top, then chart grid below                         */
+.exec-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  width: 100% !important;
+}
+.exec-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
+.exec-metrics .chart-card {
+  min-height: unset !important;
+}
+.exec-charts {
+  display: grid !important;
+  grid-template-columns: repeat(12, 1fr) !important;
+  gap: 16px !important;
+  align-items: start !important;
+}
+@media (max-width: 1100px) {
+  .exec-metrics { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ── 6. HUB LAYOUT ──────────────────────────────────────────── */
+/* Hero chart (60%) | Side panel (40%)                           */
+.hub-grid {
+  display: grid !important;
+  grid-template-columns: 3fr 2fr !important;
+  gap: 16px !important;
+  align-items: start !important;
+  min-height: unset !important;
+}
+.hub-main {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+.hub-main .chart-card {
+  min-height: 400px !important;
+  width: 100% !important;
+  grid-column: unset !important;
+}
+.hub-side {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+.hub-side .chart-card {
+  min-height: 180px !important;
+  width: 100% !important;
+  grid-column: unset !important;
+}
+.hub-side .chart-card.type-metric {
+  min-height: unset !important;
+}
+
+/* ── 7. SPLIT LAYOUT ────────────────────────────────────────── */
+/* Two equal-width charts side by side                           */
+.split-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+.split-grid .chart-card {
+  min-height: 380px !important;
+  grid-column: unset !important;
+  width: 100% !important;
+}
+
+/* ── 8. MAGAZINE LAYOUT ─────────────────────────────────────── */
+/* Featured (full-width) on top, then 3-col grid                 */
+.magazine-grid {
+  display: grid !important;
+  grid-template-columns: repeat(12, 1fr) !important;
+  gap: 16px !important;
+  align-items: start !important;
+  columns: unset !important;
+}
+/* First card = hero */
+.magazine-grid .chart-card:first-child {
+  grid-column: span 12 !important;
+  min-height: 380px !important;
+}
+/* Cards 2-4 = three columns */
+.magazine-grid .chart-card:nth-child(2),
+.magazine-grid .chart-card:nth-child(3),
+.magazine-grid .chart-card:nth-child(4) {
+  grid-column: span 4 !important;
+  min-height: 280px !important;
+  break-inside: unset !important;
+  display: flex !important;
+}
+/* Remaining cards = half-width */
+.magazine-grid .chart-card:nth-child(n+5) {
+  grid-column: span 6 !important;
+  min-height: 300px !important;
+}
+
+/* ── 9. PRESENTATION LAYOUT ─────────────────────────────────── */
+/* Single centered column — slideshow feel                        */
+.presentation-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 32px !important;
+  padding: 24px 0 !important;
+  width: 100% !important;
+}
+.presentation-grid .chart-card {
+  width: 100% !important;
+  max-width: 860px !important;
+  min-height: 380px !important;
+  grid-column: unset !important;
+}
+.presentation-grid .chart-card.type-metric,
+.presentation-grid .chart-card.size-mini,
+.presentation-grid .chart-card.size-small,
+.presentation-grid .chart-card.size-s {
+  max-width: 420px !important;
+  min-height: unset !important;
+}
+
+/* ── 10. MASONRY LAYOUT ─────────────────────────────────────── */
+/* Irregular heights with card-size-based spanning               */
+.dp-charts.layout-masonry .charts-strip {
+  align-items: stretch !important;
+}
+.dp-charts.layout-masonry .chart-card.size-tall {
+  grid-row: span 2 !important;
+}
+
+/* ── 11. SINGLE LAYOUT ──────────────────────────────────────── */
+/* Full-width single column                                       */
+.dp-charts.layout-single .dp-grid {
+  max-width: 880px !important;
+  margin: 0 auto !important;
+}
+.dp-charts.layout-single .metrics-strip {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+.dp-charts.layout-single .charts-strip .chart-card,
+.dp-charts.layout-single .charts-strip .chart-card[class*="size-"] {
+  grid-column: span 12 !important;
+  min-height: 380px !important;
+}
+
+/* ── 12. KPI / METRIC CARD SIZE ────────────────────────────── */
+/* Metric cards are always compact — fixed height, no grid span  */
+.chart-card.type-metric {
+  min-height: unset !important;
+  height: auto !important;
+}
+.metrics-strip .chart-card {
+  grid-column: unset !important;
+}
+.exec-metrics .chart-card {
+  grid-column: unset !important;
+}
+
+/* ── 13. RESPONSIVE COLLAPSE ───────────────────────────────── */
+@media (max-width: 900px) {
+  .charts-strip .chart-card,
+  .exec-charts .chart-card,
+  .charts-strip .chart-card[class*="size-"],
+  .exec-charts .chart-card[class*="size-"] {
+    grid-column: span 12 !important;
+  }
+  .hub-grid { grid-template-columns: 1fr !important; }
+  .split-grid { grid-template-columns: 1fr !important; }
+  .magazine-grid .chart-card:first-child { grid-column: span 12 !important; }
+  .magazine-grid .chart-card:nth-child(n+2) { grid-column: span 12 !important; }
+}
+
+/* ── 14. DASHBOARD PANEL CONTENT PADDING ───────────────────── */
+/* Ensure the dp-content has breathing room                       */
+.dp-content {
+  padding: 16px 20px 20px !important;
+}
+
+/* ── 15. CHART CARD BASE AESTHETICS ────────────────────────── */
+/* Ensure every card fills its grid cell properly                 */
+.charts-strip .chart-card,
+.exec-charts .chart-card,
+.drag-cards-flat-grid .chart-card {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   END PREMIUM DASHBOARD DESIGN SYSTEM
+   ══════════════════════════════════════════════════════════════════ */

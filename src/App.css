@@ -432,8 +432,8 @@ button { cursor: pointer; }
 .sidebar.collapsed .sidebar-logo { justify-content: center; padding: 16px 0 12px; }
 .logo-img { width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0; box-shadow: 0 2px 8px #7c3aed30; }
 .logo-name {
-  font-size: 1rem; font-weight: 800; letter-spacing: -0.5px; white-space: nowrap;
-  background: linear-gradient(135deg, #5b21b6, #7c3aed, #a855f7);
+  font-size: 0.88rem; font-weight: 800; letter-spacing: -0.3px; white-space: nowrap;
+  background: linear-gradient(135deg, #38bdf8, #818cf8, #c4b5fd);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 
@@ -3639,10 +3639,13 @@ button { cursor: pointer; }
   object-fit: cover;
 }
 .lp-nav-name {
-  font-size: 1.08rem;
-  font-weight: 700;
-  color: #f1f5f9;
-  letter-spacing: -0.01em;
+  font-size: 0.97rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #7dd3fc, #a5b4fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .lp-nav-links {
   display: flex;
@@ -4300,7 +4303,7 @@ button { cursor: pointer; }
 }
 .lp-footer-brand { display: flex; align-items: center; gap: 8px; }
 .lp-footer-logo  { width: 24px; height: 24px; border-radius: 6px; }
-.lp-footer-name  { font-size: 0.9rem; font-weight: 700; color: #94a3b8; }
+.lp-footer-name  { font-size: 0.8rem; font-weight: 800; color: #94a3b8; letter-spacing: -0.02em; }
 .lp-footer-copy  { font-size: 0.78rem; color: #334155; margin: 0 0 0 auto; }
 .lp-footer-signin {
   padding: 7px 16px;

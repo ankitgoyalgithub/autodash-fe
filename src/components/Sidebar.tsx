@@ -40,8 +40,8 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
 
       {/* ── Logo ── */}
       <div className="sidebar-logo">
-        <img src={logo} alt="Lumio" className="logo-img" />
-        {!collapsed && <span className="logo-name">Lumio</span>}
+        <img src={logo} alt="LucentReport" className="logo-img" />
+        {!collapsed && <span className="logo-name">LucentReport</span>}
       </div>
 
       {/* ── Create button ── */}

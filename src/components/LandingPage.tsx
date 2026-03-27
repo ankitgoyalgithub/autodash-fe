@@ -1,36 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 
 const FAQ_ITEMS = [
   {
-    q: 'What databases does Lumio support?',
-    a: 'Lumio supports PostgreSQL and all PostgreSQL-compatible databases, including Supabase, Neon, Amazon RDS, TimescaleDB, and AlloyDB. If it speaks PostgreSQL, Lumio connects to it.',
+    q: 'What databases does LucentReport support?',
+    a: 'LucentReport supports PostgreSQL and all PostgreSQL-compatible databases, including Supabase, Neon, Amazon RDS, TimescaleDB, and AlloyDB. If it speaks PostgreSQL, LucentReport connects to it.',
   },
   {
-    q: 'Do I need to write SQL to use Lumio?',
-    a: 'No. Lumio\'s multi-agent AI converts plain English into optimized PostgreSQL queries automatically. Just describe what you want — "Show monthly revenue by product category" — and Lumio handles the SQL, chart selection, and insight generation.',
+    q: 'Do I need to write SQL to use LucentReport?',
+    a: 'No. LucentReport\'s multi-agent AI converts plain English into optimized PostgreSQL queries automatically. Just describe what you want — "Show monthly revenue by product category" — and LucentReport handles the SQL, chart selection, and insight generation.',
   },
   {
-    q: 'How does Lumio protect my data?',
-    a: 'Your database credentials stay on your own server. All queries run in strict read-only mode and no data is stored externally. Lumio never writes to your database.',
+    q: 'How does LucentReport protect my data?',
+    a: 'Your database credentials stay on your own server. All queries run in strict read-only mode and no data is stored externally. LucentReport never writes to your database.',
   },
   {
-    q: 'What chart types does Lumio generate?',
-    a: 'Lumio automatically selects the best visualization from bar charts, line charts, area charts, pie/donut charts, stacked bars, combo bar-line charts, horizontal bars, scatter plots, and data tables — based on your data shape and query intent.',
+    q: 'What chart types does LucentReport generate?',
+    a: 'LucentReport automatically selects the best visualization from bar charts, line charts, area charts, pie/donut charts, stacked bars, combo bar-line charts, horizontal bars, scatter plots, and data tables — based on your data shape and query intent.',
   },
   {
     q: 'Can I share dashboards publicly?',
-    a: 'Yes. Deploy any dashboard as a live public URL with one click. Viewers don\'t need a Lumio account — perfect for sharing with stakeholders, investors, or clients.',
+    a: 'Yes. Deploy any dashboard as a live public URL with one click. Viewers don\'t need a LucentReport account — perfect for sharing with stakeholders, investors, or clients.',
   },
   {
-    q: 'How is Lumio different from Power BI or Tableau?',
-    a: 'Lumio generates a complete styled dashboard from one sentence in under 10 seconds. There\'s no drag-and-drop, no data modeling, no DAX formulas — just plain English. It\'s the difference between asking a question and configuring a report.',
+    q: 'How is LucentReport different from Power BI or Tableau?',
+    a: 'LucentReport generates a complete styled dashboard from one sentence in under 10 seconds. There\'s no drag-and-drop, no data modeling, no DAX formulas — just plain English. It\'s the difference between asking a question and configuring a report.',
   },
 ];
 
 export default function LandingPage() {
-  const navigate = useNavigate();
   const heroRef = useRef<HTMLDivElement>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -55,9 +53,9 @@ export default function LandingPage() {
       {/* ── Navbar ── */}
       <nav className="lp-nav" role="navigation" aria-label="Main navigation">
         <div className="lp-nav-inner">
-          <a href="/" className="lp-nav-brand" aria-label="Lumio home">
-            <img src={logo} alt="Lumio logo" className="lp-nav-logo" width="28" height="28" />
-            <span className="lp-nav-name">Lumio</span>
+          <a href="/" className="lp-nav-brand" aria-label="LucentReport home">
+            <img src={logo} alt="LucentReport logo" className="lp-nav-logo" width="28" height="28" />
+            <span className="lp-nav-name">LucentReport</span>
           </a>
           <div className="lp-nav-links">
             <a href="#features" className="lp-nav-link">Features</a>
@@ -65,7 +63,7 @@ export default function LandingPage() {
             <a href="#analytics" className="lp-nav-link">Analytics</a>
             <a href="#faq" className="lp-nav-link">FAQ</a>
           </div>
-          <a href="/login" className="lp-signin-btn" aria-label="Sign in to Lumio">
+          <a href="/login" className="lp-signin-btn" aria-label="Sign in to LucentReport">
             Sign in <span className="lp-signin-arrow" aria-hidden="true">→</span>
           </a>
         </div>
@@ -92,7 +90,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="lp-hero-sub">
-              Connect your PostgreSQL database, ask in plain English, and Lumio's
+              Connect your PostgreSQL database, ask in plain English, and LucentReport's
               AI generates pixel-perfect charts, advanced analytics, and executive
               dashboards automatically — no SQL or BI experience needed.
             </p>
@@ -239,7 +237,7 @@ export default function LandingPage() {
               {
                 icon: '📊',
                 title: 'Natural Language to Charts',
-                desc: 'Bar, line, area, pie, stacked, combo, scatter, horizontal bar, and table — Lumio automatically picks the right chart type based on your data shape and query intent.',
+                desc: 'Bar, line, area, pie, stacked, combo, scatter, horizontal bar, and table — LucentReport automatically picks the right chart type based on your data shape and query intent.',
                 accent: '#8b5cf6',
               },
               {
@@ -289,7 +287,7 @@ export default function LandingPage() {
                 num: '01',
                 icon: '🔌',
                 title: 'Connect your PostgreSQL database',
-                desc: 'Add your PostgreSQL connection details. Lumio automatically discovers your schema, tables, relationships, and data types — no manual configuration needed.',
+                desc: 'Add your PostgreSQL connection details. LucentReport automatically discovers your schema, tables, relationships, and data types — no manual configuration needed.',
               },
               {
                 num: '02',
@@ -324,7 +322,7 @@ export default function LandingPage() {
                 Beyond charts —<br/><span className="lp-grad-text">real intelligence</span>
               </h2>
               <p className="lp-analytics-desc">
-                Lumio doesn't just visualize your data. A dedicated analytics engine
+                LucentReport doesn't just visualize your data. A dedicated analytics engine
                 runs on top of every dashboard to automatically surface patterns,
                 forecasts, and anomalies you'd otherwise miss.
               </p>
@@ -398,7 +396,7 @@ export default function LandingPage() {
         <section className="lp-section lp-faq-section" id="faq" aria-labelledby="faq-heading">
           <div className="lp-section-tag">FAQ</div>
           <h2 className="lp-section-h2" id="faq-heading">Frequently asked questions</h2>
-          <p className="lp-section-sub">Everything you need to know about Lumio's AI dashboard builder.</p>
+          <p className="lp-section-sub">Everything you need to know about LucentReport's AI dashboard builder.</p>
 
           <div className="lp-faq-list" role="list">
             {FAQ_ITEMS.map((item, i) => (
@@ -434,11 +432,11 @@ export default function LandingPage() {
             <span className="lp-grad-text">Let AI tell it.</span>
           </h2>
           <p className="lp-cta-sub">
-            Join teams using Lumio to turn raw PostgreSQL data into actionable intelligence —
+            Join teams using LucentReport to turn raw PostgreSQL data into actionable intelligence —
             no SQL expertise, no BI consultants, no setup time.
           </p>
           <a href="/login" className="lp-cta-primary lp-cta-large">
-            Launch Lumio free
+            Launch LucentReport free
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </a>
         </section>
@@ -448,9 +446,9 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="lp-footer" role="contentinfo">
         <div className="lp-footer-inner">
-          <a href="/" className="lp-footer-brand" aria-label="Lumio home">
-            <img src={logo} alt="Lumio" className="lp-footer-logo" width="22" height="22" loading="lazy" />
-            <span className="lp-footer-name">Lumio</span>
+          <a href="/" className="lp-footer-brand" aria-label="LucentReport home">
+            <img src={logo} alt="LucentReport" className="lp-footer-logo" width="22" height="22" loading="lazy" />
+            <span className="lp-footer-name">LucentReport</span>
           </a>
           <nav aria-label="Footer navigation" className="lp-footer-nav">
             <a href="#features" className="lp-footer-link">Features</a>
@@ -458,7 +456,7 @@ export default function LandingPage() {
             <a href="#analytics" className="lp-footer-link">Analytics</a>
             <a href="#faq" className="lp-footer-link">FAQ</a>
           </nav>
-          <p className="lp-footer-copy">© 2025 Lumio. AI-powered dashboard builder for PostgreSQL.</p>
+          <p className="lp-footer-copy">© 2025 LucentReport. AI-powered dashboard builder for PostgreSQL.</p>
           <a href="/login" className="lp-footer-signin">
             Sign in →
           </a>

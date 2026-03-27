@@ -1,39 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0a0e1e"/>
-      <stop offset="100%" stop-color="#110d2b"/>
+      <stop offset="0%" stop-color="#0c1445"/>
+      <stop offset="55%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#0e2a4a"/>
     </linearGradient>
-    <linearGradient id="pulse" x1="5" y1="0" x2="43" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#6d28d9" stop-opacity="0.35"/>
-      <stop offset="38%"  stop-color="#a78bfa"/>
-      <stop offset="60%"  stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.35"/>
+    <linearGradient id="bar1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.8"/>
     </linearGradient>
-    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
+    <linearGradient id="ray" x1="0" y1="1" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0"/>
+      <stop offset="45%" stop-color="#67e8f9" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#e0f2fe" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="spark" cx="72%" cy="22%" r="38%">
+      <stop offset="0%" stop-color="#67e8f9" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#67e8f9" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
   <!-- Background -->
-  <rect width="48" height="48" rx="11" fill="url(#bg)"/>
+  <rect width="48" height="48" rx="12" fill="url(#bg)"/>
+  <!-- Ambient spark glow -->
+  <rect width="48" height="48" rx="12" fill="url(#spark)"/>
 
-  <!-- Subtle horizontal grid rules -->
-  <line x1="5" y1="33" x2="43" y2="33" stroke="#ffffff" stroke-width="0.5" opacity="0.05"/>
-  <line x1="5" y1="23" x2="43" y2="23" stroke="#ffffff" stroke-width="0.5" opacity="0.04"/>
+  <!-- Three ascending bars -->
+  <rect x="7"  y="31" width="8" height="11" rx="2.5" fill="url(#bar1)" opacity="0.55"/>
+  <rect x="20" y="22" width="8" height="20" rx="2.5" fill="url(#bar1)" opacity="0.78"/>
+  <rect x="33" y="12" width="8" height="30" rx="2.5" fill="url(#bar1)"/>
 
-  <!-- Data-pulse path: flat → dip → sharp spike → return → flat -->
-  <path d="M5,29 L12,29 L16,35 L22,8 L28,29 L43,29"
-    fill="none"
-    stroke="url(#pulse)"
-    stroke-width="2.4"
-    stroke-linecap="round"
-    stroke-linejoin="round"/>
+  <!-- Light ray / lucent beam cutting diagonally across all bars -->
+  <rect x="-4" y="18" width="60" height="4" rx="2"
+    transform="rotate(-34 24 24)"
+    fill="url(#ray)" opacity="0.7"/>
 
-  <!-- Insight peak: outer glow + dot -->
-  <circle cx="22" cy="8" r="6.5" fill="#f59e0b" opacity="0.12" filter="url(#glow)"/>
-  <circle cx="22" cy="8" r="3.5" fill="#f59e0b" opacity="0.22"/>
-  <circle cx="22" cy="8" r="2.5" fill="#f59e0b"/>
-  <circle cx="22" cy="8" r="1.1" fill="#fef3c7"/>
+  <!-- Gleaming dot at ray tip (top-right) -->
+  <circle cx="38" cy="10" r="4.5" fill="#38bdf8" fill-opacity="0.15" filter="url(#glow)"/>
+  <circle cx="38" cy="10" r="2.2" fill="#e0f2fe" filter="url(#glow)"/>
 </svg>

@@ -224,7 +224,7 @@ function ApplyTemplateModal({
               Generating your {template.name} Dashboard...
             </div>
             <div className="apply-tpl-gen-sub">
-              Lumio is analyzing your data and building charts. This may take 30–60 seconds.
+              LucentReport is analyzing your data and building charts. This may take 30–60 seconds.
             </div>
             <div className="apply-tpl-gen-bar">
               <div

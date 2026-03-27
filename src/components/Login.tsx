@@ -68,9 +68,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
       <div className="login-form-area">
         <div className="login-card glass">
           <div className="login-header">
-            <img src={logo} alt="Lumio" className="login-logo" />
+            <img src={logo} alt="LucentReport" className="login-logo" />
             <h2>Welcome back</h2>
-            <p>Log in to your Lumio account</p>
+            <p>Log in to your LucentReport account</p>
           </div>
 
           <form onSubmit={handleSubmit} className="auth-form">

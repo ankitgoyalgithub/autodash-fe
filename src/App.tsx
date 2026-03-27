@@ -80,6 +80,7 @@ export interface DashboardCard {
 
 export interface HistoryEntry {
   id: number;
+  thread_id?: number;
   query: string;
   results_data: DashboardCard[];
   reference_images: string[];
@@ -149,9 +150,16 @@ function MainAppContent({ token }: { token: string; user?: any; onLogout?: () =>
     } catch (e: any) { alert(e.response?.data?.error || 'Failed to create project'); }
   };
 
-  const openProject = (p: Project) => {
+  const openProject = async (p: Project) => {
+    // Fetch the most recent thread for this project so the user can
+    // continue their last conversation instead of starting blank.
+    let latestThreadId: number | undefined = undefined;
+    try {
+      const r = await axios.get(`${BASE}/threads/?project_id=${p.id}`);
+      if (r.data.length > 0) latestThreadId = r.data[0].id;
+    } catch {}
     setActiveProject(p);
-    setInitialThreadId(undefined);
+    setInitialThreadId(latestThreadId);
     setView('workspace');
   };
 
@@ -192,7 +200,7 @@ function MainAppContent({ token }: { token: string; user?: any; onLogout?: () =>
 
       <div className="main-area">
         {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} datasources={datasources} onApplied={handleTemplateApplied} />}
-        {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.id)} />}
+        {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.thread_id ?? e.id)} />}
         {view === 'datasources' && <DatasourcesManagement datasources={datasources} onRefresh={fetchBasics} />}
         {view === 'workspace' && activeProject && (
           <Workspace

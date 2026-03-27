@@ -79,42 +79,62 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
     );
   }
 
-  // Drag mode: flat sortable grid of ALL cards
-  const ids = cards.map((_, i) => String(i));
+  // Drag mode: metrics stay fixed on top, only chart cards are sortable
+  // chartCards indices in the original cards array
+  const chartIndices = cards
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.type !== 'metric' && c.size !== 's' && c.size !== 'mini' && c.size !== 'small')
+    .map(({ i }) => i);
+  const chartIds = chartIndices.map(i => String(i));
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={(event) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-        const oldIdx = parseInt(String(active.id));
-        const newIdx = parseInt(String(over.id));
-        if (!isNaN(oldIdx) && !isNaN(newIdx)) onReorder(oldIdx, newIdx);
-      }}
-    >
-      <SortableContext items={ids} strategy={rectSortingStrategy}>
-        <div className="drag-cards-flat-grid">
-          {cards.map((card, i) => (
-            <SortableGridCard
-              key={String(i)}
-              id={String(i)}
-              card={card}
-              index={i}
-              layout={layout}
-              editMode={editMode}
-              font={font}
-              colors={colors}
-              posterTheme={posterTheme}
-              onUpdate={(u) => onUpdate(card, u)}
-              onDrillDown={(dim, val) => onDrillDown(card, dim, val)}
-              globalFilters={globalFilters}
-            />
+    <>
+      {/* Fixed non-draggable metrics strip */}
+      {metricCards.length > 0 && (
+        <div className="metrics-strip">
+          {metricCards.map((card, i) => (
+            <InsightCard key={i} index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} />
           ))}
         </div>
-      </SortableContext>
-    </DndContext>
+      )}
+      {/* Sortable chart cards */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(event) => {
+          const { active, over } = event;
+          if (!over || active.id === over.id) return;
+          // active.id and over.id are indices into the full cards array
+          const oldIdx = parseInt(String(active.id));
+          const newIdx = parseInt(String(over.id));
+          if (!isNaN(oldIdx) && !isNaN(newIdx)) onReorder(oldIdx, newIdx);
+        }}
+      >
+        <SortableContext items={chartIds} strategy={rectSortingStrategy}>
+          <div className="drag-cards-flat-grid">
+            {chartIndices.map((cardIdx) => {
+              const card = cards[cardIdx];
+              return (
+                <SortableGridCard
+                  key={String(cardIdx)}
+                  id={String(cardIdx)}
+                  card={card}
+                  index={cardIdx}
+                  layout={layout}
+                  editMode={editMode}
+                  font={font}
+                  colors={colors}
+                  posterTheme={posterTheme}
+                  onUpdate={(u) => onUpdate(card, u)}
+                  onDrillDown={(dim, val) => onDrillDown(card, dim, val)}
+                  globalFilters={globalFilters}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </>
   );
 }
 
@@ -132,7 +152,7 @@ function SortableGridCard({ id, card, index, layout, editMode, font, colors, pos
   const t = card.type || '';
   const gridColumnSpan =
     s === 'full' || s === 'xxl' ? 'span 12' :
-    s === 'wide' || s === 'xl' ? 'span 8' :
+    s === 'wide' || s === 'xl' ? 'span 6' :
     s === 'l' || s === 'tall' ? 'span 6' :
     s === 'mini' || s === 's' || s === 'small' || t === 'metric' ? 'span 3' :
     'span 4'; // m / medium / default
@@ -369,7 +389,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const [hitlResponses, setHitlResponses] = useState<Record<string, any>>({});
   const [hitlQueryRef, setHitlQueryRef] = useState<string>('');
   // Drag-and-drop + layout optimizer
-  const [dragEnabled, setDragEnabled] = useState(false);
+  const [dragEnabled, setDragEnabled] = useState(true);
   const [layoutOptimizing, setLayoutOptimizing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -389,11 +409,13 @@ export function Workspace({ project, onBack, initialThreadId }: {
     }
   }, []);
 
+  // Sync only when the parent explicitly changes the thread selection.
+  // Do NOT include currentThreadId in deps — that would reset the thread
+  // every time a new thread is created mid-session by handleSubmit.
   useEffect(() => {
-    if (initialThreadId !== currentThreadId) {
-      setCurrentThreadId(initialThreadId || null);
-    }
-  }, [initialThreadId, currentThreadId]);
+    setCurrentThreadId(initialThreadId !== undefined ? initialThreadId : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialThreadId]);
 
   useEffect(() => {
     if (currentThreadId) {
@@ -506,10 +528,9 @@ export function Workspace({ project, onBack, initialThreadId }: {
       setPendingHITL(null);
       setHitlQueryRef('');
 
-      if (r.data.dashboard_filters?.length) {
-        setDashboardFilters(r.data.dashboard_filters);
-        setGlobalFilters({});
-      }
+      // Capture filters now but apply them AFTER fetchThreadHistory to avoid
+      // the currentThreadId useEffect wiping them when a new thread is created.
+      const incomingFilters = r.data.dashboard_filters;
 
       const suggestedThemeId = r.data.suggested_theme;
       const suggestedLayout = r.data.suggested_layout;
@@ -542,6 +563,14 @@ export function Workspace({ project, onBack, initialThreadId }: {
       if (newThreadId) {
         await fetchThreadHistory(newThreadId);
       }
+
+      // Apply filters after fetchThreadHistory so the currentThreadId useEffect
+      // (which clears dashboardFilters on thread change) has already fired.
+      if (incomingFilters?.length) {
+        setDashboardFilters(incomingFilters);
+        setGlobalFilters({});
+      }
+
       setOptimisticPrompt(null);
     } catch (e: any) {
       setError(e.response?.data?.error || 'Something went wrong. Please try again.');

@@ -4,12 +4,12 @@ import {
   Eye, EyeOff, X, FileText, AlertCircle, Sparkles, TrendingUp,
   BarChart2, LineChart, PieChart as PieIcon, AreaChart as AreaIcon, Layers, LayoutList,
   DollarSign, ShoppingCart, Users, Package, Percent,
-  CreditCard, FlaskConical,
+  CreditCard, FlaskConical, AlignLeft, ScatterChart as ScatterIcon,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer,
   LineChart as ReLineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart,
-  ReferenceLine, ReferenceArea,
+  ReferenceLine, ReferenceArea, ScatterChart, Scatter, LabelList,
 } from 'recharts';
 import type { DashboardCard } from '../App';
 import { COLORS } from './constants';
@@ -194,11 +194,20 @@ function TableInsight({ data, colors }: { data: any[]; colors: string[] }) {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   if (!data?.length) return null;
-  const cols = Object.keys(data[0]);
+  // Exclude internal analytics columns (moving averages, momentum, flags) that have no business meaning in a table
+  const HIDDEN_COL_PATTERNS = /^(ma_\d+|momentum_pct|is_vital_few|is_forecast|is_anomaly|deviation_factor|cumulative_pct)$/i;
+  const cols = Object.keys(data[0]).filter(c => !HIDDEN_COL_PATTERNS.test(c));
+
+  // Filter out rows where ALL numeric columns are null/undefined — these are
+  // ghost rows from bad JOINs (e.g. customers with no matching revenue).
+  const numericCols = cols.filter(c => data.slice(0, 5).some(r => typeof r[c] === 'number'));
+  const cleanData = numericCols.length > 0
+    ? data.filter(row => numericCols.some(c => row[c] != null && row[c] !== 0))
+    : data;
 
   const sorted = useMemo(() => {
-    if (!sortCol) return data;
-    return [...data].sort((a, b) => {
+    if (!sortCol) return cleanData;
+    return [...cleanData].sort((a, b) => {
       const av = a[sortCol]; const bv = b[sortCol];
       if (av === null || av === undefined) return 1;
       if (bv === null || bv === undefined) return -1;
@@ -206,14 +215,14 @@ function TableInsight({ data, colors }: { data: any[]; colors: string[] }) {
         ? av - bv : String(av).localeCompare(String(bv));
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [data, sortCol, sortDir]);
+  }, [cleanData, sortCol, sortDir]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortCol(col); setSortDir('desc'); }
   };
 
-  const isNumeric = (col: string) => data.slice(0, 5).some(r => typeof r[col] === 'number');
+  const isNumeric = (col: string) => cleanData.slice(0, 5).some(r => typeof r[col] === 'number');
   const accentColor = colors[0] || '#6366f1';
 
   return (
@@ -946,18 +955,152 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       case 'table': {
         return <TableInsight data={displayData} colors={activeColors} />;
       }
-      default: return (
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <BarChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
-            <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
-            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
-            <RTooltip content={ChartTooltip} />
-            <Legend content={ChartLegend} />
-            {dataKeys.map((k, i) => <Bar key={k} dataKey={k} fill={activeColors[i % activeColors.length]} radius={[6, 6, 0, 0]} />)}
-          </BarChart>
-        </ResponsiveContainer>
-      );
+
+      // ── Horizontal bar — best for 8-20 named categories ──────────────────────
+      case 'horizontal_bar': {
+        const dynH = Math.min(Math.max(displayData.length * 36 + 40, chartHeight), 520);
+        return (
+          <ResponsiveContainer width="100%" height={dynH}>
+            <BarChart
+              data={displayData}
+              layout="vertical"
+              margin={{ top: 4, right: 48, left: 4, bottom: 4 }}
+              onClick={onChartClick}
+              barCategoryGap="20%"
+            >
+              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} horizontal={false} />
+              <XAxis
+                type="number"
+                tickFormatter={(v) => formatAxisTick(v, dataKeys[0])}
+                tick={{ fontSize: 11, fill: tickColor }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey={xKey}
+                tick={{ fontSize: 11, fill: tickColor }}
+                axisLine={false}
+                tickLine={false}
+                width={130}
+                tickFormatter={(v) => { const s = String(v ?? ''); return s.length > 22 ? s.slice(0, 20) + '…' : s; }}
+              />
+              <RTooltip content={ChartTooltip} />
+              <Legend content={ChartLegend} />
+              {dataKeys.map((k, i) => (
+                <Bar key={k} dataKey={k} fill={activeColors[i % activeColors.length]} radius={[0, 6, 6, 0]} maxBarSize={26}>
+                  {displayData.length <= 12 && (
+                    <LabelList
+                      dataKey={k}
+                      position="right"
+                      formatter={(v: any) => typeof v === 'number' ? formatAxisTick(v, k) : ''}
+                      style={{ fontSize: 11, fill: tickColor }}
+                    />
+                  )}
+                </Bar>
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        );
+      }
+
+      // ── Scatter plot — two numeric axes, each row = one dot ──────────────────
+      case 'scatter': {
+        return (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <ScatterChart margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} />
+              <XAxis
+                type="number"
+                dataKey={xKey}
+                name={prettifyCol(xKey)}
+                tickFormatter={(v) => formatAxisTick(v, xKey)}
+                tick={{ fontSize: 11, fill: tickColor }}
+                axisLine={false}
+                tickLine={false}
+                label={{ value: prettifyCol(xKey), position: 'insideBottom', offset: -12, fontSize: 11, fill: tickColor }}
+              />
+              <YAxis
+                type="number"
+                dataKey={dataKeys[0]}
+                name={prettifyCol(dataKeys[0])}
+                tickFormatter={(v) => formatAxisTick(v, dataKeys[0])}
+                tick={{ fontSize: 11, fill: tickColor }}
+                axisLine={false}
+                tickLine={false}
+                width={60}
+                label={{ value: prettifyCol(dataKeys[0]), angle: -90, position: 'insideLeft', offset: 10, fontSize: 11, fill: tickColor }}
+              />
+              <RTooltip
+                cursor={{ strokeDasharray: '3 3' }}
+                content={({ active, payload }: any) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <div className="chart-tooltip">
+                      {payload.map((p: any, i: number) => (
+                        <div key={i} className="ct-row">
+                          <span className="ct-name">{prettifyCol(p.name || '')}</span>
+                          <span className="ct-value">{formatAxisTick(p.value, p.name)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+              <Scatter data={displayData} fill={activeColors[0]} opacity={0.72} />
+            </ScatterChart>
+          </ResponsiveContainer>
+        );
+      }
+
+      // ── Default vertical bar ──────────────────────────────────────────────────
+      default: {
+        const numBars = displayData.length;
+        const hasLongLabels = displayData.some(d => String(d[xKey] ?? '').length > 10);
+        const needsAngle = numBars > 7 || hasLongLabels;
+        const extraBottom = needsAngle ? 60 : 5;
+        return (
+          <ResponsiveContainer width="100%" height={chartHeight + (needsAngle ? 28 : 0)}>
+            <BarChart
+              data={displayData}
+              margin={{ top: 5, right: 20, left: 0, bottom: extraBottom }}
+              onClick={onChartClick}
+              barCategoryGap="25%"
+            >
+              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false} />
+              <XAxis
+                dataKey={xKey}
+                tickFormatter={(v) => {
+                  const s = formatXAxis(v);
+                  return needsAngle && s.length > 14 ? s.slice(0, 12) + '…' : s;
+                }}
+                tick={needsAngle
+                  ? { fontSize: 10, fill: tickColor, angle: -38, textAnchor: 'end', dy: 4 }
+                  : { fontSize: 11, fill: tickColor }
+                }
+                axisLine={false}
+                tickLine={false}
+                interval={numBars > 20 ? Math.floor(numBars / 15) : 0}
+              />
+              <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
+              <RTooltip content={ChartTooltip} />
+              <Legend content={ChartLegend} />
+              {dataKeys.map((k, i) => (
+                <Bar key={k} dataKey={k} fill={activeColors[i % activeColors.length]} radius={[6, 6, 0, 0]} maxBarSize={56}>
+                  {numBars <= 8 && dataKeys.length === 1 && (
+                    <LabelList
+                      dataKey={k}
+                      position="top"
+                      formatter={(v: any) => typeof v === 'number' ? formatAxisTick(v, k) : ''}
+                      style={{ fontSize: 11, fill: tickColor }}
+                    />
+                  )}
+                </Bar>
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        );
+      }
     }
   };
 
@@ -994,10 +1137,12 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               {type !== 'metric' && (card.type === 'chart' || !card.type) && (
                 <div className="type-toggle">
                   <button className={chartType === 'bar' ? 'active' : ''} onClick={() => setChartType('bar')} title="Bar chart"><BarChart2 size={13} /></button>
+                  <button className={chartType === 'horizontal_bar' ? 'active' : ''} onClick={() => setChartType('horizontal_bar')} title="Horizontal Bar"><AlignLeft size={13} /></button>
                   <button className={chartType === 'stacked_bar' ? 'active' : ''} onClick={() => setChartType('stacked_bar')} title="Stacked Bar"><Layers size={13} /></button>
                   <button className={chartType === 'area' ? 'active' : ''} onClick={() => setChartType('area')} title="Area chart"><AreaIcon size={13} /></button>
                   <button className={chartType === 'line' ? 'active' : ''} onClick={() => setChartType('line')} title="Line chart"><LineChart size={13} /></button>
                   <button className={chartType === 'pie' ? 'active' : ''} onClick={() => setChartType('pie')} title="Pie chart"><PieIcon size={13} /></button>
+                  <button className={chartType === 'scatter' ? 'active' : ''} onClick={() => setChartType('scatter')} title="Scatter plot"><ScatterIcon size={13} /></button>
                   <button className={chartType === 'timeline' ? 'active' : ''} onClick={() => setChartType('timeline')} title="Timeline"><span style={{fontSize:9,fontWeight:800}}>TL</span></button>
                 </div>
               )}

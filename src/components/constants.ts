@@ -4,13 +4,20 @@ export const BASE =
     : 'https://13.201.72.131.sslip.io/api';
 
 export const PALETTES: Record<string, string[]> = {
-  vibrant:   ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#f97316','#06b6d4','#84cc16'],
-  pastel:    ['#a5b4fc','#c4b5fd','#f9a8d4','#fcd34d','#6ee7b7','#93c5fd','#fca5a5','#fdba74','#67e8f9','#bef264'],
-  neon:      ['#00f2ff','#7000ff','#ff00d9','#fffb00','#00ff40','#ff8c00','#ff0055','#4dff00','#0077ff','#bc00ff'],
-  corporate: ['#1e293b','#334155','#475569','#64748b','#94a3b8','#cbd5e1','#e2e8f0','#0f172a','#1e1b4b','#312e81'],
-  emerald:   ['#059669','#10b981','#34d399','#6ee7b7','#a7f3d0','#064e3b','#065f46','#047857','#059669','#10b981'],
-  royal:     ['#1e3a8a','#1e40af','#1d4ed8','#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe','#eff6ff','#1e3a8a'],
-  cyberpunk: ['#ff0055','#00ff9f','#00b8ff','#f000ff','#fffb00','#ff8c00','#00f2ff','#bc00ff','#7000ff','#ff00d9'],
+  // Maximally distinct first — cool/warm alternating so multi-series charts never clash
+  vibrant:   ['#6366f1','#f59e0b','#10b981','#ef4444','#06b6d4','#ec4899','#f97316','#8b5cf6','#22d3ee','#84cc16'],
+  // Softer tones that stay readable on white and dark backgrounds
+  pastel:    ['#818cf8','#fbbf24','#6ee7b7','#f87171','#67e8f9','#f9a8d4','#fda4af','#a5f3fc','#d9f99d','#c4b5fd'],
+  // Vivid but not harsh — good for dark themes
+  neon:      ['#a78bfa','#34d399','#fb923c','#22d3ee','#f472b6','#facc15','#60a5fa','#4ade80','#e879f9','#38bdf8'],
+  // Serious, dark, high-contrast for corporate reports
+  corporate: ['#1e40af','#0f766e','#9a3412','#4c1d95','#064e3b','#831843','#0c4a6e','#365314','#1c1917','#44403c'],
+  // Nature-inspired greens and teals with complementary accents
+  emerald:   ['#059669','#0891b2','#65a30d','#0d9488','#16a34a','#2563eb','#7c3aed','#ca8a04','#dc2626','#0f766e'],
+  // Rich navy/violet palette for executive dashboards
+  royal:     ['#1d4ed8','#7c3aed','#0891b2','#0f766e','#b45309','#9333ea','#1e40af','#065f46','#6d28d9','#0369a1'],
+  // High-energy neon for dark themes and modern tech dashboards
+  cyberpunk: ['#a855f7','#06b6d4','#f472b6','#4ade80','#facc15','#60a5fa','#fb923c','#34d399','#818cf8','#f87171'],
 };
 
 export const COLORS = PALETTES.vibrant;

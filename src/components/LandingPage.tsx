@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import logo from '../assets/logo.svg';
 
 const FAQ_ITEMS = [
   {
@@ -54,8 +53,7 @@ export default function LandingPage() {
       <nav className="lp-nav" role="navigation" aria-label="Main navigation">
         <div className="lp-nav-inner">
           <a href="/" className="lp-nav-brand" aria-label="LucentReport home">
-            <img src={logo} alt="LucentReport logo" className="lp-nav-logo" width="28" height="28" />
-            <span className="lp-nav-name">LucentReport</span>
+            <img src="/brand-logo-cropped.png" alt="LucentReport" className="lp-nav-brand-img" />
           </a>
           <div className="lp-nav-links">
             <a href="#features" className="lp-nav-link">Features</a>
@@ -229,44 +227,46 @@ export default function LandingPage() {
           <div className="lp-features-grid">
             {[
               {
-                icon: '🧠',
+                img: '/feat-multi-agent.png',
                 title: 'Multi-Agent AI Pipeline',
                 desc: 'Specialized agents — Data Analyzer, Planner, SQL Expert, Reflector, Insight Enricher — collaborate to generate accurate, insightful dashboards from a single prompt.',
                 accent: '#6366f1',
               },
               {
-                icon: '📊',
+                img: '/feat-nl-charts.png',
                 title: 'Natural Language to Charts',
                 desc: 'Bar, line, area, pie, stacked, combo, scatter, horizontal bar, and table — LucentReport automatically picks the right chart type based on your data shape and query intent.',
                 accent: '#8b5cf6',
               },
               {
-                icon: '🔬',
+                img: '/feat-analytics.png',
                 title: 'Advanced Analytics Engine',
                 desc: 'One-click forecasting, priority matrix, trend decomposition, Pareto (80/20) analysis, correlation heatmaps, and statistical anomaly detection built into every dashboard.',
                 accent: '#a855f7',
               },
               {
-                icon: '🙋',
+                img: '/feat-hitl.png',
                 title: 'Human-in-the-Loop AI',
                 desc: 'When the AI needs clarification — forecast horizon, matrix axes, custom parameters — it pauses and asks you in the chat before proceeding.',
                 accent: '#c026d3',
               },
               {
-                icon: '🎨',
+                img: '/feat-design.png',
                 title: 'Beautiful Design System',
                 desc: 'Multiple themes, 7 color palettes, and layout modes. Export as PNG, deploy as a public shareable link, or embed live dashboards in your product.',
                 accent: '#6366f1',
               },
               {
-                icon: '🔒',
+                img: '/feat-secure.png',
                 title: 'Secure by Design',
                 desc: 'Database credentials never leave your server. All SQL runs in read-only mode against your own database. No data is stored or transmitted externally.',
                 accent: '#4f46e5',
               },
             ].map(f => (
               <article key={f.title} className="lp-feat-card" style={{ '--accent': f.accent } as React.CSSProperties}>
-                <div className="lp-feat-icon" aria-hidden="true">{f.icon}</div>
+                <div className="lp-feat-icon">
+                  <img src={f.img} alt={f.title} className="lp-feat-img" />
+                </div>
                 <h3 className="lp-feat-title">{f.title}</h3>
                 <p className="lp-feat-desc">{f.desc}</p>
               </article>
@@ -447,8 +447,7 @@ export default function LandingPage() {
       <footer className="lp-footer" role="contentinfo">
         <div className="lp-footer-inner">
           <a href="/" className="lp-footer-brand" aria-label="LucentReport home">
-            <img src={logo} alt="LucentReport" className="lp-footer-logo" width="22" height="22" loading="lazy" />
-            <span className="lp-footer-name">LucentReport</span>
+            <img src="/brand-logo-cropped.png" alt="LucentReport" className="lp-footer-brand-img" loading="lazy" />
           </a>
           <nav aria-label="Footer navigation" className="lp-footer-nav">
             <a href="#features" className="lp-footer-link">Features</a>

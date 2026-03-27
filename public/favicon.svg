@@ -1,45 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0c1445"/>
-      <stop offset="55%" stop-color="#1e1b4b"/>
-      <stop offset="100%" stop-color="#0e2a4a"/>
+      <stop offset="0%" stop-color="#eef2ff"/>
+      <stop offset="100%" stop-color="#ede9fe"/>
     </linearGradient>
-    <linearGradient id="bar1" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-      <stop offset="0%" stop-color="#38bdf8" stop-opacity="1"/>
-      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.8"/>
+    <linearGradient id="bar-tall" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="bar-mid" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="bar-short" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
     </linearGradient>
     <linearGradient id="ray" x1="0" y1="1" x2="1" y2="0" gradientUnits="objectBoundingBox">
-      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0"/>
-      <stop offset="45%" stop-color="#67e8f9" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#e0f2fe" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0"/>
+      <stop offset="45%" stop-color="#a5b4fc" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#c7d2fe" stop-opacity="0"/>
     </linearGradient>
-    <radialGradient id="spark" cx="72%" cy="22%" r="38%">
-      <stop offset="0%" stop-color="#67e8f9" stop-opacity="0.45"/>
-      <stop offset="100%" stop-color="#67e8f9" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- Background -->
   <rect width="48" height="48" rx="12" fill="url(#bg)"/>
-  <!-- Ambient spark glow -->
-  <rect width="48" height="48" rx="12" fill="url(#spark)"/>
+  <rect width="48" height="48" rx="12" fill="none" stroke="#c7d2fe" stroke-width="1"/>
 
-  <!-- Three ascending bars -->
-  <rect x="7"  y="31" width="8" height="11" rx="2.5" fill="url(#bar1)" opacity="0.55"/>
-  <rect x="20" y="22" width="8" height="20" rx="2.5" fill="url(#bar1)" opacity="0.78"/>
-  <rect x="33" y="12" width="8" height="30" rx="2.5" fill="url(#bar1)"/>
+  <rect x="7"  y="32" width="8" height="10" rx="2.5" fill="url(#bar-short)" opacity="0.7"/>
+  <rect x="20" y="22" width="8" height="20" rx="2.5" fill="url(#bar-mid)" opacity="0.85"/>
+  <rect x="33" y="12" width="8" height="30" rx="2.5" fill="url(#bar-tall)"/>
 
-  <!-- Light ray / lucent beam cutting diagonally across all bars -->
-  <rect x="-4" y="18" width="60" height="4" rx="2"
+  <rect x="-4" y="18" width="60" height="3.5" rx="1.75"
     transform="rotate(-34 24 24)"
-    fill="url(#ray)" opacity="0.7"/>
+    fill="url(#ray)" opacity="0.9"/>
 
-  <!-- Gleaming dot at ray tip (top-right) -->
-  <circle cx="38" cy="10" r="4.5" fill="#38bdf8" fill-opacity="0.15" filter="url(#glow)"/>
-  <circle cx="38" cy="10" r="2.2" fill="#e0f2fe" filter="url(#glow)"/>
+  <circle cx="38" cy="10" r="5" fill="#818cf8" fill-opacity="0.18" filter="url(#glow)"/>
+  <circle cx="38" cy="10" r="2.8" fill="#4f46e5" filter="url(#glow)"/>
+  <circle cx="38" cy="10" r="1.2" fill="#e0e7ff"/>
 </svg>

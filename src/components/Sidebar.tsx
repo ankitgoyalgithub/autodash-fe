@@ -41,7 +41,7 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
       {/* ── Logo ── */}
       <div className="sidebar-logo">
         <img src={logo} alt="LucentReport" className="logo-img" />
-        {!collapsed && <span className="logo-name">LucentReport</span>}
+        {!collapsed && <span className="logo-name"><span className="lp-nav-name-lucent">Lucent</span><span className="lp-nav-name-report">Report</span></span>}
       </div>
 
       {/* ── Create button ── */}

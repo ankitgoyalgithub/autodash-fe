@@ -610,7 +610,14 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         </ResponsiveContainer>
       );
       case 'pie': {
-        const pieTotal = displayData.reduce((sum, row) => sum + (typeof row[dataKeys[0]] === 'number' ? row[dataKeys[0]] : 0), 0);
+        const PIE_MAX = 8;
+        let pieData = displayData;
+        if (displayData.length > PIE_MAX) {
+          const sorted = [...displayData].sort((a, b) => (b[dataKeys[0]] || 0) - (a[dataKeys[0]] || 0));
+          const otherVal = sorted.slice(PIE_MAX - 1).reduce((sum: number, row: any) => sum + (typeof row[dataKeys[0]] === 'number' ? row[dataKeys[0]] : 0), 0);
+          pieData = [...sorted.slice(0, PIE_MAX - 1), { [xKey]: 'Other', [dataKeys[0]]: otherVal }];
+        }
+        const pieTotal = pieData.reduce((sum, row) => sum + (typeof row[dataKeys[0]] === 'number' ? row[dataKeys[0]] : 0), 0);
         const isCurrPie = isCurrencyKey(dataKeys[0] || card.title);
         const centerLabel = pieTotal > 0 ? (isCurrPie ? '$' : '') + formatCompact(pieTotal) : '';
         return (
@@ -619,7 +626,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               <RTooltip content={ChartTooltip} />
               <Legend content={ChartLegend} />
               <Pie
-                data={displayData}
+                data={pieData}
                 cx="50%" cy="50%"
                 innerRadius={size === 's' ? 44 : 62}
                 outerRadius={size === 's' ? 66 : 90}
@@ -641,7 +648,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                   );
                 }} />
               )}
-              {displayData.map((_: any, i: number) => <Cell key={i} fill={activeColors[i % activeColors.length]} stroke="none" />)}
+              {pieData.map((_: any, i: number) => <Cell key={i} fill={activeColors[i % activeColors.length]} stroke="none" />)}
             </Pie>
             </PieChart>
           </ResponsiveContainer>

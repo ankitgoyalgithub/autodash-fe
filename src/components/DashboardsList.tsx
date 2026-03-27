@@ -64,7 +64,7 @@ export function DashboardsList({ projects, onOpenEntry }: {
                 <h4>{entry.query}</h4>
                 <div className="entry-stats">
                   <span><BarChart2 size={12}/>{entry.results_data?.length || 0} charts</span>
-                  {entry.reference_images?.length > 0 && <span><ImageIcon size={12}/>{entry.reference_images.length} refs</span>}
+                  {entry.reference_images?.length > 0 && <span><ImageIcon size={12}/>{entry.reference_images?.length} refs</span>}
                 </div>
               </div>
               <div className="entry-arrow"><ChevronRight size={16}/></div>

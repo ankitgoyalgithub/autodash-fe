@@ -40,7 +40,7 @@ export function PublicDashboardView() {
         </button>
       </div>
       {(() => {
-        const sorted = [...data.results_data].sort((a: any, b: any) => {
+        const sorted = [...(data.results_data || [])].sort((a: any, b: any) => {
           const aM = a.type === 'metric' || a.size === 'mini' || a.size === 'small' ? 0 : 1;
           const bM = b.type === 'metric' || b.size === 'mini' || b.size === 'small' ? 0 : 1;
           return aM - bM;

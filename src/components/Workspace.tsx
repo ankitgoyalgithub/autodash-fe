@@ -636,7 +636,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
 
   const handleUpdateCard = (card: DashboardCard, updates: Partial<DashboardCard>) => {
     if (!activeEntry) return;
-    const updatedResults = activeEntry.results_data.map(c =>
+    const updatedResults = (activeEntry.results_data || []).map(c =>
       c.title === card.title ? { ...c, ...updates } : c
     );
     setActiveEntry({ ...activeEntry, results_data: updatedResults });
@@ -666,7 +666,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
       w: 340,
       h: 160,
     };
-    setActiveEntry({ ...activeEntry, results_data: [...activeEntry.results_data, newCard] });
+    setActiveEntry({ ...activeEntry, results_data: [...(activeEntry.results_data || []), newCard] });
   };
 
   const handleDrillDown = (card: DashboardCard, dimension: string, value: string | number) => {
@@ -695,7 +695,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
         charts,
         filter_overrides: activeFilters,
       });
-      const updatedResults = [...activeEntry.results_data];
+      const updatedResults = [...(activeEntry.results_data || [])];
       for (const res of r.data.results || []) {
         if (!res.error && res.data) {
           updatedResults[res.index] = { ...updatedResults[res.index], data: res.data };
@@ -722,7 +722,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
   // ── Drag reorder callback (called by DraggableCardsGrid) ────────────────────
   const handleReorder = (oldIndex: number, newIndex: number) => {
     if (!activeEntry) return;
-    const reordered = arrayMove([...activeEntry.results_data], oldIndex, newIndex);
+    const reordered = arrayMove([...(activeEntry.results_data || [])], oldIndex, newIndex);
     setActiveEntry({ ...activeEntry, results_data: reordered });
   };
 
@@ -1238,7 +1238,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
                       <p className="canvas-subtitle">{project.name} • {new Date(activeEntry.created_at).toLocaleDateString()} • {activeEntry.results_data?.length || 0} Insights</p>
                     </header>
                     <div className="dp-grid">
-                      {renderCards(activeEntry.results_data)}
+                      {renderCards(activeEntry.results_data || [])}
                     </div>
                   </div>
                 </div>
@@ -1249,41 +1249,41 @@ export function Workspace({ project, onBack, initialThreadId }: {
                   ) : layout === 'exec' ? (
                     <div className="exec-grid">
                       <div className="exec-metrics">
-                        {renderCards(activeEntry.results_data.filter(c => c.size === 'small' || c.size === 'mini' || c.type === 'metric'))}
+                        {renderCards((activeEntry.results_data || []).filter(c => c.size === 'small' || c.size === 'mini' || c.type === 'metric'))}
                       </div>
                       <div className="exec-charts">
-                        {renderCards(activeEntry.results_data.filter(c => c.size !== 'small' && c.size !== 'mini' && c.type !== 'metric'))}
+                        {renderCards((activeEntry.results_data || []).filter(c => c.size !== 'small' && c.size !== 'mini' && c.type !== 'metric'))}
                       </div>
                     </div>
                   ) : layout === 'hub' ? (
                     <div className="hub-grid">
                       <div className="hub-main">
-                        {renderCards(activeEntry.results_data.filter(c => (c.size === 'wide' || c.size === 'full') && c.type !== 'metric').slice(0, 1))}
+                        {renderCards((activeEntry.results_data || []).filter(c => (c.size === 'wide' || c.size === 'full') && c.type !== 'metric').slice(0, 1))}
                       </div>
                       <div className="hub-side">
-                        {renderCards(activeEntry.results_data.filter((c, i) => (c.size !== 'wide' && c.size !== 'full') || i > 0))}
+                        {renderCards((activeEntry.results_data || []).filter((c, i) => (c.size !== 'wide' && c.size !== 'full') || i > 0))}
                       </div>
                     </div>
                   ) : layout === 'split' ? (
                     <div className="split-grid">
-                      {renderCards(activeEntry.results_data.slice(0, 2))}
+                      {renderCards((activeEntry.results_data || []).slice(0, 2))}
                     </div>
                   ) : layout === 'magazine' ? (
                     <div className="magazine-grid">
-                      {renderCards(activeEntry.results_data)}
+                      {renderCards(activeEntry.results_data || [])}
                     </div>
                   ) : layout === 'presentation' ? (
                     <div className="presentation-grid">
-                      {renderCards(activeEntry.results_data)}
+                      {renderCards(activeEntry.results_data || [])}
                     </div>
                   ) : layout === 'poster' ? (
                     <div ref={posterRef} className={`poster-canvas poster-theme-${posterTheme}${infographicTemplate ? ` infographic-tpl-${infographicTemplate}` : ''}`}>
-                      {renderCards(activeEntry.results_data)}
+                      {renderCards(activeEntry.results_data || [])}
                     </div>
                   ) : (
                     /* Default: grid / masonry / single — supports drag-and-drop */
                     <DraggableCardsGrid
-                      cards={activeEntry.results_data}
+                      cards={activeEntry.results_data || []}
                       layout={layout}
                       editMode={editMode}
                       font={font.value}

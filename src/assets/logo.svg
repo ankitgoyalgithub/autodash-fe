@@ -1,38 +1,39 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#3b0764"/>
-      <stop offset="50%" stop-color="#6d28d9"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
+      <stop offset="0%" stop-color="#0a0e1e"/>
+      <stop offset="100%" stop-color="#110d2b"/>
     </linearGradient>
-    <linearGradient id="bars" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
-      <stop offset="100%" stop-color="#ddd6fe" stop-opacity="0.75"/>
+    <linearGradient id="pulse" x1="5" y1="0" x2="43" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#6d28d9" stop-opacity="0.35"/>
+      <stop offset="38%"  stop-color="#a78bfa"/>
+      <stop offset="60%"  stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.35"/>
     </linearGradient>
-    <radialGradient id="glow" cx="75%" cy="27%" r="40%">
-      <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/>
-    </radialGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
 
   <!-- Background -->
-  <rect width="48" height="48" rx="13" fill="url(#bg)"/>
-  <!-- Inner glow -->
-  <rect width="48" height="48" rx="13" fill="url(#glow)"/>
+  <rect width="48" height="48" rx="11" fill="url(#bg)"/>
 
-  <!-- Ascending bars -->
-  <rect x="7.5"  y="30" width="7.5" height="11" rx="2.5" fill="url(#bars)" opacity="0.55"/>
-  <rect x="19.5" y="21" width="7.5" height="20" rx="2.5" fill="url(#bars)" opacity="0.78"/>
-  <rect x="31.5" y="11" width="7.5" height="30" rx="2.5" fill="url(#bars)"/>
+  <!-- Subtle horizontal grid rules -->
+  <line x1="5" y1="33" x2="43" y2="33" stroke="#ffffff" stroke-width="0.5" opacity="0.05"/>
+  <line x1="5" y1="23" x2="43" y2="23" stroke="#ffffff" stroke-width="0.5" opacity="0.04"/>
 
-  <!-- Trend sparkline -->
-  <polyline
-    points="11.25,30 23.25,21 35.25,11"
-    stroke="white" stroke-width="1.75"
-    stroke-linecap="round" stroke-linejoin="round"
-    stroke-opacity="0.35" fill="none"/>
+  <!-- Data-pulse path: flat → dip → sharp spike → return → flat -->
+  <path d="M5,29 L12,29 L16,35 L22,8 L28,29 L43,29"
+    fill="none"
+    stroke="url(#pulse)"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
 
-  <!-- Peak dot with halo -->
-  <circle cx="35.25" cy="11" r="5"   fill="white" fill-opacity="0.18"/>
-  <circle cx="35.25" cy="11" r="3"   fill="white" fill-opacity="0.95"/>
+  <!-- Insight peak: outer glow + dot -->
+  <circle cx="22" cy="8" r="6.5" fill="#f59e0b" opacity="0.12" filter="url(#glow)"/>
+  <circle cx="22" cy="8" r="3.5" fill="#f59e0b" opacity="0.22"/>
+  <circle cx="22" cy="8" r="2.5" fill="#f59e0b"/>
+  <circle cx="22" cy="8" r="1.1" fill="#fef3c7"/>
 </svg>

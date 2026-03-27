@@ -31,6 +31,7 @@ export interface Project {
   description: string;
   emoji: string;
   color: string;
+  palette?: string;
   chart_count: number;
   datasource: Datasource | null;
   updated_at: string;

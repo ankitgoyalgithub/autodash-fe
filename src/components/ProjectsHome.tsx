@@ -1,10 +1,59 @@
 import { useState } from 'react';
-import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import type { Datasource, Project } from '../App';
 import { BASE, EMOJIS, PALETTES } from './constants';
 import { DatasourceEditForm } from './DatasourcesManagement';
 import { DesignTemplates } from './DesignTemplates';
+
+// ─── Palette metadata for the picker ─────────────────────────────────────────
+
+const PALETTE_META: { id: string; label: string; desc: string }[] = [
+  { id: 'vibrant',   label: 'Vibrant',    desc: 'Bold & energetic' },
+  { id: 'pastel',    label: 'Pastel',     desc: 'Soft & readable' },
+  { id: 'neon',      label: 'Neon',       desc: 'Dark-theme ready' },
+  { id: 'corporate', label: 'Corporate',  desc: 'Professional & serious' },
+  { id: 'emerald',   label: 'Emerald',    desc: 'Nature-inspired greens' },
+  { id: 'royal',     label: 'Royal',      desc: 'Navy & violet executive' },
+  { id: 'cyberpunk', label: 'Cyberpunk',  desc: 'High-energy tech' },
+];
+
+// Derive a representative accent color from a palette (first swatch)
+function paletteAccent(paletteId: string): string {
+  return (PALETTES[paletteId as keyof typeof PALETTES] || PALETTES.vibrant)[0];
+}
+
+// ─── Mini dashboard preview (live-colored with palette) ───────────────────────
+
+function DashboardPreview({ paletteId }: { paletteId: string }) {
+  const colors = PALETTES[paletteId as keyof typeof PALETTES] || PALETTES.vibrant;
+  const [c0, c1, c2, c3] = colors;
+  return (
+    <div className="np-preview">
+      {/* Metric chips */}
+      <div className="np-preview-metrics">
+        {[c0, c1, c2].map((c, i) => (
+          <div key={i} className="np-preview-metric" style={{ borderTopColor: c }}>
+            <div className="np-preview-metric-val" style={{ background: c + '22' }} />
+            <div className="np-preview-metric-lbl" />
+          </div>
+        ))}
+      </div>
+      {/* Mini bar chart */}
+      <div className="np-preview-chart">
+        {[55, 80, 45, 95, 65, 75, 50].map((h, i) => (
+          <div key={i} className="np-preview-bar"
+            style={{ height: `${h}%`, background: i % 2 === 0 ? c0 : c1, opacity: 0.85 + (i % 3) * 0.05 }} />
+        ))}
+        {/* Trend line overlay */}
+        <svg className="np-preview-line" viewBox="0 0 70 40" preserveAspectRatio="none">
+          <polyline points="5,28 15,18 25,22 35,8 45,14 55,10 65,6"
+            fill="none" stroke={c3 || c2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9"/>
+        </svg>
+      </div>
+    </div>
+  );
+}
 
 // ─── New Project Modal ────────────────────────────────────────────────────────
 
@@ -17,12 +66,15 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [emoji, setEmoji] = useState('📊');
-  const [color, setColor] = useState('#6366f1');
+  const [paletteId, setPaletteId] = useState('vibrant');
   const [selectedDs, setSelectedDs] = useState<number | null>(null);
   const [addingNew, setAddingNew] = useState(datasources.length === 0);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ok: boolean; msg: string} | null>(null);
   const [savedDs, setSavedDs] = useState<string>('');
+
+  const accent = paletteAccent(paletteId);
+  const colors = PALETTES[paletteId as keyof typeof PALETTES] || PALETTES.vibrant;
 
   const handleTest = async (cfg: object) => {
     setTesting(true); setTestResult(null);
@@ -38,35 +90,107 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-head"><h2>New Project</h2><button className="icon-btn" onClick={onClose}><X size={18}/></button></div>
-        <div className="steps-bar">
-          <div className={`step ${step >= 1 ? 'active' : ''}`}><span>1</span>Setup</div>
-          <div className="step-line"/>
-          <div className={`step ${step >= 2 ? 'active' : ''}`}><span>2</span>Data Source</div>
+      <div className="np-modal" onClick={e => e.stopPropagation()}>
+
+        {/* ── Colorful hero header ── */}
+        <div className="np-hero" style={{ background: `linear-gradient(135deg, ${accent}22 0%, ${colors[1]}18 50%, ${colors[2]}14 100%)` }}>
+          <div className="np-hero-inner">
+            <div className="np-hero-emoji">{emoji}</div>
+            <div className="np-hero-text">
+              <div className="np-hero-title">{name || 'New Project'}</div>
+              <div className="np-hero-sub">{desc || 'Your next great dashboard'}</div>
+            </div>
+          </div>
+          <DashboardPreview paletteId={paletteId} />
+          <button className="np-close" onClick={onClose}><X size={16}/></button>
         </div>
 
+        {/* ── Step pills ── */}
+        <div className="np-steps">
+          <div className={`np-step ${step >= 1 ? 'active' : ''}`} onClick={() => step > 1 && setStep(1)}>
+            <span style={step >= 1 ? { background: accent } : {}}>1</span>Setup
+          </div>
+          <div className="np-step-line" style={{ background: step >= 2 ? accent + '60' : undefined }} />
+          <div className={`np-step ${step >= 2 ? 'active' : ''}`}>
+            <span style={step >= 2 ? { background: accent } : {}}>2</span>Data Source
+          </div>
+        </div>
+
+        {/* ── Step 1: Setup ── */}
         {step === 1 && (
-          <div className="modal-body">
-            <div className="field full"><label>Project name</label><input autoFocus placeholder="e.g. Sales Analytics 2024" value={name} onChange={e => setName(e.target.value)} /></div>
-            <div className="field full"><label>Description <span className="opt">(optional)</span></label><input placeholder="What are you tracking?" value={desc} onChange={e => setDesc(e.target.value)} /></div>
-            <div className="field full"><label>Icon</label><div className="emoji-grid">{EMOJIS.map(e => <button key={e} className={`emoji-pick ${emoji === e ? 'sel' : ''}`} onClick={() => setEmoji(e)}>{e}</button>)}</div></div>
-            <div className="field full"><label>Color theme</label><div className="palette">{PALETTES.vibrant.map(c => <button key={c} className={`pal-dot ${color === c ? 'sel' : ''}`} style={{background:c}} onClick={() => setColor(c)}/>)}</div></div>
-            <div className="modal-footer"><button className="btn-primary" onClick={() => setStep(2)} disabled={!name.trim()}>Continue →</button></div>
+          <div className="np-body">
+            {/* Name & description */}
+            <div className="np-field">
+              <label>Project name</label>
+              <input autoFocus placeholder="e.g. Sales Analytics 2024" value={name} onChange={e => setName(e.target.value)}
+                style={{ '--focus-ring': accent } as React.CSSProperties} className="np-input" />
+            </div>
+            <div className="np-field">
+              <label>Description <span className="opt">optional</span></label>
+              <input placeholder="What are you tracking?" value={desc} onChange={e => setDesc(e.target.value)}
+                className="np-input" />
+            </div>
+
+            {/* Icon picker */}
+            <div className="np-field">
+              <label>Icon</label>
+              <div className="np-emoji-row">
+                {EMOJIS.map(e => (
+                  <button key={e} className={`np-emoji-btn ${emoji === e ? 'sel' : ''}`}
+                    style={emoji === e ? { borderColor: accent, background: accent + '18' } : {}}
+                    onClick={() => setEmoji(e)}>{e}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Color palette picker */}
+            <div className="np-field">
+              <label>Chart palette <Sparkles size={12} style={{ opacity: 0.5, verticalAlign: 'middle', marginLeft: 4 }} /></label>
+              <div className="np-palette-grid">
+                {PALETTE_META.map(p => (
+                  <button key={p.id}
+                    className={`np-palette-card ${paletteId === p.id ? 'sel' : ''}`}
+                    style={paletteId === p.id ? { borderColor: accent, boxShadow: `0 0 0 3px ${accent}28` } : {}}
+                    onClick={() => setPaletteId(p.id)}>
+                    <div className="np-palette-swatches">
+                      {(PALETTES[p.id as keyof typeof PALETTES] || []).slice(0, 5).map((c, i) => (
+                        <span key={i} style={{ background: c }} />
+                      ))}
+                    </div>
+                    <div className="np-palette-name">{p.label}</div>
+                    <div className="np-palette-desc">{p.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="np-footer">
+              <button className="np-btn-primary" style={{ background: accent }}
+                onClick={() => setStep(2)} disabled={!name.trim()}>
+                Continue →
+              </button>
+            </div>
           </div>
         )}
 
+        {/* ── Step 2: Data Source ── */}
         {step === 2 && (
-          <div className="modal-body">
+          <div className="np-body">
             {datasources.length > 0 && !addingNew && (
               <>
-                <div className="ds-list">{datasources.map(d => (
-                  <button key={d.id} className={`ds-item ${selectedDs === d.id ? 'sel' : ''}`} onClick={() => setSelectedDs(d.id)}>
-                    <div className="ds-icon"><Database size={16}/></div>
-                    <div><strong>{d.name}</strong><span>{d.host}:{d.port}/{d.database}</span></div>
-                    {selectedDs === d.id && <CheckCircle2 size={16} className="check"/>}
-                  </button>
-                ))}</div>
+                <div className="ds-list">
+                  {datasources.map(d => (
+                    <button key={d.id} className={`ds-item ${selectedDs === d.id ? 'sel' : ''}`}
+                      style={selectedDs === d.id ? { borderColor: accent, background: accent + '10' } : {}}
+                      onClick={() => setSelectedDs(d.id)}>
+                      <div className="ds-icon" style={selectedDs === d.id ? { background: accent + '20', color: accent } : {}}>
+                        <Database size={16}/>
+                      </div>
+                      <div><strong>{d.name}</strong><span>{d.host}:{d.port}/{d.database}</span></div>
+                      {selectedDs === d.id && <CheckCircle2 size={16} style={{ color: accent, flexShrink: 0 }}/>}
+                    </button>
+                  ))}
+                </div>
                 <button className="btn-link" onClick={() => setAddingNew(true)}><Plus size={13}/>Add new datasource</button>
               </>
             )}
@@ -76,18 +200,18 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
                 {!savedDs && (
                   <DatasourceEditForm
                     initialData={{ id: 0, name: '', host: '127.0.0.1', port: 5432, database: '', username: '' }}
-                    onSave={handleSaveDs}
-                    testing={testing}
-                    testResult={testResult}
-                    onTest={handleTest}
+                    onSave={handleSaveDs} testing={testing} testResult={testResult} onTest={handleTest}
                   />
                 )}
                 {datasources.length > 0 && !savedDs && <button className="btn-link" onClick={() => setAddingNew(false)}>← Use existing</button>}
               </>
             )}
-            <div className="modal-footer">
+            <div className="np-footer">
               <button className="btn-outline" onClick={() => setStep(1)}>← Back</button>
-              <button className="btn-primary" onClick={() => onCreate({ name, description: desc, emoji, color, datasource_id: selectedDs })}>Create Project ✨</button>
+              <button className="np-btn-primary" style={{ background: accent }}
+                onClick={() => onCreate({ name, description: desc, emoji, color: accent, palette: paletteId, datasource_id: selectedDs })}>
+                <Sparkles size={14}/> Create Project
+              </button>
             </div>
           </div>
         )}
@@ -109,30 +233,52 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-function ProjectThumbCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
-  // Build a subtle dual-tone gradient from the project color
-  const c = p.color;
-  const thumbStyle: React.CSSProperties = {
-    background: `linear-gradient(135deg, ${c}55 0%, ${c}22 60%, ${c}0d 100%)`,
-  };
+// Mini chart shapes for project thumbnail previews
+function ThumbMiniBar({ color }: { color: string }) {
+  const heights = ['38%', '62%', '82%', '55%', '72%'];
+  return (
+    <div className="thumb-mini-bar">
+      {heights.map((h, i) => (
+        <span key={i} style={{ height: h, background: i === 2 ? color : color + '70' }} />
+      ))}
+    </div>
+  );
+}
 
+function ThumbMiniLine({ color }: { color: string }) {
+  return (
+    <div className="thumb-mini-line">
+      <svg viewBox="0 0 56 32" preserveAspectRatio="none" width="100%" height="100%">
+        <polygon points="0,32 0,24 10,18 22,22 32,10 44,14 56,4 56,32"
+          fill={color + '28'} />
+        <polyline points="0,24 10,18 22,22 32,10 44,14 56,4"
+          fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
+function ProjectThumbCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
+  const c = p.color;
   return (
     <button className="canva-proj-card" onClick={onOpen}>
-      {/* Thumbnail preview area */}
-      <div className="canva-proj-thumb" style={thumbStyle}>
-        <span className="canva-proj-emoji">{p.emoji}</span>
-        {/* Decorative blobs */}
-        <div className="canva-proj-blob blob-1" style={{ background: c + '30' }} />
-        <div className="canva-proj-blob blob-2" style={{ background: c + '20' }} />
+      {/* Thumbnail preview */}
+      <div className="canva-proj-thumb" style={{ background: `linear-gradient(145deg, ${c}18 0%, ${c}08 100%)` }}>
+        {/* Mini chart mockups */}
+        <div className="canva-proj-preview">
+          <ThumbMiniLine color={c} />
+          <ThumbMiniBar color={c} />
+        </div>
+        {/* Emoji badge — small, bottom-left */}
+        <span className="canva-proj-emoji-badge">{p.emoji}</span>
       </div>
 
       {/* Info area */}
       <div className="canva-proj-info">
         <div className="canva-proj-title">{p.name}</div>
         <div className="canva-proj-meta">
-          <div className="canva-proj-avatar" style={{ background: c }}>{p.emoji}</div>
           <span className="canva-proj-date">
-            <Clock size={10} /> Edited {timeAgo(p.updated_at)}
+            <Clock size={10} /> {timeAgo(p.updated_at)}
           </span>
           {p.chart_count > 0 && (
             <span className="canva-proj-charts">

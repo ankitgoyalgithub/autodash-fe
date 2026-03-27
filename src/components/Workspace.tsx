@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Component } from 'react';
+import type { ReactNode } from 'react';
 import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
@@ -64,14 +65,18 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
         {metricCards.length > 0 && (
           <div className="metrics-strip">
             {metricCards.map((card, i) => (
-              <InsightCard key={i} index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters}/>
+              <ChartErrorBoundary key={i} title={card.title}>
+                <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters}/>
+              </ChartErrorBoundary>
             ))}
           </div>
         )}
         {chartCards.length > 0 && (
           <div className="charts-strip">
             {chartCards.map((card, i) => (
-              <InsightCard key={i} index={metricCards.length + i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters}/>
+              <ChartErrorBoundary key={i} title={card.title}>
+                <InsightCard index={metricCards.length + i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters}/>
+              </ChartErrorBoundary>
             ))}
           </div>
         )}
@@ -93,7 +98,9 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
       {metricCards.length > 0 && (
         <div className="metrics-strip">
           {metricCards.map((card, i) => (
-            <InsightCard key={i} index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} />
+            <ChartErrorBoundary key={i} title={card.title}>
+              <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} />
+            </ChartErrorBoundary>
           ))}
         </div>
       )}
@@ -169,11 +176,13 @@ function SortableGridCard({ id, card, index, layout, editMode, font, colors, pos
   };
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <InsightCard
-        index={index} card={card} layout={layout} editMode={editMode} font={font}
-        colors={colors} posterTheme={posterTheme} onUpdate={onUpdate}
-        onDrillDown={onDrillDown} globalFilters={globalFilters}
-      />
+      <ChartErrorBoundary title={card.title}>
+        <InsightCard
+          index={index} card={card} layout={layout} editMode={editMode} font={font}
+          colors={colors} posterTheme={posterTheme} onUpdate={onUpdate}
+          onDrillDown={onDrillDown} globalFilters={globalFilters}
+        />
+      </ChartErrorBoundary>
     </div>
   );
 }
@@ -356,6 +365,34 @@ const THEME_VISUALS: Record<string, { bg: string; sidebar: string; card: string;
   'canva':         { bg: '#f0edf9',  sidebar: '#ffffff',          card: '#ffffff',              accent: '#7d2ae8' },
 };
 
+// ─── Chart Error Boundary ─────────────────────────────────────────────────────
+// Catches render errors in individual chart cards so one bad chart can't crash
+// the entire dashboard and produce a white screen.
+class ChartErrorBoundary extends Component<
+  { children: ReactNode; title?: string },
+  { hasError: boolean }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err: Error) { console.error('Chart render error:', err); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="chart-card error" style={{ minHeight: 80, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px' }}>
+          <span style={{ fontSize: 18 }}>⚠</span>
+          <span style={{ fontSize: 13, color: 'var(--theme-text-muted)' }}>
+            {this.props.title ? `"${this.props.title}" could not render` : 'Chart could not render'}
+          </span>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function Workspace({ project, onBack, initialThreadId }: {
   project: Project;
   onBack: () => void;
@@ -372,7 +409,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const [layout, setLayout] = useState<'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation'>('grid');
   const [theme, setTheme] = useState(THEMES[0]);
   const [font, setFont] = useState(FONTS[0]);
-  const [palette, setPalette] = useState('vibrant');
+  const [palette, setPalette] = useState(project.palette || 'vibrant');
   const [layoutMode, setLayoutMode] = useState<'dashboard' | 'infographic'>('dashboard');
   const [editMode, setEditMode] = useState(false);
   const [activeSideTab, setActiveSideTab] = useState<'templates' | 'themes' | 'layouts' | null>(null);
@@ -721,19 +758,20 @@ export function Workspace({ project, onBack, initialThreadId }: {
       return aM - bM;
     });
     return sorted.map((card, i) => (
-      <InsightCard
-        key={i}
-        index={i}
-        card={card}
-        layout={layout}
-        editMode={editMode}
-        font={font.value}
-        colors={activeColors}
-        posterTheme={posterTheme}
-        onUpdate={(u) => handleUpdateCard(card, u)}
-        onDrillDown={(dim, val) => handleDrillDown(card, dim, val)}
-        globalFilters={globalFilters}
-      />
+      <ChartErrorBoundary key={i} title={card.title}>
+        <InsightCard
+          index={i}
+          card={card}
+          layout={layout}
+          editMode={editMode}
+          font={font.value}
+          colors={activeColors}
+          posterTheme={posterTheme}
+          onUpdate={(u) => handleUpdateCard(card, u)}
+          onDrillDown={(dim, val) => handleDrillDown(card, dim, val)}
+          globalFilters={globalFilters}
+        />
+      </ChartErrorBoundary>
     ));
   };
 

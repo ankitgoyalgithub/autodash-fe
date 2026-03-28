@@ -5,7 +5,7 @@ import logo from '../assets/logo.svg';
 import type { View, Project, DashboardThread } from '../App';
 import { BASE } from './constants';
 
-export function Sidebar({ view, setView, projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle }: {
+export function Sidebar({ view, setView, projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle, onLogout }: {
   view: View;
   setView: (v: View) => void;
   projects: Project[];
@@ -17,6 +17,7 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
   onAddThread: () => void;
   collapsed: boolean;
   onToggle: () => void;
+  onLogout: () => void;
 }) {
   const [threads, setThreads] = useState<DashboardThread[]>([]);
   const username = JSON.parse(localStorage.getItem('autodash_user') || '{}').username || 'U';
@@ -114,7 +115,7 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
           {!collapsed && (
             <div className="user-info">
               <span className="user-name">{username}</span>
-              <button className="logout-link" onClick={() => { localStorage.clear(); window.location.href = '/'; }}>Sign out</button>
+              <button className="logout-link" onClick={onLogout}>Sign out</button>
             </div>
           )}
         </div>

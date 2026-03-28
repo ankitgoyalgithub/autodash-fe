@@ -119,7 +119,7 @@ export interface UploadedFile {
 
 // ─── Main App Content ─────────────────────────────────────────────────────────
 
-function MainAppContent() {
+function MainAppContent({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>('home');
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
@@ -200,6 +200,7 @@ function MainAppContent() {
         onNewProject={() => setShowNewModal(true)}
         collapsed={isSidebarCollapsed}
         onToggle={toggleSidebar}
+        onLogout={onLogout}
       />
 
       <div className="main-area">
@@ -255,9 +256,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/view/:slug" element={<PublicDashboardView />} />
-        <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent />} />
+        <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} />} />
         <Route path="/login" element={!isLoggedIn ? <Login onLogin={handleLogin} base={BASE} /> : <Navigate to="/" replace />} />
-        <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent />} />
+        <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} />} />
       </Routes>
     </BrowserRouter>
   );

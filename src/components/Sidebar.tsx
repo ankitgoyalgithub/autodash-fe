@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutGrid, BarChart3, Database, Plus, ChevronRight, ChevronLeft, Hash } from 'lucide-react';
+import { LayoutGrid, BarChart3, Database, Plus, ChevronRight, ChevronLeft, Hash, Bot } from 'lucide-react';
 import axios from 'axios';
 import logo from '../assets/logo.svg';
 import type { View, Project, DashboardThread } from '../App';
@@ -31,6 +31,7 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
 
   const navItems = [
     { id: 'home' as View,        icon: LayoutGrid,  label: 'Projects'   },
+    { id: 'agents' as View,      icon: Bot,         label: 'Agents'     },
     { id: 'dashboards' as View,  icon: BarChart3,   label: 'Dashboards' },
     { id: 'datasources' as View, icon: Database,    label: 'Data'       },
   ];

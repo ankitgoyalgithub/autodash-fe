@@ -11,10 +11,11 @@ import { DashboardsList } from './components/DashboardsList';
 import { Workspace } from './components/Workspace';
 import { DatasourcesManagement } from './components/DatasourcesManagement';
 import { PublicDashboardView } from './components/PublicDashboardView';
+import { AgentsLibrary } from './components/AgentsLibrary';
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
-export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources';
+export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents';
 
 export interface Datasource {
   id: number;
@@ -203,6 +204,7 @@ function MainAppContent({ token }: { token: string; user?: any; onLogout?: () =>
         {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} datasources={datasources} onApplied={handleTemplateApplied} />}
         {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.thread_id ?? e.id)} />}
         {view === 'datasources' && <DatasourcesManagement datasources={datasources} onRefresh={fetchBasics} />}
+        {view === 'agents' && <AgentsLibrary datasources={datasources} onApplied={handleTemplateApplied} />}
         {view === 'workspace' && activeProject && (
           <Workspace
             project={activeProject}

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
-  Brain, ChevronRight, Wand2,
+  Brain, ChevronRight, Wand2, Bot,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -393,6 +393,56 @@ class ChartErrorBoundary extends Component<
   }
 }
 
+// ─── Workspace Agent Picker ───────────────────────────────────────────────────
+
+const QUICK_AGENTS = [
+  { id: 'customer-segmentation', name: 'Customer Segmentation', emoji: '🧩', color: '#ec4899', category: 'Marketing' },
+  { id: 'cohort-analysis',       name: 'Cohort Analysis',       emoji: '🌊', color: '#8b5cf6', category: 'Marketing' },
+  { id: 'financial-statement',   name: 'Financial Statement',   emoji: '📉', color: '#3b82f6', category: 'Finance'   },
+  { id: 'cash-flow',             name: 'Cash Flow',             emoji: '🌊', color: '#06b6d4', category: 'Finance'   },
+  { id: 'churn-analysis',        name: 'Churn Analysis',        emoji: '🩸', color: '#ef4444', category: 'Product'   },
+  { id: 'feature-adoption',      name: 'Feature Adoption',      emoji: '🌱', color: '#a855f7', category: 'Product'   },
+  { id: 'trend-analysis',        name: 'Trend Analysis',        emoji: '🔭', color: '#6366f1', category: 'Data'      },
+  { id: 'data-quality',          name: 'Data Quality',          emoji: '🔬', color: '#f59e0b', category: 'Data'      },
+  { id: 'sales-forecasting',     name: 'Sales Forecasting',     emoji: '📡', color: '#a855f7', category: 'RevOps'    },
+  { id: 'pipeline-health',       name: 'Pipeline Health',       emoji: '🩺', color: '#14b8a6', category: 'RevOps'    },
+  { id: 'win-loss-analysis',     name: 'Win/Loss Analysis',     emoji: '🏅', color: '#f59e0b', category: 'RevOps'    },
+  { id: 'rep-productivity',      name: 'Rep Productivity',      emoji: '🥇', color: '#6366f1', category: 'RevOps'    },
+];
+
+function WorkspaceAgentPicker({
+  onSelect,
+  onClose,
+}: {
+  onSelect: (a: { id: string; name: string; emoji: string; color: string }) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('.ws-agent-picker')) onClose();
+    };
+    setTimeout(() => document.addEventListener('click', handler), 0);
+    return () => document.removeEventListener('click', handler);
+  }, [onClose]);
+
+  return (
+    <div className="ws-agent-picker">
+      <div className="ws-agent-picker-header">Analysis Focus</div>
+      <div className="ws-agent-picker-list">
+        {QUICK_AGENTS.map(a => (
+          <button key={a.id} className="ws-agent-picker-item" onClick={() => onSelect(a)}>
+            <span className="ws-agent-picker-emoji">{a.emoji}</span>
+            <div>
+              <div className="ws-agent-picker-name">{a.name}</div>
+              <div className="ws-agent-picker-cat" style={{ color: a.color }}>{a.category}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Workspace({ project, onBack, initialThreadId }: {
   project: Project;
   onBack: () => void;
@@ -418,12 +468,16 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const [infographicTemplate, setInfographicTemplate] = useState<string | null>(null);
   const [pendingTableRequest, setPendingTableRequest] = useState<string | null>(null);
   const [tableHints] = useState<string[]>([]);
+  const [activeAgent, setActiveAgent] = useState<{ id: string; name: string; emoji: string; color: string } | null>(null);
+  const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
   const [dashboardFilters, setDashboardFilters] = useState<DashboardFilter[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
   // HITL state
   const [pendingHITL, setPendingHITL] = useState<HITLRequest | null>(null);
   const [hitlResponses, setHitlResponses] = useState<Record<string, any>>({});
+  // Persisted across queries so the same analytics questions aren't re-asked
+  const persistedHitlResponses = useRef<Record<string, any>>({});
   const [hitlQueryRef, setHitlQueryRef] = useState<string>('');
   // Drag-and-drop + layout optimizer
   const [dragEnabled, setDragEnabled] = useState(true);
@@ -513,8 +567,8 @@ export function Workspace({ project, onBack, initialThreadId }: {
     const hints = pendingTableRequest ? extractTableHints(promptText) : tableHints;
     if (pendingTableRequest) setPendingTableRequest(null);
 
-    // Use provided HITL responses or accumulated ones
-    const currentHITLResponses = hitlResponsesOverride ?? hitlResponses;
+    // Merge: persisted answers (from past queries) + current query's answers
+    const currentHITLResponses = { ...persistedHitlResponses.current, ...(hitlResponsesOverride ?? hitlResponses) };
 
     setOptimisticPrompt(promptText);
     setLoading(true); setError(''); setQuery(''); setUploads([]);
@@ -529,6 +583,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
         existing_charts: activeEntry?.results_data || [],
         table_hints: hints,
         hitl_responses: currentHITLResponses,
+        specialist_agent: activeAgent?.id || null,
       });
 
       const newThreadId = r.data.thread_id;
@@ -560,7 +615,11 @@ export function Workspace({ project, onBack, initialThreadId }: {
         return;
       }
 
-      // Clear HITL state on successful response
+      // Persist HITL answers so the same questions aren't asked again this session
+      if (Object.keys(currentHITLResponses).length > 0) {
+        persistedHitlResponses.current = { ...persistedHitlResponses.current, ...currentHITLResponses };
+      }
+      // Clear per-query HITL state
       setHitlResponses({});
       setPendingHITL(null);
       setHitlQueryRef('');
@@ -710,8 +769,9 @@ export function Workspace({ project, onBack, initialThreadId }: {
   };
 
   const handleHITLAnswer = async (questionId: string, answer: any) => {
-    // Accumulate the answer and re-run the original query
+    // Accumulate the answer, persist it, and re-run the original query
     const newResponses = { ...hitlResponses, [questionId]: answer };
+    persistedHitlResponses.current = { ...persistedHitlResponses.current, [questionId]: answer };
     setHitlResponses(newResponses);
     setPendingHITL(null);
     await handleSubmit(hitlQueryRef, newResponses);
@@ -1060,7 +1120,20 @@ export function Workspace({ project, onBack, initialThreadId }: {
               {uploading && <div className="upload-chip loading-chip"><Loader2 size={15} className="spin"/></div>}
             </div>
           )}
-          <div className="composer-box">
+          {/* ── Agent Focus chip ── */}
+          {activeAgent && (
+            <div className="comp-agent-row">
+              <div className="comp-agent-chip" style={{ borderColor: activeAgent.color + '60', background: activeAgent.color + '10' }}>
+                <span>{activeAgent.emoji}</span>
+                <span style={{ color: activeAgent.color, fontWeight: 600 }}>{activeAgent.name}</span>
+                <button onClick={() => setActiveAgent(null)} title="Remove focus">
+                  <X size={11} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="composer-box" style={{ position: 'relative' }}>
             <textarea
               ref={textareaRef}
               className="comp-textarea"
@@ -1080,6 +1153,18 @@ export function Workspace({ project, onBack, initialThreadId }: {
                 <button className="comp-icon" onClick={() => fileRef.current?.click()} title="Attach file">
                   {uploading ? <Loader2 size={16} className="spin"/> : <Upload size={16}/>}
                 </button>
+                {/* Agent picker button */}
+                <div style={{ position: 'relative' }}>
+                  <button
+                    className="comp-icon"
+                    title="Set analysis focus agent"
+                    onClick={() => setShowAgentPicker(p => !p)}
+                    style={activeAgent ? { color: activeAgent.color } : {}}
+                  >
+                    <Bot size={16} />
+                  </button>
+                  {showAgentPicker && <WorkspaceAgentPicker onSelect={a => { setActiveAgent(a); setShowAgentPicker(false); }} onClose={() => setShowAgentPicker(false)} />}
+                </div>
               </div>
               <button className="comp-send" style={{ background: project.color }} onClick={() => handleSubmit()} disabled={loading || (!query.trim() && !uploads.length)}>
                 {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}

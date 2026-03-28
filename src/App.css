@@ -6077,3 +6077,200 @@ button { cursor: pointer; }
 /* ══════════════════════════════════════════════════════════════════
    END PREMIUM DASHBOARD DESIGN SYSTEM
    ══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
+   AGENTS LIBRARY — consistent with canva-home / tpl-card design
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Agent grid — same as canva-designs-grid */
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+/* Agent card — extends tpl-card */
+.agent-card {
+  position: relative;
+  background: #ffffff;
+  border: 1.5px solid #f0eaff;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.agent-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(124,58,237,0.12);
+  border-color: #d4bfff;
+}
+
+.agent-card-strip {
+  height: 3px;
+  width: 100%;
+}
+
+.agent-card-inner {
+  padding: 14px 14px 12px;
+  position: relative;
+}
+
+.agent-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.agent-card-emoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.agent-card-category {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.agent-card-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a1523;
+  margin: 0 0 5px;
+  line-height: 1.3;
+}
+
+.agent-card-desc {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.45;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Hover overlay — same as tpl-hover-overlay */
+.agent-card:hover .tpl-hover-overlay {
+  opacity: 1;
+}
+
+/* Active category chip */
+.canva-filter-chip.active {
+  background: #7c3aed;
+  color: #fff;
+  border-color: #7c3aed;
+}
+
+/* modal-close-btn — generic close button */
+.modal-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.modal-close-btn:hover { background: #f3f4f6; color: #374151; }
+
+/* ── Workspace Agent Focus ── */
+.comp-agent-row {
+  padding: 0 4px 6px;
+}
+
+.comp-agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border: 1.5px solid;
+  border-radius: 20px;
+  font-size: 12px;
+  background: transparent;
+}
+
+.comp-agent-chip button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+.comp-agent-chip button:hover { opacity: 1; }
+
+/* ── Workspace Agent Picker dropdown ── */
+.ws-agent-picker {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 260px;
+  background: #fff;
+  border: 1.5px solid #e5e0f5;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.14);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.ws-agent-picker-header {
+  padding: 10px 14px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  border-bottom: 1px solid #f0eaff;
+}
+
+.ws-agent-picker-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.ws-agent-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.ws-agent-picker-item:hover { background: #f5f0ff; }
+
+.ws-agent-picker-emoji {
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ws-agent-picker-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1523;
+  line-height: 1.2;
+}
+
+.ws-agent-picker-cat {
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 1px;
+}

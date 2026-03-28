@@ -119,7 +119,7 @@ export interface UploadedFile {
 
 // ─── Main App Content ─────────────────────────────────────────────────────────
 
-function MainAppContent({ user, onLogout }: { user?: any; onLogout?: () => void }) {
+function MainAppContent() {
   const [view, setView] = useState<View>('home');
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
@@ -255,9 +255,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/view/:slug" element={<PublicDashboardView />} />
-        <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent token="" user={user} onLogout={handleLogout} />} />
+        <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent />} />
         <Route path="/login" element={!isLoggedIn ? <Login onLogin={handleLogin} base={BASE} /> : <Navigate to="/" replace />} />
-        <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent token="" user={user} onLogout={handleLogout} />} />
+        <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,7 +1,7 @@
 export const BASE =
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://127.0.0.1:8000/api'
-    : 'https://13.201.72.131.sslip.io/api';
+    : '/api';
 
 export const PALETTES: Record<string, string[]> = {
   // Maximally distinct first — cool/warm alternating so multi-series charts never clash

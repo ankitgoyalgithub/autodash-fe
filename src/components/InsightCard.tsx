@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo, createPortal } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
   Eye, EyeOff, X, FileText, AlertCircle, Sparkles, TrendingUp,

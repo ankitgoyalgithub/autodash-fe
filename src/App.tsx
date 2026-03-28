@@ -119,7 +119,7 @@ export interface UploadedFile {
 
 // ─── Main App Content ─────────────────────────────────────────────────────────
 
-function MainAppContent({ user, onLogout }: { token?: string; user?: any; onLogout?: () => void }) {
+function MainAppContent({ user, onLogout }: { user?: any; onLogout?: () => void }) {
   const [view, setView] = useState<View>('home');
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);

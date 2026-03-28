@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Database, Loader2, Sparkles, Search } from 'lucide-react';
+import { X, Database, Sparkles, Search } from 'lucide-react';
 import type { Datasource, Project } from '../App';
 import { BASE } from './constants';
 

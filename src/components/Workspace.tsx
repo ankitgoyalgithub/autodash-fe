@@ -4,7 +4,7 @@ import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
-  Brain, ChevronRight, Wand2, Bot,
+  Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -393,6 +393,82 @@ class ChartErrorBoundary extends Component<
   }
 }
 
+// ─── Skeleton loading cards ───────────────────────────────────────────────────
+function DashboardSkeleton() {
+  return (
+    <div className="skeleton-dashboard">
+      <div className="skeleton-metrics-row">
+        {[0,1,2,3].map(i => (
+          <div key={i} className="skeleton-card skeleton-metric">
+            <div className="skeleton-line" style={{ width: '45%', height: 10, marginBottom: 10 }} />
+            <div className="skeleton-line" style={{ width: '70%', height: 28 }} />
+          </div>
+        ))}
+      </div>
+      <div className="skeleton-charts-row">
+        <div className="skeleton-card skeleton-chart-lg">
+          <div className="skeleton-line" style={{ width: '35%', height: 12, marginBottom: 16 }} />
+          <div className="skeleton-bars">
+            {[55, 80, 45, 90, 65, 75, 50, 85].map((h, i) => (
+              <div key={i} className="skeleton-bar" style={{ height: `${h}%` }} />
+            ))}
+          </div>
+        </div>
+        <div className="skeleton-card skeleton-chart-sm">
+          <div className="skeleton-line" style={{ width: '40%', height: 12, marginBottom: 16 }} />
+          <div className="skeleton-pie">
+            <div className="skeleton-circle" />
+          </div>
+        </div>
+      </div>
+      <div className="skeleton-charts-row">
+        <div className="skeleton-card skeleton-chart-sm">
+          <div className="skeleton-line" style={{ width: '50%', height: 12, marginBottom: 16 }} />
+          <div className="skeleton-bars">
+            {[60, 75, 55, 85, 70].map((h, i) => (
+              <div key={i} className="skeleton-bar" style={{ height: `${h}%` }} />
+            ))}
+          </div>
+        </div>
+        <div className="skeleton-card skeleton-chart-lg">
+          <div className="skeleton-line" style={{ width: '30%', height: 12, marginBottom: 16 }} />
+          <div className="skeleton-line-chart">
+            <svg width="100%" height="80" viewBox="0 0 200 80" preserveAspectRatio="none">
+              <polyline points="0,70 25,45 50,55 75,30 100,40 125,20 150,35 175,15 200,25" fill="none" stroke="var(--skeleton-shimmer,#e2e8f0)" strokeWidth="3" strokeLinecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Export all charts as individual CSV files (downloads them sequentially)
+function exportAllChartsCSV(cards: any[], projectName: string) {
+  const slug = (projectName || 'dashboard').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  cards.forEach((card, i) => {
+    if (!card.data?.length) return;
+    const cols = Object.keys(card.data[0]);
+    const header = cols.join(',');
+    const rows = card.data.map((row: any) =>
+      cols.map((c: string) => {
+        const v = row[c];
+        if (v === null || v === undefined) return '';
+        const s = String(v);
+        return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+      }).join(',')
+    );
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const title = (card.title || `chart_${i+1}`).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    a.download = `${slug}_${title}.csv`;
+    setTimeout(() => { a.click(); URL.revokeObjectURL(url); }, i * 120);
+  });
+}
+
 // ─── Workspace Agent Picker ───────────────────────────────────────────────────
 
 const QUICK_AGENTS = [
@@ -486,6 +562,10 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
+  // Track previous thread so we only clear filters when SWITCHING threads,
+  // not when a brand-new thread ID is first assigned (which would wipe filters
+  // that were just returned in the same query response).
+  const prevThreadIdRef = useRef<number | null>(initialThreadId || null);
 
   const fetchThreadHistory = useCallback(async (tId: number) => {
     try {
@@ -511,12 +591,20 @@ export function Workspace({ project, onBack, initialThreadId }: {
   useEffect(() => {
     if (currentThreadId) {
       fetchThreadHistory(currentThreadId);
+      // Only clear filters when explicitly switching from one thread to another.
+      // Do NOT clear when prevThreadIdRef is null — that means this is the first
+      // query creating a brand-new thread, and the filters from that query response
+      // are already being set in handleSubmit. Clearing here would wipe them.
+      if (prevThreadIdRef.current !== null && prevThreadIdRef.current !== currentThreadId) {
+        setDashboardFilters([]);
+      }
     } else {
       setHistory([]);
       setActiveEntry(null);
+      setDashboardFilters([]);
     }
+    prevThreadIdRef.current = currentThreadId ?? null;
     setGlobalFilters({});
-    setDashboardFilters([]);
   }, [currentThreadId, fetchThreadHistory]);
 
   // Persist results_data to backend after any change (debounced 1.5s)
@@ -1092,15 +1180,15 @@ export function Workspace({ project, onBack, initialThreadId }: {
                 <div className="user-bubble"><p>{optimisticPrompt}</p></div>
               </div>
               <div className="thinking">
-                <Loader2 size={13} className="spin"/>
-                <span>AI is designing your dashboard…</span>
+                <div className="thinking-dots"><span/><span/><span/></div>
+                <span>AI is analyzing your data and building charts…</span>
               </div>
             </div>
           )}
 
           {loading && !optimisticPrompt && (
             <div className="thinking">
-              <Loader2 size={13} className="spin"/>
+              <div className="thinking-dots"><span/><span/><span/></div>
               <span>Analyzing data patterns…</span>
             </div>
           )}
@@ -1213,6 +1301,23 @@ export function Workspace({ project, onBack, initialThreadId }: {
                 >
                   {layoutOptimizing ? <Loader2 size={14} className="spin"/> : <Wand2 size={14}/>}
                 </button>
+                <button
+                  className="dp-icon-btn"
+                  onClick={() => handleSubmit('refresh all charts with latest data')}
+                  disabled={loading}
+                  title="Refresh all charts with latest data"
+                >
+                  <RefreshCw size={14} className={loading ? 'spin' : ''}/>
+                </button>
+                {(activeEntry.results_data?.length ?? 0) > 0 && (
+                  <button
+                    className="dp-icon-btn"
+                    onClick={() => exportAllChartsCSV(activeEntry.results_data || [], project.name)}
+                    title="Export all charts as CSV"
+                  >
+                    <FileDown size={14}/>
+                  </button>
+                )}
                 {activeEntry.is_deployed ? (
                   <button className="undeploy-btn" onClick={handleUndeploy}><EyeOff size={14}/> Offline</button>
                 ) : (
@@ -1238,6 +1343,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
               <p>Send a prompt in the chat or click a previous response to view its charts here.</p>
             </div>
           )}
+          {loading && !activeEntry && <DashboardSkeleton />}
 
           {activeEntry && layout === 'poster' && (
             <div className="poster-toolbar">
@@ -1277,14 +1383,14 @@ export function Workspace({ project, onBack, initialThreadId }: {
               {dashboardFilters.map(f => (
                 <div key={f.column} className="gf-group">
                   <span className="gf-col-name">{f.label || f.column.replace(/_/g, ' ')}</span>
-                  {f.values.length > 8 ? (
+                  {(f.values ?? []).length > 8 ? (
                     <select
                       className="gf-select"
                       value={String(globalFilters[f.column] ?? '')}
                       onChange={e => handleFilterChange(f.column, e.target.value || null)}
                     >
                       <option value="">All</option>
-                      {f.values.map(v => (
+                      {(f.values ?? []).map(v => (
                         <option key={String(v)} value={String(v)}>{String(v)}</option>
                       ))}
                     </select>
@@ -1294,7 +1400,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
                         className={`gf-chip ${!globalFilters[f.column] ? 'active' : ''}`}
                         onClick={() => handleFilterChange(f.column, null)}
                       >All</button>
-                      {f.values.map(v => (
+                      {(f.values ?? []).map(v => (
                         <button
                           key={String(v)}
                           className={`gf-chip ${globalFilters[f.column] === v ? 'active' : ''}`}

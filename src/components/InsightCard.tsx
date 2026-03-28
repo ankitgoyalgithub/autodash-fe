@@ -1,16 +1,19 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, createPortal } from 'react';
 import { motion } from 'framer-motion';
 import {
   Eye, EyeOff, X, FileText, AlertCircle, Sparkles, TrendingUp,
   BarChart2, LineChart, PieChart as PieIcon, AreaChart as AreaIcon, Layers, LayoutList,
   DollarSign, ShoppingCart, Users, Package, Percent,
   CreditCard, FlaskConical, AlignLeft, ScatterChart as ScatterIcon,
+  Download, Maximize2, Minimize2, Pencil, Check, Box, MoreHorizontal, ChevronDown,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer,
   LineChart as ReLineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart,
   ReferenceLine, ReferenceArea, ScatterChart, Scatter, LabelList, Label,
 } from 'recharts';
+import ReactECharts from 'echarts-for-react';
+import 'echarts-gl';
 import type { DashboardCard } from '../App';
 import { COLORS } from './constants';
 
@@ -70,6 +73,28 @@ export function DataTableDrawer({ title, data, onClose }: { title: string; data:
       </div>
     </>
   );
+}
+
+function exportToCSV(data: any[], title: string) {
+  if (!data?.length) return;
+  const cols = Object.keys(data[0]);
+  const header = cols.join(',');
+  const rows = data.map(row =>
+    cols.map(c => {
+      const v = row[c];
+      if (v === null || v === undefined) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(',')
+  );
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatCompact(v: number): string {
@@ -313,7 +338,15 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
   const [showSql, setShowSql] = useState(false);
   const [showData, setShowData] = useState(false);
   const [activeFilter, setActiveFilter] = useState<{column: string, value: string | number} | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(card.title);
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const typeMenuRef = useRef<HTMLDivElement>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -390,6 +423,27 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     };
   }, [isDragging, isResizing, dragOffset, onUpdate]);
 
+  useEffect(() => {
+    if (editingTitle) titleInputRef.current?.select();
+  }, [editingTitle]);
+
+  useEffect(() => {
+    if (!showTypeMenu && !showActionsMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (showTypeMenu && typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) setShowTypeMenu(false);
+      if (showActionsMenu && actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) setShowActionsMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTypeMenu, showActionsMenu]);
+
+  const commitTitle = () => {
+    const t = titleDraft.trim();
+    if (t && t !== card.title) onUpdate?.({ title: t });
+    else setTitleDraft(card.title);
+    setEditingTitle(false);
+  };
+
   const isPoster = layout === 'poster';
   const posX = card.x ?? 0;
   const posY = card.y ?? 0;
@@ -454,12 +508,28 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
   const rawSize = card.size ? (_sizeNorm[card.size] || card.size) : (type === 'metric' ? 's' : type === 'text' ? 'xxl' : 'l');
   const size = rawSize;
 
-  const renderContent = () => {
+  const renderContent = (heightOverride?: number) => {
     let resolvedType = card.type;
     if (!resolvedType && card.data?.length === 1 && card.data[0] && Object.keys(card.data[0]).length <= 2) {
       resolvedType = 'metric';
     } else if (!resolvedType) {
       resolvedType = 'chart';
+    }
+
+    // ── Empty-chart guard: all numeric values are 0 or null → graceful placeholder ──
+    if (resolvedType === 'chart' && card.data?.length && chartType !== 'table' && chartType !== 'timeline') {
+      const hasAnyValue = card.data.some(row =>
+        Object.values(row).some(v => typeof v === 'number' && v !== 0)
+      );
+      if (!hasAnyValue) {
+        return (
+          <div className="chart-no-data">
+            <div className="chart-no-data-icon">📭</div>
+            <div className="chart-no-data-title">No data to visualize</div>
+            <div className="chart-no-data-sub">All values returned are zero or null. Try broadening the date range or filters.</div>
+          </div>
+        );
+      }
     }
 
     if (resolvedType === 'metric') {
@@ -574,16 +644,37 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     const xKey = keys[0];
     const dataKeys = keys.slice(1);
     const displayData = sortByDateLabel(filteredData, xKey);
-    const chartHeight = size === 's' ? 120
+    const chartHeight = heightOverride ?? (
+      size === 's' ? 120
       : size === 'm' ? 220
       : size === 'l' ? 280
       : size === 'xl' ? 320
       : size === 'xxl' ? 360
-      : layout === 'single' ? 400 : 280;
+      : layout === 'single' ? 400 : 280
+    );
     // Poster mode: clean charts with no grid lines
     const gridStroke = isPoster ? 'transparent' : '#f1f5f9';
     const gridDash = isPoster ? '0' : '3 3';
-    const tickColor = 'var(--chart-tick-color, #64748b)';
+    const tickColor = '#64748b';
+
+    // ── Smart XAxis props: auto-rotate + thin out labels when data is dense ──
+    const getXAxisProps = (data: any[], key: string, forceAngle?: boolean) => {
+      const n = data.length;
+      const maxLabelLen = Math.max(...data.slice(0, 20).map(r => String(r[key] ?? '').length));
+      const needsAngle = forceAngle || n > 8 || maxLabelLen > 10;
+      const interval = n > 24 ? Math.ceil(n / 12) - 1
+                     : n > 12 ? 1 : 0;
+      return {
+        interval,
+        angle: needsAngle ? -35 : 0,
+        height: needsAngle ? 60 : 30,
+        textAnchor: needsAngle ? 'end' as const : 'middle' as const,
+        tickFormatter: (v: any) => {
+          const s = formatXAxis(v);
+          return needsAngle && s.length > 16 ? s.slice(0, 14) + '…' : s;
+        },
+      };
+    };
 
     const onChartClick = (state: any) => {
       if (state && state.activeLabel !== undefined && onDrillDown) {
@@ -592,23 +683,26 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     };
 
     switch (chartType) {
-      case 'line': return (
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <ReLineChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
-            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-            <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
-            <RTooltip content={ChartTooltip} />
-            <Legend content={ChartLegend} />
-            {dataKeys.map((k, i) => (
-              <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} strokeWidth={2.5}
-                dot={{ r: 3.5, fill: activeColors[i % activeColors.length], strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: activeColors[i % activeColors.length], stroke: '#fff', strokeWidth: 2.5 }}
-              />
-            ))}
-          </ReLineChart>
-        </ResponsiveContainer>
-      );
+      case 'line': {
+        const xp = getXAxisProps(displayData, xKey);
+        return (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <ReLineChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={onChartClick}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+              <XAxis dataKey={xKey} tickFormatter={xp.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xp.angle, textAnchor: xp.textAnchor }} axisLine={false} tickLine={false} height={xp.height} interval={xp.interval} />
+              <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
+              <RTooltip content={ChartTooltip} />
+              <Legend content={ChartLegend} />
+              {dataKeys.map((k, i) => (
+                <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} strokeWidth={2.5}
+                  dot={displayData.length > 30 ? false : { r: 3.5, fill: activeColors[i % activeColors.length], strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: activeColors[i % activeColors.length], stroke: '#fff', strokeWidth: 2.5 }}
+                />
+              ))}
+            </ReLineChart>
+          </ResponsiveContainer>
+        );
+      }
       case 'pie': {
         const PIE_MAX = 8;
         let pieData = displayData;
@@ -656,9 +750,10 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       }
       case 'area': {
         const areaPfx = `ag-${index ?? 0}`;
+        const xpA = getXAxisProps(displayData, xKey);
         return (
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <AreaChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: 5 }} onClick={onChartClick}>
+            <AreaChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpA.height }} onClick={onChartClick}>
               <defs>
                 {dataKeys.map((k, i) => (
                   <linearGradient key={k} id={`${areaPfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -668,7 +763,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                 ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+              <XAxis dataKey={xKey} tickFormatter={xpA.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpA.angle, textAnchor: xpA.textAnchor }} axisLine={false} tickLine={false} height={xpA.height} interval={xpA.interval} />
               <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
               <RTooltip content={ChartTooltip} />
               <Legend content={ChartLegend} />
@@ -684,9 +779,10 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       }
       case 'stacked_bar': {
         const sbPfx = `sbg-${index ?? 0}`;
+        const xpSB = getXAxisProps(displayData, xKey);
         return (
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: 5 }} onClick={onChartClick} barCategoryGap="28%">
+            <BarChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpSB.height }} onClick={onChartClick} barCategoryGap="28%">
               <defs>
                 {dataKeys.map((k, i) => (
                   <linearGradient key={k} id={`${sbPfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -696,7 +792,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                 ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+              <XAxis dataKey={xKey} tickFormatter={xpSB.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpSB.angle, textAnchor: xpSB.textAnchor }} axisLine={false} tickLine={false} height={xpSB.height} interval={xpSB.interval} />
               <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
               <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
               <Legend content={ChartLegend} />
@@ -707,9 +803,10 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       }
       case 'combo_bar_line': {
         const cblId = `cbl-${index ?? 0}`;
+        const xpCBL = getXAxisProps(displayData, xKey);
         return (
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: 5 }} onClick={onChartClick} barCategoryGap="28%">
+            <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpCBL.height }} onClick={onChartClick} barCategoryGap="28%">
               <defs>
                 <linearGradient id={cblId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={activeColors[0]} stopOpacity={1}/>
@@ -717,7 +814,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} />
+              <XAxis dataKey={xKey} tickFormatter={xpCBL.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpCBL.angle, textAnchor: xpCBL.textAnchor }} axisLine={false} tickLine={false} height={xpCBL.height} interval={xpCBL.interval} />
               <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
               <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
               <Legend content={ChartLegend} />
@@ -1170,6 +1267,91 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         );
       }
 
+      // ── 3D Bar chart (ECharts) ────────────────────────────────────────────────
+      case 'bar3d': {
+        const categories = displayData.map(r => String(r[xKey] ?? ''));
+        const seriesData = dataKeys.map((k, ki) => ({
+          type: 'bar3D' as const,
+          name: prettifyCol(k),
+          data: displayData.map((r, i) => [i, ki, typeof r[k] === 'number' ? r[k] : 0]),
+          shading: 'lambert',
+          itemStyle: { color: activeColors[ki % activeColors.length] + 'dd' },
+          emphasis: { itemStyle: { color: activeColors[ki % activeColors.length] } },
+          label: { show: false },
+        }));
+        const option3dBar = {
+          backgroundColor: 'transparent',
+          tooltip: { trigger: 'item' as const },
+          grid3D: {
+            boxWidth: 200, boxDepth: dataKeys.length * 40 + 20, boxHeight: 80,
+            viewControl: { projection: 'perspective', autoRotate: false, distance: 250, beta: 28, alpha: 18 },
+            light: { main: { intensity: 1.3 }, ambient: { intensity: 0.3 } },
+          },
+          xAxis3D: { type: 'category' as const, data: categories, axisLabel: { fontSize: 10, interval: categories.length > 10 ? Math.ceil(categories.length / 10) - 1 : 0 } },
+          yAxis3D: { type: 'category' as const, data: dataKeys.map(k => prettifyCol(k)), axisLabel: { fontSize: 10 } },
+          zAxis3D: { type: 'value' as const, axisLabel: { fontSize: 10 } },
+          series: seriesData,
+        };
+        return <ReactECharts option={option3dBar} style={{ height: Math.max(chartHeight + 60, 340), width: '100%' }} />;
+      }
+
+      // ── 3D Scatter chart (ECharts) ────────────────────────────────────────────
+      case 'scatter3d': {
+        const k0 = keys[0]; const k1 = keys[1]; const k2 = keys[2] || keys[1];
+        const sc3dData = displayData.map(r => [
+          typeof r[k0] === 'number' ? r[k0] : 0,
+          typeof r[k1] === 'number' ? r[k1] : 0,
+          typeof r[k2] === 'number' ? r[k2] : 0,
+        ]);
+        const option3dScatter = {
+          backgroundColor: 'transparent',
+          tooltip: { formatter: (p: any) => `${prettifyCol(k0)}: ${p.value[0]}<br/>${prettifyCol(k1)}: ${p.value[1]}<br/>${prettifyCol(k2)}: ${p.value[2]}` },
+          grid3D: {
+            viewControl: { autoRotate: false, distance: 200, beta: 30, alpha: 20 },
+            light: { main: { intensity: 1.2 }, ambient: { intensity: 0.3 } },
+          },
+          xAxis3D: { name: prettifyCol(k0), type: 'value' as const, axisLabel: { fontSize: 10 } },
+          yAxis3D: { name: prettifyCol(k1), type: 'value' as const, axisLabel: { fontSize: 10 } },
+          zAxis3D: { name: prettifyCol(k2), type: 'value' as const, axisLabel: { fontSize: 10 } },
+          series: [{
+            type: 'scatter3D' as const,
+            data: sc3dData,
+            symbolSize: 8,
+            itemStyle: { color: activeColors[0], opacity: 0.8 },
+          }],
+        };
+        return <ReactECharts option={option3dScatter} style={{ height: Math.max(chartHeight + 60, 340), width: '100%' }} />;
+      }
+
+      // ── 3D Pie / Donut (ECharts) ──────────────────────────────────────────────
+      case 'pie3d': {
+        const PIE3D_MAX = 8;
+        let pie3dData = displayData;
+        if (displayData.length > PIE3D_MAX) {
+          const sorted = [...displayData].sort((a, b) => (b[dataKeys[0]] || 0) - (a[dataKeys[0]] || 0));
+          const otherVal = sorted.slice(PIE3D_MAX - 1).reduce((s: number, r: any) => s + (typeof r[dataKeys[0]] === 'number' ? r[dataKeys[0]] : 0), 0);
+          pie3dData = [...sorted.slice(0, PIE3D_MAX - 1), { [xKey]: 'Other', [dataKeys[0]]: otherVal }];
+        }
+        const option3dPie = {
+          backgroundColor: 'transparent',
+          tooltip: { trigger: 'item' as const, formatter: '{b}: {c} ({d}%)' },
+          legend: { orient: 'vertical' as const, right: 10, top: 20, textStyle: { fontSize: 11, color: tickColor } },
+          series: [{
+            type: 'pie' as const,
+            radius: ['40%', '70%'],
+            center: ['42%', '52%'],
+            data: pie3dData.map((r: any, i: number) => ({
+              value: typeof r[dataKeys[0]] === 'number' ? r[dataKeys[0]] : 0,
+              name: String(r[xKey] ?? ''),
+              itemStyle: { color: activeColors[i % activeColors.length], shadowBlur: 14, shadowColor: activeColors[i % activeColors.length] + '55', shadowOffsetY: 6 },
+            })),
+            label: { fontSize: 11, formatter: '{b}\n{d}%' },
+            emphasis: { itemStyle: { shadowBlur: 24, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.3)' } },
+          }],
+        };
+        return <ReactECharts option={option3dPie} style={{ height: chartHeight, width: '100%' }} />;
+      }
+
       // ── Default vertical bar ──────────────────────────────────────────────────
       default: {
         const numBars = displayData.length;
@@ -1251,7 +1433,21 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         ) : (
           <>
             <div className="chart-title-row">
-              <h4>{card.title}</h4>
+              {editingTitle ? (
+                <div className="chart-title-edit">
+                  <input
+                    ref={titleInputRef}
+                    className="chart-title-input"
+                    value={titleDraft}
+                    onChange={e => setTitleDraft(e.target.value)}
+                    onBlur={commitTitle}
+                    onKeyDown={e => { if (e.key === 'Enter') commitTitle(); if (e.key === 'Escape') { setTitleDraft(card.title); setEditingTitle(false); } }}
+                  />
+                  <button className="title-edit-confirm" onClick={commitTitle} title="Save"><Check size={12} /></button>
+                </div>
+              ) : (
+                <h4 onDoubleClick={() => setEditingTitle(true)} title="Double-click to rename">{card.title}</h4>
+              )}
               {card.is_analytics && (
                 <span className="analytics-badge" title="Advanced Analytics">
                   <FlaskConical size={9}/> AI
@@ -1259,26 +1455,86 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
               )}
             </div>
             <div className={`chart-controls ${type === 'metric' ? 'metric-controls' : ''}`}>
-              {type !== 'metric' && (card.type === 'chart' || !card.type) && (
-                <div className="type-toggle">
-                  <button className={chartType === 'bar' ? 'active' : ''} onClick={() => setChartType('bar')} title="Bar chart"><BarChart2 size={13} /></button>
-                  <button className={chartType === 'horizontal_bar' ? 'active' : ''} onClick={() => setChartType('horizontal_bar')} title="Horizontal Bar"><AlignLeft size={13} /></button>
-                  <button className={chartType === 'stacked_bar' ? 'active' : ''} onClick={() => setChartType('stacked_bar')} title="Stacked Bar"><Layers size={13} /></button>
-                  <button className={chartType === 'area' ? 'active' : ''} onClick={() => setChartType('area')} title="Area chart"><AreaIcon size={13} /></button>
-                  <button className={chartType === 'line' ? 'active' : ''} onClick={() => setChartType('line')} title="Line chart"><LineChart size={13} /></button>
-                  <button className={chartType === 'pie' ? 'active' : ''} onClick={() => setChartType('pie')} title="Pie chart"><PieIcon size={13} /></button>
-                  <button className={chartType === 'scatter' ? 'active' : ''} onClick={() => setChartType('scatter')} title="Scatter plot"><ScatterIcon size={13} /></button>
-                  <button className={chartType === 'timeline' ? 'active' : ''} onClick={() => setChartType('timeline')} title="Timeline"><span style={{fontSize:9,fontWeight:800}}>TL</span></button>
-                </div>
-              )}
+
+              {/* ── Chart-type picker (single button + popover) ── */}
+              {type !== 'metric' && (card.type === 'chart' || !card.type) && (() => {
+                const CHART_TYPES_2D = [
+                  { key: 'bar', icon: <BarChart2 size={13}/>, label: 'Bar' },
+                  { key: 'horizontal_bar', icon: <AlignLeft size={13}/>, label: 'H-Bar' },
+                  { key: 'stacked_bar', icon: <Layers size={13}/>, label: 'Stack' },
+                  { key: 'area', icon: <AreaIcon size={13}/>, label: 'Area' },
+                  { key: 'line', icon: <LineChart size={13}/>, label: 'Line' },
+                  { key: 'pie', icon: <PieIcon size={13}/>, label: 'Pie' },
+                  { key: 'scatter', icon: <ScatterIcon size={13}/>, label: 'Scatter' },
+                  { key: 'timeline', icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>TL</span>, label: 'Timeline' },
+                ] as const;
+                const CHART_TYPES_3D = [
+                  { key: 'bar3d', icon: <Box size={12}/>, label: '3D Bar' },
+                  { key: 'pie3d', icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>🥧</span>, label: '3D Pie' },
+                  { key: 'scatter3d', icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>✦</span>, label: '3D Scatter' },
+                ] as const;
+                const allTypes = [...CHART_TYPES_2D, ...CHART_TYPES_3D];
+                const current = allTypes.find(t => t.key === chartType);
+                return (
+                  <div className="chart-type-picker" ref={typeMenuRef}>
+                    <button
+                      className={`chart-type-btn ${showTypeMenu ? 'active' : ''}`}
+                      onClick={() => setShowTypeMenu(s => !s)}
+                      title="Change chart type"
+                    >
+                      {current?.icon ?? <BarChart2 size={13}/>}
+                      <span className="chart-type-label">{current?.label ?? 'Chart'}</span>
+                      <ChevronDown size={10} style={{ opacity: 0.6, marginLeft: 1 }}/>
+                    </button>
+                    {showTypeMenu && (
+                      <div className="chart-type-menu">
+                        <div className="ctm-section-label">2D</div>
+                        <div className="ctm-grid">
+                          {CHART_TYPES_2D.map(t => (
+                            <button
+                              key={t.key}
+                              className={`ctm-item ${chartType === t.key ? 'active' : ''}`}
+                              onClick={() => { setChartType(t.key); setShowTypeMenu(false); }}
+                              title={t.label}
+                            >
+                              <span className="ctm-icon">{t.icon}</span>
+                              <span className="ctm-label">{t.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="ctm-section-label ctm-section-3d">3D</div>
+                        <div className="ctm-grid">
+                          {CHART_TYPES_3D.map(t => (
+                            <button
+                              key={t.key}
+                              className={`ctm-item ${chartType === t.key ? 'active' : ''}`}
+                              onClick={() => { setChartType(t.key); setShowTypeMenu(false); }}
+                              title={t.label}
+                            >
+                              <span className="ctm-icon">{t.icon}</span>
+                              <span className="ctm-label">{t.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* ── SQL toggle ── */}
               <button className={`sql-btn ${showSql ? 'active' : ''}`} onClick={() => setShowSql(s => !s)}>
                 {showSql ? <EyeOff size={12} /> : <Eye size={12} />} SQL
               </button>
+
+              {/* ── Fullscreen ── */}
               {type !== 'metric' && (
-                <button className="view-data-btn" onClick={() => setShowData(true)}>
-                  <LayoutList size={12} /> Data
+                <button className="ctrl-icon-btn" onClick={() => setIsFullscreen(true)} title="Fullscreen">
+                  <Maximize2 size={13} />
                 </button>
               )}
+
+              {/* ── Filter dropdown (only when filters exist) ── */}
               {type !== 'metric' && card.filters && card.filters.length > 0 && (
                 <div className="filter-dropdown-wrap">
                   <select
@@ -1292,7 +1548,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                       }
                     }}
                   >
-                    <option value="">No Filter</option>
+                    <option value="">Filter…</option>
                     {card.filters.map(f => (
                       <optgroup key={f.column} label={f.column}>
                         {f.options.map(opt => <option key={opt} value={`${f.column}:${opt}`}>{opt}</option>)}
@@ -1301,11 +1557,44 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                   </select>
                 </div>
               )}
+
+              {/* ── More (⋯) menu: Data, CSV, Rename ── */}
+              <div className="chart-actions-menu" ref={actionsMenuRef}>
+                <button
+                  className={`ctrl-icon-btn ${showActionsMenu ? 'active' : ''}`}
+                  onClick={() => setShowActionsMenu(s => !s)}
+                  title="More options"
+                >
+                  <MoreHorizontal size={14} />
+                </button>
+                {showActionsMenu && (
+                  <div className="chart-actions-dropdown">
+                    {type !== 'metric' && (
+                      <button className="cad-item" onClick={() => { setShowData(true); setShowActionsMenu(false); }}>
+                        <LayoutList size={13} /> View Data
+                      </button>
+                    )}
+                    {card.data?.length > 0 && (
+                      <button className="cad-item" onClick={() => { exportToCSV(card.data, card.title); setShowActionsMenu(false); }}>
+                        <Download size={13} /> Export CSV
+                      </button>
+                    )}
+                    {!editingTitle && (
+                      <button className="cad-item" onClick={() => { setEditingTitle(true); setShowActionsMenu(false); }}>
+                        <Pencil size={13} /> Rename
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
           </>
         )}
       </div>}
-      <div className={type === 'metric' && !isPoster ? '' : 'chart-body'}>{renderContent()}</div>
+      <div className={type === 'metric' && !isPoster ? '' : 'chart-body'}>
+        {isFullscreen ? <div style={{ height: chartType === 'table' ? 200 : (size === 's' ? 120 : 200), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}><Maximize2 size={20} style={{ opacity: 0.3 }}/></div> : renderContent()}
+      </div>
       {showData && <DataTableDrawer title={card.title} data={card.data} onClose={() => setShowData(false)} />}
       {(type === 'chart') && card.insight && (
         isPoster ? (
@@ -1367,6 +1656,40 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         >
           <div style={{ width: 4, height: 4, borderRight: '2px solid #fff', borderBottom: '2px solid #fff', transform: 'translate(-2px, -2px)' }} />
         </div>
+      )}
+      {isFullscreen && createPortal(
+        <div className="chart-fullscreen-overlay" onClick={() => setIsFullscreen(false)}>
+          {/* Inherit theme CSS vars from the dashboard panel */}
+          <div
+            className={`chart-fullscreen-inner ${document.querySelector('.dashboard-panel')?.className.match(/theme-[\w-]+/)?.[0] || 'theme-light'}`}
+            data-theme={document.querySelector('[data-theme]')?.getAttribute('data-theme') || 'light'}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="chart-fullscreen-header">
+              <h3>{card.title}</h3>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {card.data?.length > 0 && (
+                  <button className="fs-action-btn" onClick={() => exportToCSV(card.data, card.title)}>
+                    <Download size={14} /> Export CSV
+                  </button>
+                )}
+                <button className="fs-close-btn" onClick={() => setIsFullscreen(false)}>
+                  <Minimize2 size={15} /> Close
+                </button>
+              </div>
+            </div>
+            <div className="chart-fullscreen-body">
+              {renderContent(460)}
+            </div>
+            {card.insight && (
+              <div className="chart-fullscreen-insight">
+                <Sparkles size={12} />
+                <p>{card.insight}</p>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
     </motion.div>
   );

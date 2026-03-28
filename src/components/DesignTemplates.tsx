@@ -16,6 +16,7 @@ interface DashboardTemplate {
   bg_from: string;
   bg_to: string;
   charts: string[];
+  thumbnail_url?: string;
 }
 
 // ─── Mini Chart Mockups ───────────────────────────────────────────────────────
@@ -135,18 +136,31 @@ function TemplateCard({
 
   return (
     <div className="tpl-card" onClick={onSelect}>
-      {/* Gradient preview header */}
+      {/* Preview header — SVG thumbnail or gradient fallback */}
       <div
         className="tpl-preview"
-        style={{
+        style={template.thumbnail_url ? {} : {
           background: `linear-gradient(135deg, ${template.bg_from} 0%, ${template.bg_to} 100%)`,
         }}
       >
-        <div className="tpl-preview-charts">
-          {previewCharts.map((chartType, i) => (
-            <MiniChart key={i} type={chartType} />
-          ))}
-        </div>
+        {template.thumbnail_url ? (
+          <>
+            <img
+              src={template.thumbnail_url}
+              alt={template.name}
+              className="tpl-thumb-svg"
+              draggable={false}
+            />
+            {/* accent-colored gradient overlay for branding */}
+            <div className="tpl-thumb-overlay" style={{ background: `linear-gradient(to top, ${template.accent}33 0%, transparent 55%)` }} />
+          </>
+        ) : (
+          <div className="tpl-preview-charts">
+            {previewCharts.map((chartType, i) => (
+              <MiniChart key={i} type={chartType} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Info area */}

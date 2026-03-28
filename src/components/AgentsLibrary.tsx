@@ -16,6 +16,7 @@ export interface SpecializedAgent {
   accent: string;
   bg_from: string;
   bg_to: string;
+  thumbnail_url?: string;
 }
 
 // ─── Apply Modal (matches apply-tpl-modal design exactly) ────────────────────
@@ -133,8 +134,18 @@ function AgentApplyModal({
 function AgentCard({ agent, onSelect }: { agent: SpecializedAgent; onSelect: () => void }) {
   return (
     <div className="agent-card" onClick={onSelect}>
-      {/* Colored top strip */}
-      <div className="agent-card-strip" style={{ background: agent.color }} />
+      {/* Thumbnail preview area */}
+      <div className="agent-card-thumb">
+        {agent.thumbnail_url ? (
+          <>
+            <img src={agent.thumbnail_url} alt={agent.name} className="agent-thumb-svg" draggable={false} />
+            <div className="agent-thumb-overlay" style={{ background: `linear-gradient(to top, ${agent.color}44 0%, transparent 60%)` }} />
+          </>
+        ) : (
+          /* Fallback: colored strip */
+          <div className="agent-card-strip" style={{ background: agent.color }} />
+        )}
+      </div>
 
       <div className="agent-card-inner">
         <div className="agent-card-top">

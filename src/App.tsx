@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
+// Send cookies (httpOnly auth cookie) with every request — required for cookie-based auth
+axios.defaults.withCredentials = true;
 import './App.css';
 import Login from './components/Login';
 import LandingPage from './components/LandingPage';
@@ -33,6 +36,7 @@ export interface Project {
   emoji: string;
   color: string;
   palette?: string;
+  thumbnail_url?: string;
   chart_count: number;
   datasource: Datasource | null;
   updated_at: string;
@@ -115,7 +119,7 @@ export interface UploadedFile {
 
 // ─── Main App Content ─────────────────────────────────────────────────────────
 
-function MainAppContent({ token }: { token: string; user?: any; onLogout?: () => void }) {
+function MainAppContent({ user, onLogout }: { token?: string; user?: any; onLogout?: () => void }) {
   const [view, setView] = useState<View>('home');
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
@@ -130,9 +134,7 @@ function MainAppContent({ token }: { token: string; user?: any; onLogout?: () =>
     localStorage.setItem('sidebar_collapsed', String(newState));
   };
 
-  useEffect(() => {
-    axios.defaults.headers.common['Authorization'] = `Token ${token}`;
-  }, [token]);
+  // Auth is handled by httpOnly cookie sent automatically with withCredentials=true
 
   const fetchBasics = async () => {
     try { const r = await axios.get(`${BASE}/projects/`); setProjects(r.data); } catch {}
@@ -222,32 +224,40 @@ function MainAppContent({ token }: { token: string; user?: any; onLogout?: () =>
 // ─── App Root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('autodash_token'));
-  const [user, setUser] = useState<any>(JSON.parse(localStorage.getItem('autodash_user') || 'null'));
+  // `user` is null while loading, undefined when unauthenticated, or the user object
+  const [user, setUser] = useState<any>(undefined);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  const handleLogin = (newToken: string, userData: any) => {
-    setToken(newToken);
+  // On first load, ask the server if we have a valid session (httpOnly cookie)
+  useEffect(() => {
+    axios.get(`${BASE}/me/`)
+      .then(r => { setUser(r.data); })
+      .catch(() => { setUser(null); })
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  const handleLogin = (_token: string, userData: any) => {
+    // Cookie is already set by the server's Set-Cookie header; just update state
     setUser(userData);
-    localStorage.setItem('autodash_token', newToken);
-    localStorage.setItem('autodash_user', JSON.stringify(userData));
-    axios.defaults.headers.common['Authorization'] = `Token ${newToken}`;
   };
 
-  const handleLogout = () => {
-    setToken(null);
+  const handleLogout = async () => {
+    try { await axios.post(`${BASE}/logout/`); } catch { /* ignore */ }
     setUser(null);
-    localStorage.removeItem('autodash_token');
-    localStorage.removeItem('autodash_user');
-    delete axios.defaults.headers.common['Authorization'];
   };
+
+  // Show nothing while the session check is in-flight to avoid flash
+  if (!authChecked) return null;
+
+  const isLoggedIn = !!user;
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/view/:slug" element={<PublicDashboardView />} />
-        <Route path="/" element={!token ? <LandingPage /> : <MainAppContent token={token} user={user} onLogout={handleLogout} />} />
-        <Route path="/login" element={!token ? <Login onLogin={handleLogin} base={BASE} /> : <Navigate to="/" replace />} />
-        <Route path="*" element={!token ? <LandingPage /> : <MainAppContent token={token} user={user} onLogout={handleLogout} />} />
+        <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent token="" user={user} onLogout={handleLogout} />} />
+        <Route path="/login" element={!isLoggedIn ? <Login onLogin={handleLogin} base={BASE} /> : <Navigate to="/" replace />} />
+        <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent token="" user={user} onLogout={handleLogout} />} />
       </Routes>
     </BrowserRouter>
   );

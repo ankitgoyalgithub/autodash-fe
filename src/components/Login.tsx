@@ -22,6 +22,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
       const response = await fetch(`${base}/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',  // ensures Set-Cookie header is accepted
         body: JSON.stringify({ username: email, password }),
       });
 

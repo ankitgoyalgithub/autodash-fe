@@ -260,15 +260,30 @@ function ThumbMiniLine({ color }: { color: string }) {
 
 function ProjectThumbCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
   const c = p.color;
+  const thumb = p.thumbnail_url;
   return (
     <button className="canva-proj-card" onClick={onOpen}>
       {/* Thumbnail preview */}
-      <div className="canva-proj-thumb" style={{ background: `linear-gradient(145deg, ${c}18 0%, ${c}08 100%)` }}>
-        {/* Mini chart mockups */}
-        <div className="canva-proj-preview">
-          <ThumbMiniLine color={c} />
-          <ThumbMiniBar color={c} />
-        </div>
+      <div
+        className="canva-proj-thumb"
+        style={thumb ? {} : { background: `linear-gradient(145deg, ${c}18 0%, ${c}08 100%)` }}
+      >
+        {thumb ? (
+          <img
+            src={thumb}
+            alt={p.name}
+            className="canva-proj-thumb-svg"
+            draggable={false}
+          />
+        ) : (
+          /* Fallback: mini chart mockups */
+          <div className="canva-proj-preview">
+            <ThumbMiniLine color={c} />
+            <ThumbMiniBar color={c} />
+          </div>
+        )}
+        {/* Color-accent overlay so the card feels branded */}
+        <div className="canva-proj-thumb-overlay" style={{ background: `linear-gradient(to top, ${c}22 0%, transparent 60%)` }} />
         {/* Emoji badge — small, bottom-left */}
         <span className="canva-proj-emoji-badge">{p.emoji}</span>
       </div>

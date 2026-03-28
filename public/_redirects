@@ -1,2 +1,2 @@
-/api/*  http://13.201.72.131/api/:splat  200
+/api/*  https://13.201.72.131.sslip.io/api/:splat  200
 /*      /index.html                       200

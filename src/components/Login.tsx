@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Mail, Loader2, Sparkles, ChevronRight, LayoutDashboard } from 'lucide-react';
-import logo from '../assets/logo.svg';
+const logo = '/app-icon.png';
 
 interface LoginProps {
   onLogin: (token: string, userData: any) => void;

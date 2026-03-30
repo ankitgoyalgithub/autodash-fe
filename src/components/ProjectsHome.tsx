@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown, Sparkles } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown, Sparkles, MoreHorizontal, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import type { Datasource, Project } from '../App';
 import { BASE, EMOJIS, PALETTES } from './constants';
@@ -258,71 +258,210 @@ function ThumbMiniLine({ color }: { color: string }) {
   );
 }
 
-function ProjectThumbCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
+function ProjectThumbCard({ p, onOpen, onEdit, onDelete }: {
+  p: Project;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const c = p.color;
   const thumb = p.thumbnail_url;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
   return (
-    <button className="canva-proj-card" onClick={onOpen}>
-      {/* Thumbnail preview */}
-      <div
-        className="canva-proj-thumb"
-        style={thumb ? {} : { background: `linear-gradient(145deg, ${c}18 0%, ${c}08 100%)` }}
-      >
-        {thumb ? (
-          <img
-            src={thumb}
-            alt={p.name}
-            className="canva-proj-thumb-svg"
-            draggable={false}
-          />
-        ) : (
-          /* Fallback: mini chart mockups */
-          <div className="canva-proj-preview">
-            <ThumbMiniLine color={c} />
-            <ThumbMiniBar color={c} />
+    <div className="canva-proj-card-wrap">
+      <button className="canva-proj-card" onClick={onOpen}>
+        {/* Thumbnail preview */}
+        <div
+          className="canva-proj-thumb"
+          style={thumb ? {} : { background: `linear-gradient(145deg, ${c}18 0%, ${c}08 100%)` }}
+        >
+          {thumb ? (
+            <img src={thumb} alt={p.name} className="canva-proj-thumb-svg" draggable={false} />
+          ) : (
+            <div className="canva-proj-preview">
+              <ThumbMiniLine color={c} />
+              <ThumbMiniBar color={c} />
+            </div>
+          )}
+          <div className="canva-proj-thumb-overlay" style={{ background: `linear-gradient(to top, ${c}22 0%, transparent 60%)` }} />
+          <span className="canva-proj-emoji-badge">{p.emoji}</span>
+        </div>
+
+        {/* Info area */}
+        <div className="canva-proj-info">
+          <div className="canva-proj-title">{p.name}</div>
+          <div className="canva-proj-meta">
+            <span className="canva-proj-date"><Clock size={10} /> {timeAgo(p.updated_at)}</span>
+            {p.chart_count > 0 && (
+              <span className="canva-proj-charts"><BarChart2 size={10} /> {p.chart_count}</span>
+            )}
+          </div>
+        </div>
+      </button>
+
+      {/* Three-dot menu */}
+      <div className="proj-card-menu-wrap" ref={menuRef}>
+        <button
+          className="proj-card-menu-btn"
+          onClick={e => { e.stopPropagation(); setMenuOpen(v => !v); }}
+          title="Options"
+        >
+          <MoreHorizontal size={15} />
+        </button>
+        {menuOpen && (
+          <div className="proj-card-dropdown">
+            <button onClick={() => { setMenuOpen(false); onEdit(); }}>
+              <Pencil size={13} /> Rename
+            </button>
+            <button className="danger" onClick={() => { setMenuOpen(false); onDelete(); }}>
+              <Trash2 size={13} /> Delete
+            </button>
           </div>
         )}
-        {/* Color-accent overlay so the card feels branded */}
-        <div className="canva-proj-thumb-overlay" style={{ background: `linear-gradient(to top, ${c}22 0%, transparent 60%)` }} />
-        {/* Emoji badge — small, bottom-left */}
-        <span className="canva-proj-emoji-badge">{p.emoji}</span>
       </div>
+    </div>
+  );
+}
 
-      {/* Info area */}
-      <div className="canva-proj-info">
-        <div className="canva-proj-title">{p.name}</div>
-        <div className="canva-proj-meta">
-          <span className="canva-proj-date">
-            <Clock size={10} /> {timeAgo(p.updated_at)}
-          </span>
-          {p.chart_count > 0 && (
-            <span className="canva-proj-charts">
-              <BarChart2 size={10} /> {p.chart_count}
-            </span>
-          )}
+// ─── Edit Project Modal ───────────────────────────────────────────────────────
+
+function EditProjectModal({ project, onClose, onSave }: {
+  project: Project;
+  onClose: () => void;
+  onSave: (updates: { name: string; description: string; emoji: string }) => Promise<void>;
+}) {
+  const [name, setName] = useState(project.name);
+  const [desc, setDesc] = useState(project.description || '');
+  const [emoji, setEmoji] = useState(project.emoji);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    await onSave({ name: name.trim(), description: desc.trim(), emoji });
+    setSaving(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="edit-proj-modal" onClick={e => e.stopPropagation()}>
+        <div className="edit-proj-header">
+          <h3>Rename project</h3>
+          <button className="np-close-sm" onClick={onClose}><X size={16}/></button>
+        </div>
+        <div className="edit-proj-body">
+          <div className="np-field">
+            <label>Icon</label>
+            <div className="np-emoji-row">
+              {EMOJIS.map(e => (
+                <button key={e}
+                  className={`np-emoji-btn ${emoji === e ? 'sel' : ''}`}
+                  style={emoji === e ? { borderColor: project.color, background: project.color + '18' } : {}}
+                  onClick={() => setEmoji(e)}
+                >{e}</button>
+              ))}
+            </div>
+          </div>
+          <div className="np-field">
+            <label>Project name</label>
+            <input
+              autoFocus
+              className="np-input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSave()}
+              style={{ '--focus-ring': project.color } as React.CSSProperties}
+            />
+          </div>
+          <div className="np-field">
+            <label>Description <span className="opt">optional</span></label>
+            <input
+              className="np-input"
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+              placeholder="What are you tracking?"
+            />
+          </div>
+        </div>
+        <div className="edit-proj-footer">
+          <button className="btn-outline" onClick={onClose}>Cancel</button>
+          <button
+            className="np-btn-primary"
+            style={{ background: project.color }}
+            disabled={!name.trim() || saving}
+            onClick={handleSave}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
         </div>
       </div>
-    </button>
+    </div>
+  );
+}
+
+// ─── Delete Confirmation Modal ────────────────────────────────────────────────
+
+function DeleteProjectModal({ project, onClose, onConfirm }: {
+  project: Project;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirm = async () => {
+    setDeleting(true);
+    await onConfirm();
+    setDeleting(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="delete-proj-modal" onClick={e => e.stopPropagation()}>
+        <div className="delete-proj-icon"><AlertTriangle size={22} /></div>
+        <h3>Delete "{project.name}"?</h3>
+        <p>This will permanently delete the project and all its dashboards, threads, and data. This cannot be undone.</p>
+        <div className="delete-proj-footer">
+          <button className="btn-outline" onClick={onClose}>Cancel</button>
+          <button className="btn-danger" disabled={deleting} onClick={handleConfirm}>
+            {deleting ? 'Deleting…' : 'Delete project'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
 // ─── Projects Home ────────────────────────────────────────────────────────────
 
-export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onApplied }: {
+export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onApplied, onDelete, onEdit }: {
   projects: Project[];
   onOpen: (p: Project) => void;
   onNewProject: () => void;
   datasources: Datasource[];
   onApplied: (project: Project, threadId: number, dashboards: any[], narrative: string, suggestedTheme: string) => void;
+  onDelete: (p: Project) => Promise<void>;
+  onEdit: (p: Project, updates: { name: string; description: string; emoji: string }) => Promise<void>;
 }) {
   const [search, setSearch] = useState('');
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
 
   const filtered = projects.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     (p.description || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  // Split into recents (last 4 updated) and all
   const recents = [...filtered].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 4);
 
   return (
@@ -332,7 +471,6 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
       <div className="canva-home-hero">
         <h1 className="canva-home-title">All projects</h1>
 
-        {/* Search bar */}
         <div className="canva-search-wrap">
           <Search size={16} className="canva-search-icon" />
           <input
@@ -344,7 +482,6 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
           <SlidersHorizontal size={15} className="canva-search-filter-icon" />
         </div>
 
-        {/* Filter chips */}
         <div className="canva-filter-row">
           {['Type', 'Category', 'Owner', 'Date modified'].map(f => (
             <button key={f} className="canva-filter-chip">
@@ -361,26 +498,27 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
       {/* ── Content area ── */}
       <div className="canva-home-content">
 
-        {/* Templates section — always shown */}
         {!search && (
           <section className="canva-section">
             <DesignTemplates datasources={datasources} onApplied={onApplied} />
           </section>
         )}
 
-        {/* Recents section */}
         {recents.length > 0 && !search && (
           <section className="canva-section">
             <h2 className="canva-section-title">Recents</h2>
             <div className="canva-recents-row">
               {recents.map(p => (
-                <ProjectThumbCard key={p.id} p={p} onOpen={() => onOpen(p)} />
+                <ProjectThumbCard key={p.id} p={p}
+                  onOpen={() => onOpen(p)}
+                  onEdit={() => setEditingProject(p)}
+                  onDelete={() => setDeletingProject(p)}
+                />
               ))}
             </div>
           </section>
         )}
 
-        {/* Your Projects section */}
         <section className="canva-section">
           <h2 className="canva-section-title">
             {search ? `Results for "${search}"` : 'Your Projects'}
@@ -396,7 +534,6 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
             <p className="canva-no-results">No projects match your search.</p>
           ) : (
             <div className="canva-designs-grid">
-              {/* New project card */}
               {!search && (
                 <button className="canva-new-card" onClick={onNewProject}>
                   <div className="canva-new-card-icon"><Plus size={28} /></div>
@@ -404,12 +541,38 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
                 </button>
               )}
               {filtered.map(p => (
-                <ProjectThumbCard key={p.id} p={p} onOpen={() => onOpen(p)} />
+                <ProjectThumbCard key={p.id} p={p}
+                  onOpen={() => onOpen(p)}
+                  onEdit={() => setEditingProject(p)}
+                  onDelete={() => setDeletingProject(p)}
+                />
               ))}
             </div>
           )}
         </section>
       </div>
+
+      {/* ── Modals ── */}
+      {editingProject && (
+        <EditProjectModal
+          project={editingProject}
+          onClose={() => setEditingProject(null)}
+          onSave={async (updates) => {
+            await onEdit(editingProject, updates);
+            setEditingProject(null);
+          }}
+        />
+      )}
+      {deletingProject && (
+        <DeleteProjectModal
+          project={deletingProject}
+          onClose={() => setDeletingProject(null)}
+          onConfirm={async () => {
+            await onDelete(deletingProject);
+            setDeletingProject(null);
+          }}
+        />
+      )}
     </div>
   );
 }

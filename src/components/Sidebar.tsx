@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { LayoutGrid, BarChart3, Database, Plus, ChevronRight, ChevronLeft, Hash, Bot } from 'lucide-react';
+import { LayoutGrid, BarChart3, Database, Plus, ChevronRight, ChevronLeft, Hash, Bot, Palette } from 'lucide-react';
 import axios from 'axios';
-import logo from '../assets/logo.svg';
+const logo = '/app-icon.png';
 import type { View, Project, DashboardThread } from '../App';
 import { BASE } from './constants';
 
-export function Sidebar({ view, setView, projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle, onLogout }: {
+export function Sidebar({ view, setView, projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle, onLogout, onProfile }: {
   view: View;
   setView: (v: View) => void;
   projects: Project[];
@@ -18,6 +18,7 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
   collapsed: boolean;
   onToggle: () => void;
   onLogout: () => void;
+  onProfile: () => void;
 }) {
   const [threads, setThreads] = useState<DashboardThread[]>([]);
   const username = JSON.parse(localStorage.getItem('autodash_user') || '{}').username || 'U';
@@ -35,6 +36,7 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
     { id: 'agents' as View,      icon: Bot,         label: 'Agents'     },
     { id: 'dashboards' as View,  icon: BarChart3,   label: 'Dashboards' },
     { id: 'datasources' as View, icon: Database,    label: 'Data'       },
+    { id: 'brand' as View,       icon: Palette,     label: 'Brand Kit'  },
   ];
 
   return (
@@ -110,12 +112,12 @@ export function Sidebar({ view, setView, projects, activeProject, activeThreadId
         <button className="sidebar-toggle" onClick={onToggle} title={collapsed ? 'Expand' : 'Collapse'}>
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
-        <div className="user-profile-mini" title={username}>
+        <div className={`user-profile-mini ${view === 'profile' ? 'active' : ''}`} title={username} onClick={onProfile} style={{ cursor: 'pointer' }}>
           <div className="user-icon-sm">{username[0]?.toUpperCase()}</div>
           {!collapsed && (
             <div className="user-info">
               <span className="user-name">{username}</span>
-              <button className="logout-link" onClick={onLogout}>Sign out</button>
+              <button className="logout-link" onClick={e => { e.stopPropagation(); onLogout(); }}>Sign out</button>
             </div>
           )}
         </div>

@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 
 const FAQ_ITEMS = [
   {
-    q: 'What databases does LucentReport support?',
-    a: 'LucentReport supports PostgreSQL and all PostgreSQL-compatible databases, including Supabase, Neon, Amazon RDS, TimescaleDB, and AlloyDB. If it speaks PostgreSQL, LucentReport connects to it.',
+    q: 'What data sources does LucentReport support?',
+    a: 'LucentReport connects to a wide range of data sources: PostgreSQL, MySQL, Snowflake, Google BigQuery, Amazon S3 (via Athena), Salesforce, Google Drive (Sheets & CSV), Redshift, and more. If your data lives somewhere, LucentReport can reach it.',
   },
   {
     q: 'Do I need to write SQL to use LucentReport?',
-    a: 'No. LucentReport\'s multi-agent AI converts plain English into optimized PostgreSQL queries automatically. Just describe what you want — "Show monthly revenue by product category" — and LucentReport handles the SQL, chart selection, and insight generation.',
+    a: 'No. LucentReport\'s multi-agent AI converts plain English into optimized queries automatically. Just describe what you want: "Show monthly revenue by product category" and LucentReport handles the SQL, chart selection, and insight generation.',
   },
   {
     q: 'How does LucentReport protect my data?',
@@ -15,15 +15,15 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What chart types does LucentReport generate?',
-    a: 'LucentReport automatically selects the best visualization from bar charts, line charts, area charts, pie/donut charts, stacked bars, combo bar-line charts, horizontal bars, scatter plots, and data tables — based on your data shape and query intent.',
+    a: 'LucentReport automatically selects the best visualization based on your data shape and query intent: bar, line, area, pie/donut, stacked bar, combo, horizontal bar, scatter, and data table.',
   },
   {
     q: 'Can I share dashboards publicly?',
-    a: 'Yes. Deploy any dashboard as a live public URL with one click. Viewers don\'t need a LucentReport account — perfect for sharing with stakeholders, investors, or clients.',
+    a: 'Yes. Deploy any dashboard as a live public URL with one click. Viewers don\'t need a LucentReport account, making it easy to share with stakeholders, investors, or clients.',
   },
   {
     q: 'How is LucentReport different from Power BI or Tableau?',
-    a: 'LucentReport generates a complete styled dashboard from one sentence in under 10 seconds. There\'s no drag-and-drop, no data modeling, no DAX formulas — just plain English. It\'s the difference between asking a question and configuring a report.',
+    a: 'LucentReport generates a complete styled dashboard from one sentence in under 10 seconds. No drag-and-drop, no data modeling, no DAX formulas. Just plain English. It\'s the difference between asking a question and spending hours configuring a report.',
   },
 ];
 
@@ -53,7 +53,7 @@ export default function LandingPage() {
       <nav className="lp-nav" role="navigation" aria-label="Main navigation">
         <div className="lp-nav-inner">
           <a href="/" className="lp-nav-brand" aria-label="LucentReport home">
-            <img src="/brand-logo-cropped.png" alt="LucentReport" className="lp-nav-brand-img" />
+            <img src="/app-icon.png" alt="LucentReport" className="lp-nav-brand-img" />
           </a>
           <div className="lp-nav-links">
             <a href="#features" className="lp-nav-link">Features</a>
@@ -79,18 +79,18 @@ export default function LandingPage() {
           <div className="lp-hero-content">
             <div className="lp-hero-badge" aria-label="Product highlights">
               <span className="lp-badge-dot" aria-hidden="true" />
-              Multi-Agent AI · PostgreSQL · Real-time Analytics
+              Multi-Agent AI · Any Data Source · Real-time Analytics
             </div>
 
             <h1 className="lp-hero-h1">
               Build AI dashboards from<br/>
-              your database <span className="lp-grad-text">in seconds</span>
+              your data <span className="lp-grad-text">in seconds</span>
             </h1>
 
             <p className="lp-hero-sub">
-              Connect your PostgreSQL database, ask in plain English, and LucentReport's
-              AI generates pixel-perfect charts, advanced analytics, and executive
-              dashboards automatically — no SQL or BI experience needed.
+              Connect Postgres, Snowflake, Salesforce, S3, Google Drive, or any other data source —
+              ask in plain English, and LucentReport's AI generates pixel-perfect charts,
+              advanced analytics, and executive dashboards automatically. No SQL or BI experience needed.
             </p>
 
             <div className="lp-hero-actions">
@@ -161,7 +161,7 @@ export default function LandingPage() {
               {/* AI insight bubble */}
               <div className="lp-mock-bubble">
                 <span className="lp-mock-bubble-dot" aria-hidden="true" />
-                Revenue ↑ 18% MoM — Electronics driving 62% of growth
+                Revenue ↑ 18% MoM · Electronics driving 62% of growth
               </div>
             </div>
 
@@ -190,11 +190,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Compatible databases ── */}
-        <section className="lp-trust" aria-label="Compatible databases">
-          <p className="lp-trust-label">Works seamlessly with</p>
+        {/* ── Compatible data sources ── */}
+        <section className="lp-trust" aria-label="Compatible data sources">
+          <p className="lp-trust-label">Connects to any data source</p>
           <div className="lp-trust-logos" role="list">
-            {['PostgreSQL', 'Supabase', 'RDS', 'Neon', 'TimescaleDB', 'AlloyDB'].map(name => (
+            {['PostgreSQL', 'Snowflake', 'Salesforce', 'Amazon S3', 'Google Drive', 'BigQuery', 'MySQL', 'Redshift', 'Supabase', 'RDS'].map(name => (
               <div key={name} className="lp-trust-logo" role="listitem">{name}</div>
             ))}
           </div>
@@ -222,20 +222,20 @@ export default function LandingPage() {
         <section className="lp-section" id="features" aria-labelledby="features-heading">
           <div className="lp-section-tag">Features</div>
           <h2 className="lp-section-h2" id="features-heading">Everything your team needs</h2>
-          <p className="lp-section-sub">From raw PostgreSQL data to boardroom-ready dashboards — fully automated by AI.</p>
+          <p className="lp-section-sub">From any data source to boardroom-ready dashboards, fully automated by AI.</p>
 
           <div className="lp-features-grid">
             {[
               {
                 img: '/feat-multi-agent.png',
                 title: 'Multi-Agent AI Pipeline',
-                desc: 'Specialized agents — Data Analyzer, Planner, SQL Expert, Reflector, Insight Enricher — collaborate to generate accurate, insightful dashboards from a single prompt.',
+                desc: 'Specialized agents (Data Analyzer, Planner, SQL Expert, Reflector, Insight Enricher) collaborate to generate accurate, insightful dashboards from a single prompt.',
                 accent: '#6366f1',
               },
               {
                 img: '/feat-nl-charts.png',
                 title: 'Natural Language to Charts',
-                desc: 'Bar, line, area, pie, stacked, combo, scatter, horizontal bar, and table — LucentReport automatically picks the right chart type based on your data shape and query intent.',
+                desc: 'Bar, line, area, pie, stacked, combo, scatter, horizontal bar, and table. LucentReport automatically picks the right chart type based on your data shape and query intent.',
                 accent: '#8b5cf6',
               },
               {
@@ -247,7 +247,7 @@ export default function LandingPage() {
               {
                 img: '/feat-hitl.png',
                 title: 'Human-in-the-Loop AI',
-                desc: 'When the AI needs clarification — forecast horizon, matrix axes, custom parameters — it pauses and asks you in the chat before proceeding.',
+                desc: 'When the AI needs clarification on forecast horizon, matrix axes, or custom parameters, it pauses and asks you in the chat before proceeding.',
                 accent: '#c026d3',
               },
               {
@@ -278,7 +278,7 @@ export default function LandingPage() {
         <section className="lp-section lp-how-section" id="how" aria-labelledby="how-heading">
           <div className="lp-section-tag">How it works</div>
           <h2 className="lp-section-h2" id="how-heading">
-            From PostgreSQL database to dashboard<br/>in three steps
+            From any data source to dashboard<br/>in three steps
           </h2>
 
           <ol className="lp-steps" aria-label="Steps to build a dashboard">
@@ -286,14 +286,14 @@ export default function LandingPage() {
               {
                 num: '01',
                 icon: '🔌',
-                title: 'Connect your PostgreSQL database',
-                desc: 'Add your PostgreSQL connection details. LucentReport automatically discovers your schema, tables, relationships, and data types — no manual configuration needed.',
+                title: 'Connect your data source',
+                desc: 'Add your connection: Postgres, Snowflake, Salesforce, S3, Google Drive, BigQuery, MySQL, and more. LucentReport automatically discovers your schema, tables, relationships, and data types with no manual configuration needed.',
               },
               {
                 num: '02',
                 icon: '💬',
                 title: 'Ask in plain English',
-                desc: 'Type naturally — "Show monthly revenue by product category" or "Build a CEO dashboard" — and watch the AI pipeline plan, write SQL, execute queries, and render charts.',
+                desc: 'Type naturally: "Show monthly revenue by product category" or "Build a CEO dashboard" and watch the AI pipeline plan, write SQL, execute queries, and render charts.',
               },
               {
                 num: '03',
@@ -329,7 +329,7 @@ export default function LandingPage() {
               <ul className="lp-analytics-list" aria-label="Analytics capabilities">
                 {[
                   '📈 Linear forecasting with confidence intervals',
-                  '🎯 Priority Matrix — effort vs impact visualization',
+                  '🎯 Priority Matrix: effort vs impact visualization',
                   '📉 Trend decomposition with moving averages',
                   '🔥 Correlation heatmap across numeric columns',
                   '⚖️ Pareto (80/20) analysis with cumulative curve',
@@ -447,7 +447,7 @@ export default function LandingPage() {
       <footer className="lp-footer" role="contentinfo">
         <div className="lp-footer-inner">
           <a href="/" className="lp-footer-brand" aria-label="LucentReport home">
-            <img src="/brand-logo-cropped.png" alt="LucentReport" className="lp-footer-brand-img" loading="lazy" />
+            <img src="/app-icon.png" alt="LucentReport" className="lp-footer-brand-img" loading="lazy" />
           </a>
           <nav aria-label="Footer navigation" className="lp-footer-nav">
             <a href="#features" className="lp-footer-link">Features</a>

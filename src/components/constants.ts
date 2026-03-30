@@ -1,7 +1,6 @@
-export const BASE =
-  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://127.0.0.1:8000/api'
-    : '/api';
+// Always use a relative path — Vite proxies /api → Django in dev,
+// Netlify rewrites /api → the backend in production. No CORS, no cookie issues.
+export const BASE = '/api';
 
 export const PALETTES: Record<string, string[]> = {
   // Maximally distinct first — cool/warm alternating so multi-series charts never clash

@@ -7,6 +7,7 @@ import {
   DollarSign, ShoppingCart, Users, Package, Percent,
   CreditCard, FlaskConical, AlignLeft, ScatterChart as ScatterIcon,
   Download, Maximize2, Minimize2, Pencil, Check, Box, MoreHorizontal, ChevronDown,
+  Table2, RotateCcw, Trash2, Bookmark,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer,
@@ -323,7 +324,7 @@ function TableInsight({ data, colors }: { data: any[]; colors: string[] }) {
   );
 }
 
-export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters, index }: {
+export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters, index, onDelete, onSave }: {
   card: DashboardCard;
   layout?: 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
   onUpdate?: (updates: Partial<DashboardCard>) => void;
@@ -334,6 +335,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
   posterTheme?: string;
   globalFilters?: Record<string, string | number | null>;
   index?: number;
+  onDelete?: () => void;
+  onSave?: () => void;
 }) {
   const [chartType, setChartType] = useState(card.chart_type);
   const [showSql, setShowSql] = useState(false);
@@ -1468,6 +1471,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                   { key: 'pie', icon: <PieIcon size={13}/>, label: 'Pie' },
                   { key: 'scatter', icon: <ScatterIcon size={13}/>, label: 'Scatter' },
                   { key: 'timeline', icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>TL</span>, label: 'Timeline' },
+                  { key: 'table', icon: <Table2 size={13}/>, label: 'Table' },
                 ] as const;
                 const CHART_TYPES_3D = [
                   { key: 'bar3d', icon: <Box size={12}/>, label: '3D Bar' },
@@ -1475,7 +1479,8 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                   { key: 'scatter3d', icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>✦</span>, label: '3D Scatter' },
                 ] as const;
                 const allTypes = [...CHART_TYPES_2D, ...CHART_TYPES_3D];
-                const current = allTypes.find(t => t.key === chartType);
+                const current = allTypes.find(t => t.key === chartType) ?? { icon: <BarChart2 size={13}/>, label: 'Chart' };
+                const isModified = chartType !== card.chart_type;
                 return (
                   <div className="chart-type-picker" ref={typeMenuRef}>
                     <button
@@ -1483,19 +1488,27 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                       onClick={() => setShowTypeMenu(s => !s)}
                       title="Change chart type"
                     >
-                      {current?.icon ?? <BarChart2 size={13}/>}
-                      <span className="chart-type-label">{current?.label ?? 'Chart'}</span>
+                      {current.icon}
+                      <span className="chart-type-label">{current.label}</span>
                       <ChevronDown size={10} style={{ opacity: 0.6, marginLeft: 1 }}/>
                     </button>
                     {showTypeMenu && (
                       <div className="chart-type-menu">
+                        {isModified && (
+                          <button
+                            className="ctm-reset"
+                            onClick={() => { setChartType(card.chart_type as any); onUpdate?.({ chart_type: card.chart_type }); setShowTypeMenu(false); }}
+                          >
+                            <RotateCcw size={11}/> Reset to original
+                          </button>
+                        )}
                         <div className="ctm-section-label">2D</div>
                         <div className="ctm-grid">
                           {CHART_TYPES_2D.map(t => (
                             <button
                               key={t.key}
                               className={`ctm-item ${chartType === t.key ? 'active' : ''}`}
-                              onClick={() => { setChartType(t.key); setShowTypeMenu(false); }}
+                              onClick={() => { setChartType(t.key); onUpdate?.({ chart_type: t.key }); setShowTypeMenu(false); }}
                               title={t.label}
                             >
                               <span className="ctm-icon">{t.icon}</span>
@@ -1509,7 +1522,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                             <button
                               key={t.key}
                               className={`ctm-item ${chartType === t.key ? 'active' : ''}`}
-                              onClick={() => { setChartType(t.key); setShowTypeMenu(false); }}
+                              onClick={() => { setChartType(t.key); onUpdate?.({ chart_type: t.key }); setShowTypeMenu(false); }}
                               title={t.label}
                             >
                               <span className="ctm-icon">{t.icon}</span>
@@ -1583,6 +1596,16 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
                     {!editingTitle && (
                       <button className="cad-item" onClick={() => { setEditingTitle(true); setShowActionsMenu(false); }}>
                         <Pencil size={13} /> Rename
+                      </button>
+                    )}
+                    {onSave && (
+                      <button className="cad-item" onClick={() => { onSave(); setShowActionsMenu(false); }}>
+                        <Bookmark size={13} /> Save to Library
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button className="cad-item cad-danger" onClick={() => { onDelete(); setShowActionsMenu(false); }}>
+                        <Trash2 size={13} /> Delete chart
                       </button>
                     )}
                   </div>

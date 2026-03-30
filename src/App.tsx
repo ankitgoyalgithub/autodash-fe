@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -15,10 +15,14 @@ import { Workspace } from './components/Workspace';
 import { DatasourcesManagement } from './components/DatasourcesManagement';
 import { PublicDashboardView } from './components/PublicDashboardView';
 import { AgentsLibrary } from './components/AgentsLibrary';
+import { BrandKitEditor } from './components/BrandKitEditor';
+import { UserProfile } from './components/UserProfile';
+import { useBrandKit } from './hooks/useBrandKit';
+import { generatePalette } from './utils/brandPalette';
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
-export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents';
+export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents' | 'brand' | 'profile';
 
 export interface Datasource {
   id: number;
@@ -119,7 +123,7 @@ export interface UploadedFile {
 
 // ─── Main App Content ─────────────────────────────────────────────────────────
 
-function MainAppContent({ onLogout }: { onLogout: () => void }) {
+function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void; user: any; onUserUpdate: (u: any) => void }) {
   const [view, setView] = useState<View>('home');
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
@@ -135,6 +139,11 @@ function MainAppContent({ onLogout }: { onLogout: () => void }) {
   };
 
   // Auth is handled by httpOnly cookie sent automatically with withCredentials=true
+  const { brandKit, saving: brandSaving, error: brandError, save: saveBrandKit } = useBrandKit();
+  const brandPalette = useMemo(
+    () => generatePalette(brandKit.primary_color, brandKit.secondary_color),
+    [brandKit.primary_color, brandKit.secondary_color]
+  );
 
   const fetchBasics = async () => {
     try { const r = await axios.get(`${BASE}/projects/`); setProjects(r.data); } catch {}
@@ -186,6 +195,22 @@ function MainAppContent({ onLogout }: { onLogout: () => void }) {
     setView('workspace');
   };
 
+  const handleDeleteProject = async (p: Project) => {
+    await axios.delete(`${BASE}/projects/${p.id}/`);
+    setProjects(prev => prev.filter(x => x.id !== p.id));
+    if (activeProject?.id === p.id) {
+      setActiveProject(null);
+      setInitialThreadId(undefined);
+      setView('home');
+    }
+  };
+
+  const handleEditProject = async (p: Project, updates: { name: string; description: string; emoji: string }) => {
+    await axios.patch(`${BASE}/projects/${p.id}/`, updates);
+    setProjects(prev => prev.map(x => x.id === p.id ? { ...x, ...updates } : x));
+    if (activeProject?.id === p.id) setActiveProject(prev => prev ? { ...prev, ...updates } : prev);
+  };
+
   return (
     <div className="app">
       <Sidebar
@@ -201,18 +226,34 @@ function MainAppContent({ onLogout }: { onLogout: () => void }) {
         collapsed={isSidebarCollapsed}
         onToggle={toggleSidebar}
         onLogout={onLogout}
+        onProfile={() => setView('profile')}
       />
 
       <div className="main-area">
-        {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} datasources={datasources} onApplied={handleTemplateApplied} />}
+        {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} datasources={datasources} onApplied={handleTemplateApplied} onDelete={handleDeleteProject} onEdit={handleEditProject} />}
         {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.thread_id ?? e.id)} />}
         {view === 'datasources' && <DatasourcesManagement datasources={datasources} onRefresh={fetchBasics} />}
         {view === 'agents' && <AgentsLibrary datasources={datasources} onApplied={handleTemplateApplied} />}
+        {view === 'brand' && (
+          <BrandKitEditor
+            brandKit={brandKit}
+            saving={brandSaving}
+            error={brandError}
+            save={saveBrandKit}
+          />
+        )}
+        {view === 'profile' && (
+          <UserProfile
+            user={user}
+            onUserUpdate={(updates) => onUserUpdate({ ...user, ...updates })}
+          />
+        )}
         {view === 'workspace' && activeProject && (
           <Workspace
             project={activeProject}
             onBack={() => setView('home')}
             initialThreadId={initialThreadId}
+            brandPalette={brandPalette}
           />
         )}
       </div>
@@ -256,9 +297,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/view/:slug" element={<PublicDashboardView />} />
-        <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} />} />
+        <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} user={user} onUserUpdate={setUser} />} />
         <Route path="/login" element={!isLoggedIn ? <Login onLogin={handleLogin} base={BASE} /> : <Navigate to="/" replace />} />
-        <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} />} />
+        <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} user={user} onUserUpdate={setUser} />} />
       </Routes>
     </BrowserRouter>
   );

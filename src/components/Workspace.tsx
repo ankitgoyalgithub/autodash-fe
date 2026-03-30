@@ -5,6 +5,7 @@ import {
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
   Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown,
+  Library, Trash2, PlusCircle, BarChart2 as BarChartIcon,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -24,9 +25,10 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import logo from '../assets/logo.svg';
+const logo = '/app-icon.png';
 import type { Project, DashboardCard, HistoryEntry, UploadedFile, DashboardFilter } from '../App';
 import { BASE, THEMES, FONTS, PALETTES, TEMPLATES, INFOGRAPHIC_TEMPLATES } from './constants';
+import { getBrandPaletteColors } from '../utils/brandPalette';
 import { InsightCard } from './InsightCard';
 
 // ─── Draggable Cards Grid (default layout only) ───────────────────────────────
@@ -519,10 +521,11 @@ function WorkspaceAgentPicker({
   );
 }
 
-export function Workspace({ project, onBack, initialThreadId }: {
+export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
   project: Project;
   onBack: () => void;
   initialThreadId?: number;
+  brandPalette?: string[];
 }) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<number | null>(initialThreadId || null);
@@ -538,12 +541,12 @@ export function Workspace({ project, onBack, initialThreadId }: {
   const [palette, setPalette] = useState(project.palette || 'vibrant');
   const [layoutMode, setLayoutMode] = useState<'dashboard' | 'infographic'>('dashboard');
   const [editMode, setEditMode] = useState(false);
-  const [activeSideTab, setActiveSideTab] = useState<'templates' | 'themes' | 'layouts' | null>(null);
+  const [activeSideTab, setActiveSideTab] = useState<'templates' | 'themes' | 'layouts' | 'library' | null>(null);
+  const [libraryInsights, setLibraryInsights] = useState<{ id: number; card_data: any; saved_at: string }[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
   const [optimisticPrompt, setOptimisticPrompt] = useState<string | null>(null);
   const [posterTheme, setPosterTheme] = useState<'light' | 'dark' | 'branded' | 'newspaper'>('light');
   const [infographicTemplate, setInfographicTemplate] = useState<string | null>(null);
-  const [pendingTableRequest, setPendingTableRequest] = useState<string | null>(null);
-  const [tableHints] = useState<string[]>([]);
   const [activeAgent, setActiveAgent] = useState<{ id: string; name: string; emoji: string; color: string } | null>(null);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
@@ -623,6 +626,15 @@ export function Workspace({ project, onBack, initialThreadId }: {
     return () => clearTimeout(timer);
   }, [activeEntry?.results_data, activeEntry?.id]);
 
+  // Persist palette choice back to the project (debounced)
+  useEffect(() => {
+    if (palette === (project.palette || 'vibrant')) return; // no change
+    const timer = setTimeout(() => {
+      axios.patch(`${BASE}/projects/${project.id}/`, { palette }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [palette, project.id, project.palette]);
+
   useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history, loading, optimisticPrompt]);
 
   const handleUpload = async (files: FileList | null) => {
@@ -638,22 +650,11 @@ export function Workspace({ project, onBack, initialThreadId }: {
     setUploading(false);
   };
 
-  const extractTableHints = (text: string): string[] => {
-    // Extract snake_case / identifier-looking words that could be table names
-    const words = text.match(/\b[a-z][a-z0-9_]{2,}\b/g) || [];
-    const stopWords = new Set(['the','and','for','with','show','give','make','build','from','that','this','into','over','all','top','how','what','where','when','more','less','using','about','table','tables','chart','data','analyze','analysis','dashboard','insights','insight','use','please','want','need','can','you']);
-    return [...new Set(words.filter(w => !stopWords.has(w) && w.length > 3))];
-  };
-
   const handleSubmit = async (promptOverride?: string, hitlResponsesOverride?: Record<string, any>) => {
     if (!promptOverride && !query.trim() && uploads.length === 0) return;
     const promptText = promptOverride || query.trim() || 'Build dashboard from the uploaded reference images.';
     const imgContexts = uploads.map(u => u.image_context).filter(Boolean);
     const imgUrls = uploads.map(u => u.url);
-
-    // If backend asked for table names, extract hints from this message
-    const hints = pendingTableRequest ? extractTableHints(promptText) : tableHints;
-    if (pendingTableRequest) setPendingTableRequest(null);
 
     // Merge: persisted answers (from past queries) + current query's answers
     const currentHITLResponses = { ...persistedHitlResponses.current, ...(hitlResponsesOverride ?? hitlResponses) };
@@ -669,7 +670,6 @@ export function Workspace({ project, onBack, initialThreadId }: {
         image_contexts: imgContexts,
         reference_images: imgUrls,
         existing_charts: activeEntry?.results_data || [],
-        table_hints: hints,
         hitl_responses: currentHITLResponses,
         specialist_agent: activeAgent?.id || null,
       });
@@ -686,17 +686,9 @@ export function Workspace({ project, onBack, initialThreadId }: {
         return;
       }
 
-      // Backend couldn't find user tables — show inline prompt asking for table names
-      if (r.data.action === 'request_table_names') {
-        setPendingTableRequest(r.data.message);
-        if (!currentThreadId && newThreadId) setCurrentThreadId(newThreadId);
-        setOptimisticPrompt(null);
-        return;
-      }
-
-      // Clarification needed — show as inline message
+      // Clarification needed — show as error bar message
       if (r.data.action === 'clarification_needed') {
-        setPendingTableRequest(r.data.question);  // reuse the same UI slot
+        setError(r.data.question || 'Could you please clarify your request?');
         if (!currentThreadId && newThreadId) setCurrentThreadId(newThreadId);
         setOptimisticPrompt(null);
         setLoading(false);
@@ -716,32 +708,17 @@ export function Workspace({ project, onBack, initialThreadId }: {
       // the currentThreadId useEffect wiping them when a new thread is created.
       const incomingFilters = r.data.dashboard_filters;
 
-      const suggestedThemeId = r.data.suggested_theme;
+      // Only apply layout suggestion — palette, theme, and font are user design
+      // choices that the AI should not override.
       const suggestedLayout = r.data.suggested_layout;
-      const suggestedFont = r.data.suggested_font;
-      const suggestedPalette = r.data.suggested_palette;
 
       if (!currentThreadId && newThreadId) {
         setCurrentThreadId(newThreadId);
       }
 
-      if (suggestedThemeId) {
-        const found = THEMES.find(t => t.id === suggestedThemeId);
-        if (found) setTheme(found);
-      }
-
       if (suggestedLayout) {
         setLayout(suggestedLayout as any);
         setLayoutMode(suggestedLayout === 'poster' ? 'infographic' : 'dashboard');
-      }
-
-      if (suggestedFont) {
-        const found = FONTS.find(f => f.value === suggestedFont || f.name === suggestedFont);
-        if (found) setFont(found);
-      }
-
-      if (suggestedPalette) {
-        setPalette(suggestedPalette.toLowerCase());
       }
 
       if (newThreadId) {
@@ -816,31 +793,65 @@ export function Workspace({ project, onBack, initialThreadId }: {
     setActiveEntry({ ...activeEntry, results_data: [...(activeEntry.results_data || []), newCard] });
   };
 
+  const handleDeleteCard = (card: DashboardCard) => {
+    if (!activeEntry) return;
+    setActiveEntry({ ...activeEntry, results_data: (activeEntry.results_data || []).filter(c => c !== card) });
+  };
+
+  const fetchLibrary = useCallback(async () => {
+    setLibraryLoading(true);
+    try {
+      const r = await axios.get(`${BASE}/projects/${project.id}/insights/`);
+      setLibraryInsights(r.data);
+    } catch (e) {
+      console.error('Library fetch failed:', e);
+    } finally {
+      setLibraryLoading(false);
+    }
+  }, [project.id]);
+
+  const handleSaveToLibrary = async (card: DashboardCard) => {
+    try {
+      await axios.post(`${BASE}/projects/${project.id}/insights/`, { card_data: card });
+      if (activeSideTab === 'library') fetchLibrary();
+    } catch (e) {
+      console.error('Save to library failed:', e);
+    }
+  };
+
+  const handleDeleteFromLibrary = async (id: number) => {
+    try {
+      await axios.delete(`${BASE}/projects/${project.id}/insights/${id}/`);
+      setLibraryInsights(prev => prev.filter(i => i.id !== id));
+    } catch (e) {
+      console.error('Delete from library failed:', e);
+    }
+  };
+
+  const handlePullFromLibrary = (card: DashboardCard) => {
+    if (!activeEntry) return;
+    setActiveEntry({ ...activeEntry, results_data: [...(activeEntry.results_data || []), { ...card }] });
+  };
+
   const handleDrillDown = (card: DashboardCard, dimension: string, value: string | number) => {
     const drillPrompt = `I want to drill down into "${value}" for the dimension "${dimension}" in the context of the "${card.title}" chart from the previous query "${activeEntry?.query}". Please show me more detailed insights for this specific slice.`;
     handleSubmit(drillPrompt);
   };
 
-  const handleFilterChange = async (column: string, value: string | number | null) => {
-    const newFilters = { ...globalFilters, [column]: value };
-    if (value === null) delete newFilters[column];
-    setGlobalFilters(newFilters);
-
-    const activeFilters = Object.fromEntries(Object.entries(newFilters).filter(([, v]) => v !== null));
-    if (!activeEntry || Object.keys(activeFilters).length === 0) return;
-
-    // Re-run all chart SQLs with the active filters
+  const applyFilters = async (filterOverrides: Record<string, string | number | null>) => {
+    if (!activeEntry) return;
     const charts = (activeEntry.results_data || [])
       .map((c, i) => ({ index: i, sql: c.sql }))
       .filter(c => c.sql);
-
     if (!charts.length) return;
+
     setFilterLoading(true);
     try {
+      // Pass empty {} to restore original data; backend returns full unfiltered rows.
       const r = await axios.post(`${BASE}/filter/`, {
         project_id: project.id,
         charts,
-        filter_overrides: activeFilters,
+        filter_overrides: filterOverrides,
       });
       const updatedResults = [...(activeEntry.results_data || [])];
       for (const res of r.data.results || []) {
@@ -856,6 +867,20 @@ export function Workspace({ project, onBack, initialThreadId }: {
     }
   };
 
+  const handleFilterChange = async (column: string, value: string | number | null) => {
+    const newFilters = { ...globalFilters, [column]: value };
+    if (value === null) delete newFilters[column];
+    setGlobalFilters(newFilters);
+    // Always call the API — when all filters cleared it returns unfiltered data,
+    // restoring activeEntry.results_data that was previously overwritten.
+    await applyFilters(newFilters);
+  };
+
+  const handleClearAllFilters = async () => {
+    setGlobalFilters({});
+    await applyFilters({});
+  };
+
   const handleHITLAnswer = async (questionId: string, answer: any) => {
     // Accumulate the answer, persist it, and re-run the original query
     const newResponses = { ...hitlResponses, [questionId]: answer };
@@ -865,7 +890,9 @@ export function Workspace({ project, onBack, initialThreadId }: {
     await handleSubmit(hitlQueryRef, newResponses);
   };
 
-  const activeColors = PALETTES[palette as keyof typeof PALETTES];
+  const activeColors = palette === 'brand'
+    ? (brandPalette ?? getBrandPaletteColors())
+    : (PALETTES[palette as keyof typeof PALETTES] ?? PALETTES.vibrant);
 
   // ── Drag reorder callback (called by DraggableCardsGrid) ────────────────────
   const handleReorder = (oldIndex: number, newIndex: number) => {
@@ -918,6 +945,8 @@ export function Workspace({ project, onBack, initialThreadId }: {
           onUpdate={(u) => handleUpdateCard(card, u)}
           onDrillDown={(dim, val) => handleDrillDown(card, dim, val)}
           globalFilters={globalFilters}
+          onDelete={() => handleDeleteCard(card)}
+          onSave={() => handleSaveToLibrary(card)}
         />
       </ChartErrorBoundary>
     ));
@@ -930,12 +959,13 @@ export function Workspace({ project, onBack, initialThreadId }: {
         <button className={activeSideTab === 'templates' ? 'active' : ''} onClick={() => setActiveSideTab(s => s === 'templates' ? null : 'templates')} title="Templates"><LayoutTemplate size={20}/><small>Design</small></button>
         <button className={activeSideTab === 'themes' ? 'active' : ''} onClick={() => setActiveSideTab(s => s === 'themes' ? null : 'themes')} title="Themes"><Palette size={20}/><small>Style</small></button>
         <button className={activeSideTab === 'layouts' ? 'active' : ''} onClick={() => setActiveSideTab(s => s === 'layouts' ? null : 'layouts')} title="Layouts"><Columns size={20}/><small>Format</small></button>
+        <button className={activeSideTab === 'library' ? 'active' : ''} onClick={() => { setActiveSideTab(s => { const next = s === 'library' ? null : 'library'; if (next === 'library') fetchLibrary(); return next; }); }} title="Insight Library"><Library size={20}/><small>Library</small></button>
       </div>
 
       {activeSideTab && (
         <div className="config-panel glass">
           <div className="config-panel-head">
-            <h3>{activeSideTab.charAt(0).toUpperCase() + activeSideTab.slice(1)}</h3>
+            <h3>{activeSideTab === 'library' ? 'Insight Library' : activeSideTab.charAt(0).toUpperCase() + activeSideTab.slice(1)}</h3>
             <button className="icon-btn" onClick={() => setActiveSideTab(null)}><X size={16}/></button>
           </div>
           <div className="config-panel-body">
@@ -985,6 +1015,18 @@ export function Workspace({ project, onBack, initialThreadId }: {
                 <div className="style-section">
                   <div className="style-section-label">Chart Palette</div>
                   <div className="palette-visual-grid">
+                    {/* Brand palette — uses colours from the user's Brand Kit */}
+                    <button
+                      className={`palette-visual-card ${palette === 'brand' ? 'active' : ''}`}
+                      onClick={() => setPalette('brand')}
+                    >
+                      <div className="pvc-swatches">
+                        {(brandPalette ?? getBrandPaletteColors()).slice(0, 6).map((c, i) => (
+                          <div key={i} className="pvc-dot" style={{ background: c }} />
+                        ))}
+                      </div>
+                      <span className="pvc-name">Brand ✦</span>
+                    </button>
                     {Object.entries(PALETTES).map(([p, colors]) => (
                       <button key={p} className={`palette-visual-card ${palette === p ? 'active' : ''}`} onClick={() => setPalette(p)}>
                         <div className="pvc-swatches">
@@ -1088,6 +1130,53 @@ export function Workspace({ project, onBack, initialThreadId }: {
                 </div>
               </div>
             )}
+            {activeSideTab === 'library' && (
+              <div className="library-panel">
+                <div className="library-panel-head">
+                  <p className="library-hint">Save any chart to the project library and pull it back into any dashboard.</p>
+                </div>
+                {libraryLoading ? (
+                  <div className="library-loading"><Loader2 size={18} className="spin"/></div>
+                ) : libraryInsights.length === 0 ? (
+                  <div className="library-empty">
+                    <BarChartIcon size={28} style={{ opacity: 0.2 }}/>
+                    <p>No saved insights yet.</p>
+                    <small>Use the <strong>⋯ → Save to Library</strong> menu on any chart.</small>
+                  </div>
+                ) : (
+                  <div className="library-list">
+                    {libraryInsights.map(item => (
+                      <div key={item.id} className="library-card">
+                        <div className="library-card-info">
+                          <span className="library-card-type">{item.card_data?.chart_type ?? 'chart'}</span>
+                          <span className="library-card-title">{item.card_data?.title ?? 'Untitled'}</span>
+                          {item.card_data?.insight && (
+                            <span className="library-card-insight">{item.card_data.insight}</span>
+                          )}
+                        </div>
+                        <div className="library-card-actions">
+                          <button
+                            className="library-pull-btn"
+                            title="Add to current dashboard"
+                            onClick={() => handlePullFromLibrary(item.card_data)}
+                            disabled={!activeEntry}
+                          >
+                            <PlusCircle size={13}/> Pull
+                          </button>
+                          <button
+                            className="library-del-btn"
+                            title="Delete from library"
+                            onClick={() => handleDeleteFromLibrary(item.id)}
+                          >
+                            <Trash2 size={13}/>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1143,20 +1232,6 @@ export function Workspace({ project, onBack, initialThreadId }: {
             </div>
           ))}
 
-          {pendingTableRequest && (
-            <div className="convo-block">
-              <div className="ai-msg">
-                <div className="ai-avatar"><img src={logo} alt="AI"/></div>
-                <div className="charts-wrap">
-                  <div className="table-request-card">
-                    <AlertCircle size={14} className="table-request-icon"/>
-                    <p>{pendingTableRequest}</p>
-                    <span className="table-request-hint">Type table names in the chat below, e.g. "analyze the orders and customers tables"</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {pendingHITL && (
             <div className="convo-block">
@@ -1412,7 +1487,7 @@ export function Workspace({ project, onBack, initialThreadId }: {
                 </div>
               ))}
               {Object.values(globalFilters).some(v => v !== null) && (
-                <button className="gf-clear" onClick={() => { setGlobalFilters({}); }}>
+                <button className="gf-clear" onClick={handleClearAllFilters}>
                   Clear all
                 </button>
               )}

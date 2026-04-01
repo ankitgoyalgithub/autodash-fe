@@ -1,6 +1,6 @@
-// Always use a relative path — Vite proxies /api → Django in dev,
-// Netlify rewrites /api → the backend in production. No CORS, no cookie issues.
-export const BASE = '/api';
+// Always use a relative path — Vite proxies /api → Django in dev.
+// In production we hit the backend directly to bypass Netlify's 26s proxy timeout.
+export const BASE = import.meta.env.PROD ? 'https://13.201.72.131.sslip.io/api' : '/api';
 
 export const PALETTES: Record<string, string[]> = {
   // Maximally distinct first — cool/warm alternating so multi-series charts never clash

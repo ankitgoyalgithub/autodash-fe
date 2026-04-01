@@ -497,7 +497,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
   const activeColors = colors || COLORS;
 
   const formatXAxis = (val: any) => {
-    if (!val) return val;
+    if (val === null || val === undefined) return '';
     const str = String(val);
     if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
       const d = new Date(str);
@@ -674,7 +674,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         height: needsAngle ? 60 : 30,
         textAnchor: needsAngle ? 'end' as const : 'middle' as const,
         tickFormatter: (v: any) => {
-          const s = formatXAxis(v);
+          const s = String(formatXAxis(v));
           return needsAngle && s.length > 16 ? s.slice(0, 14) + '…' : s;
         },
       };

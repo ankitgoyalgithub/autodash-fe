@@ -189,22 +189,7 @@ function AnomalyTooltip({ active, payload, label }: any) {
   );
 }
 
-// ── Custom Legend ─────────────────────────────────────────────────────────────
-function ChartLegend({ payload }: any) {
-  if (!payload?.length) return null;
-  const visible = payload.filter((p: any) => p.type !== 'none');
-  if (!visible.length) return null;
-  return (
-    <div className="chart-legend">
-      {visible.map((p: any, i: number) => (
-        <div key={i} className="cl-item">
-          <span className="cl-dot" style={{ background: p.color }} />
-          <span className="cl-name">{prettifyCol(String(p.value ?? ''))}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
+// ChartLegend is replaced by the per-card interactive LegendToggle defined inside renderContent.
 
 function formatCellValue(val: any, col: string): string {
   if (val === null || val === undefined) return '—';

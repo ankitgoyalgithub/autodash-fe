@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, Component } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area,
@@ -493,22 +494,35 @@ const QUICK_AGENTS = [
 ];
 
 function WorkspaceAgentPicker({
+  anchorRef,
   onSelect,
   onClose,
 }: {
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
   onSelect: (a: { id: string; name: string; emoji: string; color: string }) => void;
   onClose: () => void;
 }) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
   useEffect(() => {
+    if (anchorRef.current) {
+      const r = anchorRef.current.getBoundingClientRect();
+      setPos({ top: r.top - 8, left: r.left });
+    }
     const handler = (e: MouseEvent) => {
       if (!(e.target as Element).closest('.ws-agent-picker')) onClose();
     };
     setTimeout(() => document.addEventListener('click', handler), 0);
     return () => document.removeEventListener('click', handler);
-  }, [onClose]);
+  }, [onClose, anchorRef]);
 
-  return (
-    <div className="ws-agent-picker">
+  if (!pos) return null;
+
+  return createPortal(
+    <div
+      className="ws-agent-picker"
+      style={{ position: 'fixed', top: pos.top, left: pos.left, transform: 'translateY(-100%)' }}
+    >
       <div className="ws-agent-picker-header">Analysis Focus</div>
       <div className="ws-agent-picker-list">
         {QUICK_AGENTS.map(a => (
@@ -521,7 +535,8 @@ function WorkspaceAgentPicker({
           </button>
         ))}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -989,6 +1004,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
+  const dashboardContentRef = useRef<HTMLDivElement>(null);
+  const agentBtnRef = useRef<HTMLButtonElement>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
   // Track previous thread so we only clear filters when SWITCHING threads,
   // not when a brand-new thread ID is first assigned (which would wipe filters
   // that were just returned in the same query response).
@@ -1242,6 +1260,25 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
     link.download = `${activeEntry?.query || 'poster'}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+  };
+
+  const handleExportPDF = async () => {
+    const el = dashboardContentRef.current;
+    if (!el || !activeEntry) return;
+    setExportingPdf(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width / 2, canvas.height / 2] });
+      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width / 2, canvas.height / 2);
+      const fileName = (activeEntry.query || project.name).replace(/[^a-z0-9_\-\s]/gi, '').trim().replace(/\s+/g, '_') || 'dashboard';
+      pdf.save(`${fileName}.pdf`);
+    } catch (e) {
+      console.error('PDF export failed', e);
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleAddTextBlock = () => {
@@ -1773,17 +1810,16 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
                   {uploading ? <Loader2 size={16} className="spin"/> : <Upload size={16}/>}
                 </button>
                 {/* Agent picker button */}
-                <div style={{ position: 'relative' }}>
-                  <button
-                    className="comp-icon"
-                    title="Set analysis focus agent"
-                    onClick={() => setShowAgentPicker(p => !p)}
-                    style={activeAgent ? { color: activeAgent.color } : {}}
-                  >
-                    <Bot size={16} />
-                  </button>
-                  {showAgentPicker && <WorkspaceAgentPicker onSelect={a => { setActiveAgent(a); setShowAgentPicker(false); }} onClose={() => setShowAgentPicker(false)} />}
-                </div>
+                <button
+                  ref={agentBtnRef}
+                  className="comp-icon"
+                  title="Set analysis focus agent"
+                  onClick={() => setShowAgentPicker(p => !p)}
+                  style={activeAgent ? { color: activeAgent.color } : {}}
+                >
+                  <Bot size={16} />
+                </button>
+                {showAgentPicker && <WorkspaceAgentPicker anchorRef={agentBtnRef} onSelect={a => { setActiveAgent(a); setShowAgentPicker(false); }} onClose={() => setShowAgentPicker(false)} />}
               </div>
               <button className="comp-send" style={{ background: project.color }} onClick={() => effectiveThreadType === 'infographic' ? handleInfographicSubmit() : handleSubmit()} disabled={loading || (!query.trim() && !uploads.length)}>
                 {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
@@ -1848,13 +1884,23 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
                   <RefreshCw size={14} className={loading ? 'spin' : ''}/>
                 </button>
                 {(activeEntry.results_data?.length ?? 0) > 0 && (
-                  <button
-                    className="dp-icon-btn"
-                    onClick={() => exportAllChartsCSV(activeEntry.results_data || [], project.name)}
-                    title="Export all charts as CSV"
-                  >
-                    <FileDown size={14}/>
-                  </button>
+                  <>
+                    <button
+                      className="dp-icon-btn"
+                      onClick={() => exportAllChartsCSV(activeEntry.results_data || [], project.name)}
+                      title="Export all charts as CSV"
+                    >
+                      <FileDown size={14}/>
+                    </button>
+                    <button
+                      className="dp-icon-btn"
+                      onClick={handleExportPDF}
+                      disabled={exportingPdf}
+                      title="Export dashboard as PDF"
+                    >
+                      {exportingPdf ? <Loader2 size={14} className="spin"/> : <Download size={14}/>}
+                    </button>
+                  </>
                 )}
                 {activeEntry.is_deployed ? (
                   <button className="undeploy-btn" onClick={handleUndeploy}><EyeOff size={14}/> Offline</button>
@@ -1871,7 +1917,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
           )}
         </div>
 
-        <div className={`dp-content ${layoutMode}-mode ${layout === 'poster' ? 'poster-content' : ''}`}>
+        <div ref={dashboardContentRef} className={`dp-content ${layoutMode}-mode ${layout === 'poster' ? 'poster-content' : ''}`}>
           {!activeEntry && !loading && (
             <div className="dp-empty">
               <div className="dp-empty-icon" style={{ background: project.color + '15', border: `1.5px dashed ${project.color}50` }}>

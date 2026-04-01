@@ -6435,15 +6435,12 @@ button { cursor: pointer; }
 
 /* ── Workspace Agent Picker dropdown ── */
 .ws-agent-picker {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
   width: 260px;
   background: #fff;
   border: 1.5px solid #e5e0f5;
   border-radius: 14px;
   box-shadow: 0 12px 36px rgba(0,0,0,0.14);
-  z-index: 200;
+  z-index: 9999;
   overflow: hidden;
 }
 

@@ -1,4 +1,8 @@
-import { useState, useEffect, useRef, useCallback, Component } from 'react';
+import { useState, useEffect, useRef, useCallback, Component, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area,
+} from 'recharts';
 import type { ReactNode } from 'react';
 import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
@@ -521,6 +525,424 @@ function WorkspaceAgentPicker({
   );
 }
 
+// ─── Infographic Editor ───────────────────────────────────────────────────────
+
+const IG_ACCENT_COLORS = [
+  { color: '#6366f1', name: 'Indigo' },
+  { color: '#0ea5e9', name: 'Sky' },
+  { color: '#10b981', name: 'Emerald' },
+  { color: '#f59e0b', name: 'Amber' },
+  { color: '#ef4444', name: 'Rose' },
+  { color: '#8b5cf6', name: 'Violet' },
+  { color: '#ec4899', name: 'Pink' },
+  { color: '#14b8a6', name: 'Teal' },
+];
+
+const IG_HERO_STYLES: { name: string; css: (a: string) => string }[] = [
+  { name: 'Space',   css: a => `linear-gradient(135deg, #0f0c29 0%, #302b63 60%, ${a} 100%)` },
+  { name: 'Slate',   css: a => `linear-gradient(135deg, #0f172a 0%, #1e293b 60%, ${a} 100%)` },
+  { name: 'Ocean',   css: a => `linear-gradient(135deg, #0c1445 0%, #1a3a6b 60%, ${a} 100%)` },
+  { name: 'Forest',  css: a => `linear-gradient(135deg, #052e16 0%, #14532d 60%, ${a} 100%)` },
+  { name: 'Sunset',  css: a => `linear-gradient(135deg, #1a0533 0%, #6b1a3a 60%, ${a} 100%)` },
+  { name: 'Minimal', css: a => `linear-gradient(135deg, ${a}22 0%, ${a}44 100%)` },
+];
+
+type IgSection = {
+  id: string;
+  type: 'metric_row' | 'bar_chart' | 'line_chart' | 'table' | 'insight' | 'text' | 'image';
+  title: string;
+  metrics?: { label: string; value: string; raw: any }[];
+  data?: { label: string; value: number }[] | { x: string; y: number }[];
+  value_label?: string;
+  y_label?: string;
+  headers?: string[];
+  rows?: string[][];
+  text?: string;
+  style?: 'default' | 'quote' | 'callout';
+  url?: string;
+  caption?: string;
+};
+
+// ─── Section renderers ────────────────────────────────────────────────────────
+
+function IgMetricRow({ section, accent }: { section: IgSection; accent: string }) {
+  return (
+    <div className="ig-metric-row">
+      {(section.metrics || []).map((m, i) => (
+        <div key={i} className="ig-metric-card" style={{ borderTopColor: accent }}>
+          <div className="ig-metric-value" style={{ color: accent }}>{m.value}</div>
+          <div className="ig-metric-label">{m.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function IgBarChart({ section, accent }: { section: IgSection; accent: string }) {
+  const data = (section.data || []) as { label: string; value: number }[];
+  const isHorizontal = data.length > 5;
+  if (isHorizontal) {
+    return (
+      <ResponsiveContainer width="100%" height={Math.max(200, data.length * 36)}>
+        <BarChart data={data.map(d => ({ name: d.label, value: d.value }))} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+          <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#475569' }} axisLine={false} tickLine={false} />
+          <Tooltip formatter={(v: any) => [Number(v).toLocaleString(), section.value_label || 'Value']} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: 12 }} />
+          <Bar dataKey="value" fill={accent} radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data.map(d => ({ name: d.label, value: d.value }))} margin={{ left: 0, right: 8, top: 4, bottom: 24 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} axisLine={false} tickLine={false} angle={data.length > 4 ? -30 : 0} textAnchor={data.length > 4 ? 'end' : 'middle'} />
+        <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+        <Tooltip formatter={(v: any) => [Number(v).toLocaleString(), section.value_label || 'Value']} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: 12 }} />
+        <Bar dataKey="value" fill={accent} radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function IgLineChart({ section, accent }: { section: IgSection; accent: string }) {
+  const data = (section.data || []) as { x: string; y: number }[];
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <AreaChart data={data.map(d => ({ name: d.x, value: d.y }))} margin={{ left: 0, right: 8, top: 4, bottom: 24 }}>
+        <defs>
+          <linearGradient id={`igGrad-${section.id}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={accent} stopOpacity={0.2} />
+            <stop offset="95%" stopColor={accent} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} axisLine={false} tickLine={false} angle={data.length > 8 ? -30 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} />
+        <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+        <Tooltip formatter={(v: any) => [Number(v).toLocaleString(), section.y_label || 'Value']} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: 12 }} />
+        <Area type="monotone" dataKey="value" stroke={accent} strokeWidth={2.5} fill={`url(#igGrad-${section.id})`} dot={{ fill: accent, r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function IgTable({ section }: { section: IgSection }) {
+  return (
+    <div className="ig-table-wrap">
+      <table className="ig-table">
+        <thead>
+          <tr>{(section.headers || []).map((h, i) => <th key={i}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {(section.rows || []).map((row, i) => (
+            <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── Text & Image section renderers ──────────────────────────────────────────
+
+function IgTextSection({ section, accent, onChange }: { section: IgSection; accent: string; onChange: (val: string) => void }) {
+  if (section.style === 'quote') {
+    return (
+      <div className="ig-quote-block" style={{ borderLeftColor: accent }}>
+        <textarea className="ig-quote-textarea" value={section.text || ''} onChange={e => onChange(e.target.value)} placeholder="Enter quote or highlight text…" rows={3} />
+      </div>
+    );
+  }
+  if (section.style === 'callout') {
+    return (
+      <div className="ig-callout-block" style={{ background: accent + '12', borderColor: accent + '40' }}>
+        <span className="ig-callout-icon" style={{ color: accent }}>💡</span>
+        <textarea className="ig-callout-textarea" value={section.text || ''} onChange={e => onChange(e.target.value)} placeholder="Enter callout text…" rows={2} style={{ color: accent === '#f59e0b' ? '#92400e' : undefined }} />
+      </div>
+    );
+  }
+  return (
+    <textarea className="ig-text-textarea" value={section.text || ''} onChange={e => onChange(e.target.value)} placeholder="Enter paragraph text…" rows={4} />
+  );
+}
+
+function IgImageSection({ section, onCaptionChange, onUpload }: {
+  section: IgSection;
+  onCaptionChange: (val: string) => void;
+  onUpload: (file: File) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="ig-image-section">
+      {section.url ? (
+        <>
+          <div className="ig-image-wrap" onClick={() => fileRef.current?.click()} title="Click to replace image">
+            <img src={section.url} alt={section.caption || section.title} className="ig-image" />
+            <div className="ig-image-overlay"><Upload size={18}/><span>Replace</span></div>
+          </div>
+          <input
+            className="ig-image-caption"
+            value={section.caption || ''}
+            onChange={e => onCaptionChange(e.target.value)}
+            placeholder="Add a caption…"
+          />
+        </>
+      ) : (
+        <div className="ig-image-placeholder" onClick={() => fileRef.current?.click()}>
+          <Upload size={28} />
+          <p>Click to upload image</p>
+          <span>PNG, JPG, GIF up to 10MB</span>
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} />
+    </div>
+  );
+}
+
+// ─── Sortable section card ────────────────────────────────────────────────────
+
+function IgSectionCard({
+  section, accent, onUpdate, onDelete,
+}: {
+  section: IgSection;
+  accent: string;
+  onUpdate: (id: string, patch: Partial<IgSection>) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+  const isWide = ['metric_row', 'table', 'image', 'text'].includes(section.type);
+
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const r = await axios.post(`${BASE}/upload/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onUpdate(section.id, { url: r.data.url });
+    } catch { /* ignore */ } finally { setUploading(false); }
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`ig-section-card${isWide ? ' ig-section-card--wide' : ''}`}>
+      <div className="ig-section-drag" {...attributes} {...listeners}><Move size={13} /></div>
+      <div className="ig-section-body">
+        {/* Title row */}
+        <div className="ig-section-header">
+          {section.type !== 'metric_row' && (
+            <input
+              className="ig-section-title"
+              value={section.title}
+              onChange={e => onUpdate(section.id, { title: e.target.value })}
+              style={{ '--ig-accent': accent } as any}
+            />
+          )}
+          <button className="ig-section-delete" onClick={() => onDelete(section.id)} title="Remove section"><X size={12}/></button>
+        </div>
+
+        {/* Content */}
+        {section.type === 'metric_row'  && <IgMetricRow section={section} accent={accent} />}
+        {section.type === 'bar_chart'   && <IgBarChart section={section} accent={accent} />}
+        {section.type === 'line_chart'  && <IgLineChart section={section} accent={accent} />}
+        {section.type === 'table'       && <IgTable section={section} />}
+        {section.type === 'insight'     && (
+          <textarea className="ig-insight-textarea" value={section.text || ''} onChange={e => onUpdate(section.id, { text: e.target.value })} rows={3} style={{ borderLeftColor: accent }} />
+        )}
+        {section.type === 'text' && (
+          <IgTextSection section={section} accent={accent} onChange={val => onUpdate(section.id, { text: val })} />
+        )}
+        {section.type === 'image' && (
+          uploading
+            ? <div className="ig-image-uploading"><Loader2 size={22} className="spin"/> Uploading…</div>
+            : <IgImageSection section={section} onCaptionChange={val => onUpdate(section.id, { caption: val })} onUpload={handleImageUpload} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Toolbar ─────────────────────────────────────────────────────────────────
+
+function IgToolbar({ accent, heroStyleIdx, onAccent, onHeroStyle, onAdd }: {
+  accent: string;
+  heroStyleIdx: number;
+  onAccent: (c: string) => void;
+  onHeroStyle: (i: number) => void;
+  onAdd: (type: IgSection['type'], style?: IgSection['style']) => void;
+}) {
+  const [addOpen, setAddOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
+
+  return (
+    <div className="ig-toolbar">
+      {/* Add section */}
+      <div className="ig-toolbar-group" style={{ position: 'relative' }}>
+        <button className="ig-tb-btn ig-tb-btn--primary" onClick={() => { setAddOpen(p => !p); setThemeOpen(false); }}>
+          <Plus size={14}/> Add Section
+        </button>
+        {addOpen && (
+          <div className="ig-dropdown" onMouseLeave={() => setAddOpen(false)}>
+            <div className="ig-dropdown-section-label">Visualizations</div>
+            <button className="ig-dropdown-item" onClick={() => { onAdd('insight'); setAddOpen(false); }}>
+              <Sparkles size={14}/> Key Insight
+            </button>
+            <button className="ig-dropdown-item" onClick={() => { onAdd('text', 'default'); setAddOpen(false); }}>
+              <LayoutList size={14}/> Text Block
+            </button>
+            <button className="ig-dropdown-item" onClick={() => { onAdd('text', 'quote'); setAddOpen(false); }}>
+              <span className="ig-dropdown-icon">"</span> Pull Quote
+            </button>
+            <button className="ig-dropdown-item" onClick={() => { onAdd('text', 'callout'); setAddOpen(false); }}>
+              <Zap size={14}/> Callout Box
+            </button>
+            <div className="ig-dropdown-section-label">Media</div>
+            <button className="ig-dropdown-item" onClick={() => { onAdd('image'); setAddOpen(false); }}>
+              <Upload size={14}/> Image
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="ig-toolbar-divider"/>
+
+      {/* Accent color */}
+      <div className="ig-toolbar-group">
+        <span className="ig-tb-label">Color</span>
+        <div className="ig-color-swatches">
+          {IG_ACCENT_COLORS.map(({ color, name }) => (
+            <button
+              key={color}
+              className={`ig-swatch${accent === color ? ' ig-swatch--active' : ''}`}
+              style={{ background: color }}
+              title={name}
+              onClick={() => onAccent(color)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="ig-toolbar-divider"/>
+
+      {/* Hero style */}
+      <div className="ig-toolbar-group" style={{ position: 'relative' }}>
+        <span className="ig-tb-label">Background</span>
+        <div className="ig-hero-style-pills">
+          {IG_HERO_STYLES.map((s, i) => (
+            <button
+              key={s.name}
+              className={`ig-style-pill${heroStyleIdx === i ? ' ig-style-pill--active' : ''}`}
+              onClick={() => onHeroStyle(i)}
+              style={heroStyleIdx === i ? { background: accent, color: '#fff', borderColor: accent } : {}}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Infographic Editor ─────────────────────────────────────────────────
+
+function InfographicEditor({ entry, projectColor }: { entry: any; projectColor: string }) {
+  const data = entry.infographic_data;
+
+  const [headerTitle, setHeaderTitle] = useState(data?.title || entry.query || '');
+  const [sections, setSections] = useState<IgSection[]>(data?.sections || []);
+  const [accent, setAccent] = useState<string>(data?.accent || projectColor || '#6366f1');
+  const [heroStyleIdx, setHeroStyleIdx] = useState(0);
+
+  useEffect(() => {
+    setHeaderTitle(data?.title || entry.query || '');
+    setSections(data?.sections || []);
+    setAccent(data?.accent || projectColor || '#6366f1');
+    setHeroStyleIdx(0);
+  }, [entry.id]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setSections(prev => arrayMove(prev, prev.findIndex(s => s.id === active.id), prev.findIndex(s => s.id === over.id)));
+    }
+  };
+
+  const handleAdd = (type: IgSection['type'], style?: IgSection['style']) => {
+    const id = `user-${Date.now()}`;
+    const defaults: Record<string, Partial<IgSection>> = {
+      insight: { title: 'Key Insight', text: '' },
+      text: { title: 'Text Block', text: '', style: style || 'default' },
+      image: { title: 'Image', url: '', caption: '' },
+    };
+    setSections(prev => [...prev, { id, type, title: '', ...defaults[type] } as IgSection]);
+  };
+
+  const handleUpdate = (id: string, patch: Partial<IgSection>) => {
+    setSections(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
+  };
+
+  const handleDelete = (id: string) => {
+    setSections(prev => prev.filter(s => s.id !== id));
+  };
+
+  const heroBg = IG_HERO_STYLES[heroStyleIdx].css(accent);
+
+  if (!data) return <div className="ig-empty-state">Infographic data unavailable. Please regenerate.</div>;
+
+  return (
+    <div className="ig-editor">
+      {/* Hero */}
+      <div className="ig-hero" style={{ background: heroBg }}>
+        <input className="ig-hero-title" value={headerTitle} onChange={e => setHeaderTitle(e.target.value)} placeholder="Infographic title…" />
+        <p className="ig-hero-sub">{data.project_name}</p>
+      </div>
+
+      {/* Toolbar */}
+      <IgToolbar
+        accent={accent}
+        heroStyleIdx={heroStyleIdx}
+        onAccent={setAccent}
+        onHeroStyle={setHeroStyleIdx}
+        onAdd={handleAdd}
+      />
+
+      {/* Canvas */}
+      <div className="ig-canvas">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sections.map(s => s.id)} strategy={rectSortingStrategy}>
+            <div className="ig-sections-grid">
+              {sections.map(s => (
+                <IgSectionCard
+                  key={s.id}
+                  section={s}
+                  accent={accent}
+                  onUpdate={handleUpdate}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+
+        {sections.length === 0 && (
+          <div className="ig-canvas-empty">
+            <Sparkles size={32} style={{ color: accent, opacity: 0.4 }}/>
+            <p>No sections yet — use the toolbar to add content</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
   project: Project;
   onBack: () => void;
@@ -529,6 +951,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
 }) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<number | null>(initialThreadId || null);
+  const [threadType, setThreadType] = useState<'dashboard' | 'infographic' | null>(null);
+  const [pendingThreadType, setPendingThreadType] = useState<'dashboard' | 'infographic' | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
@@ -575,9 +999,12 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
       const r = await axios.get(`${BASE}/threads/${tId}/`);
       const threadHistory = r.data.history;
       setHistory(threadHistory);
+      if (r.data.thread_type) setThreadType(r.data.thread_type);
       if (threadHistory.length > 0) {
         setActiveEntry(threadHistory[threadHistory.length - 1]);
       }
+      // Scroll to the latest entry (bottom of chat) after history loads
+      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch {
       setError("Failed to load conversation history.");
     }
@@ -605,6 +1032,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
       setHistory([]);
       setActiveEntry(null);
       setDashboardFilters([]);
+      setThreadType(null);
+      setPendingThreadType(null);
     }
     prevThreadIdRef.current = currentThreadId ?? null;
     setGlobalFilters({});
@@ -737,6 +1166,46 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
       setError(e.response?.data?.error || 'Something went wrong. Please try again.');
       setOptimisticPrompt(null);
     } finally { setLoading(false); }
+  };
+
+  const handleInfographicSubmit = async (promptOverride?: string) => {
+    const promptText = promptOverride || query.trim();
+    if (!promptText) return;
+
+    setOptimisticPrompt(promptText);
+    setLoading(true); setError(''); setQuery('');
+    if (!threadType) setThreadType('infographic');
+
+    try {
+      const r = await axios.post(`${BASE}/infographic/`, {
+        query: promptText,
+        project_id: project.id,
+        thread_id: currentThreadId,
+      });
+
+      const newThreadId = r.data.thread_id;
+      if (!currentThreadId && newThreadId) setCurrentThreadId(newThreadId);
+
+      const newEntry: HistoryEntry = {
+        id: r.data.step_id,
+        thread_id: newThreadId,
+        query: promptText,
+        results_data: [],
+        reference_images: [],
+        created_at: new Date().toISOString(),
+        narrative: r.data.narrative,
+        infographic_data: r.data.infographic_data,
+      };
+      setHistory(prev => [...prev, newEntry]);
+      setActiveEntry(newEntry);
+      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      setOptimisticPrompt(null);
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Infographic generation failed. Please try again.');
+      setOptimisticPrompt(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeploy = async () => {
@@ -893,6 +1362,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
   const activeColors = palette === 'brand'
     ? (brandPalette ?? getBrandPaletteColors())
     : (PALETTES[palette as keyof typeof PALETTES] ?? PALETTES.vibrant);
+
+  // Effective thread type: set once the user picks, or once the thread is loaded
+  const effectiveThreadType = threadType ?? pendingThreadType;
 
   // ── Drag reorder callback (called by DraggableCardsGrid) ────────────────────
   const handleReorder = (oldIndex: number, newIndex: number) => {
@@ -1059,50 +1531,6 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
             )}
             {activeSideTab === 'layouts' && (
               <div className="layout-options">
-                <button className={`layout-option ${layoutMode === 'dashboard' ? 'active' : ''}`} onClick={() => { setLayoutMode('dashboard'); if (layout === 'poster') setLayout('grid'); setInfographicTemplate(null); }}>
-                  <LayoutGrid size={16}/>
-                  <div><strong>Dashboard</strong><p>Classic grid for multi-chart reports</p></div>
-                </button>
-                <button className={`layout-option ${layoutMode === 'infographic' ? 'active' : ''}`} onClick={() => { setLayoutMode('infographic'); setLayout('poster'); }}>
-                  <LayoutList size={16}/>
-                  <div><strong>Poster / Infographic</strong><p>Rich, canvas-like narrative poster</p></div>
-                </button>
-
-                {/* ── Infographic Templates ── */}
-                {layoutMode === 'infographic' && (
-                  <div className="infographic-tpl-section">
-                    <div className="style-section-label" style={{ marginBottom: 8 }}>Infographic Template</div>
-                    <div className="infographic-tpl-list">
-                      {INFOGRAPHIC_TEMPLATES.map(tpl => (
-                        <button
-                          key={tpl.id}
-                          className={`infographic-tpl-card ${infographicTemplate === tpl.id ? 'active' : ''}`}
-                          onClick={() => {
-                            setInfographicTemplate(tpl.id);
-                            setPosterTheme(tpl.posterTheme);
-                          }}
-                        >
-                          <div className="itpl-preview">
-                            <div className="itpl-prev-bg" style={{ background: tpl.preview[0] }}>
-                              <div className="itpl-prev-card" style={{ background: tpl.preview[1] }} />
-                              <div className="itpl-prev-card" style={{ background: tpl.preview[1] }} />
-                            </div>
-                            <div className="itpl-accent-bar" style={{ background: tpl.accent }} />
-                          </div>
-                          <div className="itpl-info">
-                            <span className="itpl-icon">{tpl.icon}</span>
-                            <div>
-                              <div className="itpl-name">{tpl.name}</div>
-                              <div className="itpl-desc">{tpl.desc}</div>
-                            </div>
-                          </div>
-                          {infographicTemplate === tpl.id && <span className="itpl-check">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 <hr className="config-divider" />
                 <div className="layout-sub-options">
                   <header>View Mode</header>
@@ -1198,14 +1626,39 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
         </div>
 
         <div className="chat-messages premium-scrollbar">
-          {history.length === 0 && !loading && (
+          {history.length === 0 && !loading && effectiveThreadType === null && (
+            <div className="thread-type-picker">
+              <div className="ttp-header">
+                <div className="ttp-project-badge" style={{ background: project.color + '18' }}>{project.emoji}</div>
+                <p className="ttp-title">What would you like to create?</p>
+                <p className="ttp-sub">Choose a format for this conversation. You can't switch after you start.</p>
+              </div>
+              <div className="ttp-options">
+                <button className="ttp-option" onClick={() => setPendingThreadType('dashboard')}>
+                  <div className="ttp-option-icon">📊</div>
+                  <div className="ttp-option-body">
+                    <strong>Dashboard</strong>
+                    <span>Interactive charts, filters, drill-downs and a live grid layout. Best for ongoing analysis.</span>
+                  </div>
+                </button>
+                <button className="ttp-option" onClick={() => setPendingThreadType('infographic')}>
+                  <div className="ttp-option-icon">🎨</div>
+                  <div className="ttp-option-body">
+                    <strong>Infographic</strong>
+                    <span>A fully designed, shareable HTML visual generated from your data. Best for reports and presentations.</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+          {history.length === 0 && !loading && effectiveThreadType !== null && (
             <div className="chat-empty">
               <div className="chat-empty-icon" style={{ background: project.color + '18' }}>{project.emoji}</div>
-              <p>How can I help you today?</p>
+              <p>{effectiveThreadType === 'infographic' ? 'Describe the infographic you want to generate.' : 'How can I help you today?'}</p>
             </div>
           )}
 
-          {[...history].reverse().map(entry => (
+          {history.map(entry => (
             <div key={entry.id} className="convo-block">
               <div className="user-msg">
                 <div className="user-avatar" style={{ background: project.color }}>{project.emoji}</div>
@@ -1225,7 +1678,10 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
                   )}
                   <div className="ai-intro">
                     <Sparkles size={14}/>
-                    <span>{entry.results_data?.length || 0} charts · click to view</span>
+                    {entry.infographic_html
+                      ? <span>Infographic ready · click to view</span>
+                      : <span>{entry.results_data?.length || 0} charts · click to view</span>
+                    }
                   </div>
                 </div>
               </button>
@@ -1256,7 +1712,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
               </div>
               <div className="thinking">
                 <div className="thinking-dots"><span/><span/><span/></div>
-                <span>AI is analyzing your data and building charts…</span>
+                <span>{effectiveThreadType === 'infographic' ? 'Generating infographic from your data…' : 'AI is analyzing your data and building charts…'}</span>
               </div>
             </div>
           )}
@@ -1307,7 +1763,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
                 e.target.style.height = 'auto';
                 e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
               }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); effectiveThreadType === 'infographic' ? handleInfographicSubmit() : handleSubmit(); } }}
               rows={1}
             />
             <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.csv" style={{ display: 'none' }} onChange={e => handleUpload(e.target.files)}/>
@@ -1329,7 +1785,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
                   {showAgentPicker && <WorkspaceAgentPicker onSelect={a => { setActiveAgent(a); setShowAgentPicker(false); }} onClose={() => setShowAgentPicker(false)} />}
                 </div>
               </div>
-              <button className="comp-send" style={{ background: project.color }} onClick={() => handleSubmit()} disabled={loading || (!query.trim() && !uploads.length)}>
+              <button className="comp-send" style={{ background: project.color }} onClick={() => effectiveThreadType === 'infographic' ? handleInfographicSubmit() : handleSubmit()} disabled={loading || (!query.trim() && !uploads.length)}>
                 {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
               </button>
             </div>
@@ -1350,24 +1806,31 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
                 </div>
                 <div className="dp-meta">
                   <span>{new Date(activeEntry.created_at).toLocaleTimeString()}</span>
-                  <span className="dp-badge">{activeEntry.results_data?.length || 0} insights</span>
+                  {activeEntry.infographic_html
+                    ? <span className="dp-badge dp-badge--infographic">🎨 Infographic</span>
+                    : <span className="dp-badge">{activeEntry.results_data?.length || 0} insights</span>
+                  }
                   {activeEntry.is_deployed && <span className="dp-deployed-badge"><Eye size={10}/> Public</span>}
                 </div>
               </div>
               <div className="dp-header-right">
-                <ThemePicker selected={theme} onSelect={setTheme} />
-                <div className="layout-picker themed">
-                  <button className={layout === 'grid' ? 'active' : ''} onClick={() => setLayout('grid')} title="Grid View"><LayoutGrid size={15}/></button>
-                  <button className={layout === 'masonry' ? 'active' : ''} onClick={() => setLayout('masonry')} title="Masonry View"><LayoutList size={15}/></button>
-                  <button className={layout === 'single' ? 'active' : ''} onClick={() => setLayout('single')} title="Focus View"><Square size={15}/></button>
-                </div>
-                <button
-                  className={`dp-icon-btn ${dragEnabled ? 'dp-icon-btn--active' : ''}`}
-                  onClick={() => setDragEnabled(v => !v)}
-                  title={dragEnabled ? 'Disable drag to reorder' : 'Enable drag to reorder charts'}
-                >
-                  <Move size={14}/>
-                </button>
+                {effectiveThreadType !== 'infographic' && <ThemePicker selected={theme} onSelect={setTheme} />}
+                {effectiveThreadType !== 'infographic' && (
+                  <div className="layout-picker themed">
+                    <button className={layout === 'grid' ? 'active' : ''} onClick={() => setLayout('grid')} title="Grid View"><LayoutGrid size={15}/></button>
+                    <button className={layout === 'masonry' ? 'active' : ''} onClick={() => setLayout('masonry')} title="Masonry View"><LayoutList size={15}/></button>
+                    <button className={layout === 'single' ? 'active' : ''} onClick={() => setLayout('single')} title="Focus View"><Square size={15}/></button>
+                  </div>
+                )}
+                {effectiveThreadType !== 'infographic' && (
+                  <button
+                    className={`dp-icon-btn ${dragEnabled ? 'dp-icon-btn--active' : ''}`}
+                    onClick={() => setDragEnabled(v => !v)}
+                    title={dragEnabled ? 'Disable drag to reorder' : 'Enable drag to reorder charts'}
+                  >
+                    <Move size={14}/>
+                  </button>
+                )}
                 <button
                   className="dp-icon-btn dp-optimize-btn"
                   onClick={handleOptimizeLayout}
@@ -1494,7 +1957,11 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
             </div>
           )}
 
-          {activeEntry && (
+          {activeEntry && activeEntry.infographic_data && (
+            <InfographicEditor entry={activeEntry} projectColor={project.color} />
+          )}
+
+          {activeEntry && !activeEntry.infographic_data && (
             <div className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''}`}>
               {theme.id === 'canva' ? (
                 <div className="canvas-container">

@@ -98,11 +98,35 @@ export interface HistoryEntry {
   is_deployed?: boolean;
   deploy_slug?: string;
   narrative?: string;
+  infographic_html?: string;
+  infographic_data?: {
+    accent: string;
+    title: string;
+    project_name: string;
+    sections: Array<{
+      id: string;
+      type: 'metric_row' | 'bar_chart' | 'line_chart' | 'table' | 'insight';
+      title: string;
+      // metric_row
+      metrics?: Array<{ label: string; value: string; raw: any }>;
+      // bar_chart
+      data?: Array<{ label: string; value: number }>;
+      value_label?: string;
+      // line_chart
+      y_label?: string;
+      // table
+      headers?: string[];
+      rows?: string[][];
+      // insight
+      text?: string;
+    }>;
+  };
 }
 
 export interface DashboardThread {
   id: number;
   title: string;
+  thread_type: 'dashboard' | 'infographic';
   updated_at: string;
   created_at: string;
 }
@@ -129,6 +153,7 @@ function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void
   const [datasources, setDatasources] = useState<Datasource[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [initialThreadId, setInitialThreadId] = useState<number | undefined>(undefined);
+  const [newThreadKey, setNewThreadKey] = useState(0);
   const [showNewModal, setShowNewModal] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(localStorage.getItem('sidebar_collapsed') === 'true');
 
@@ -220,8 +245,8 @@ function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void
         activeProject={activeProject}
         activeThreadId={initialThreadId || null}
         onSelectProject={openProject}
-        onSelectThread={(tId) => { setInitialThreadId(tId); setView('workspace'); }}
-        onAddThread={() => { setInitialThreadId(undefined); setView('workspace'); }}
+        onSelectThread={(tId) => { setInitialThreadId(tId); setNewThreadKey(k => k + 1); setView('workspace'); }}
+        onAddThread={() => { setInitialThreadId(undefined); setNewThreadKey(k => k + 1); setView('workspace'); }}
         onNewProject={() => setShowNewModal(true)}
         collapsed={isSidebarCollapsed}
         onToggle={toggleSidebar}
@@ -250,6 +275,7 @@ function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void
         )}
         {view === 'workspace' && activeProject && (
           <Workspace
+            key={`${activeProject.id}-${initialThreadId ?? 'new'}-${newThreadKey}`}
             project={activeProject}
             onBack={() => setView('home')}
             initialThreadId={initialThreadId}

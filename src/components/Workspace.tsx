@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, Component, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, Component } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area,
@@ -31,7 +31,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 const logo = '/app-icon.png';
 import type { Project, DashboardCard, HistoryEntry, UploadedFile, DashboardFilter } from '../App';
-import { BASE, THEMES, FONTS, PALETTES, TEMPLATES, INFOGRAPHIC_TEMPLATES } from './constants';
+import { BASE, THEMES, FONTS, PALETTES, TEMPLATES } from './constants';
 import { getBrandPaletteColors } from '../utils/brandPalette';
 import { InsightCard } from './InsightCard';
 
@@ -774,7 +774,7 @@ function IgToolbar({ accent, heroStyleIdx, onAccent, onHeroStyle, onAdd }: {
   onAdd: (type: IgSection['type'], style?: IgSection['style']) => void;
 }) {
   const [addOpen, setAddOpen] = useState(false);
-  const [themeOpen, setThemeOpen] = useState(false);
+  const [, setThemeOpen] = useState(false);
 
   return (
     <div className="ig-toolbar">
@@ -970,7 +970,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [optimisticPrompt, setOptimisticPrompt] = useState<string | null>(null);
   const [posterTheme, setPosterTheme] = useState<'light' | 'dark' | 'branded' | 'newspaper'>('light');
-  const [infographicTemplate, setInfographicTemplate] = useState<string | null>(null);
+  const [infographicTemplate] = useState<string | null>(null);
   const [activeAgent, setActiveAgent] = useState<{ id: string; name: string; emoji: string; color: string } | null>(null);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});

@@ -583,7 +583,7 @@ function IgBarChart({ section, accent }: { section: IgSection; accent: string })
   const isHorizontal = data.length > 5;
   if (isHorizontal) {
     return (
-      <ResponsiveContainer width="100%" height={Math.max(200, data.length * 36)}>
+      <ResponsiveContainer width="100%" height={Math.max(200, data.length * 36)} debounce={1}>
         <BarChart data={data.map(d => ({ name: d.label, value: d.value }))} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
           <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
@@ -595,7 +595,7 @@ function IgBarChart({ section, accent }: { section: IgSection; accent: string })
     );
   }
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height={220} debounce={1}>
       <BarChart data={data.map(d => ({ name: d.label, value: d.value }))} margin={{ left: 0, right: 8, top: 4, bottom: 24 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
         <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} axisLine={false} tickLine={false} angle={data.length > 4 ? -30 : 0} textAnchor={data.length > 4 ? 'end' : 'middle'} />
@@ -610,7 +610,7 @@ function IgBarChart({ section, accent }: { section: IgSection; accent: string })
 function IgLineChart({ section, accent }: { section: IgSection; accent: string }) {
   const data = (section.data || []) as { x: string; y: number }[];
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height={220} debounce={1}>
       <AreaChart data={data.map(d => ({ name: d.x, value: d.y }))} margin={{ left: 0, right: 8, top: 4, bottom: 24 }}>
         <defs>
           <linearGradient id={`igGrad-${section.id}`} x1="0" y1="0" x2="0" y2="1">
@@ -1962,7 +1962,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
           )}
 
           {activeEntry && !activeEntry.infographic_data && (
-            <div className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''}`}>
+            <div key={activeEntry.id} className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''}`}>
               {theme.id === 'canva' ? (
                 <div className="canvas-container">
                   <div className="canvas-page">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
@@ -324,7 +324,7 @@ function TableInsight({ data, colors }: { data: any[]; colors: string[] }) {
   );
 }
 
-export function InsightCard({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters, index, onDelete, onSave }: {
+function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters, index, onDelete, onSave }: {
   card: DashboardCard;
   layout?: 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
   onUpdate?: (updates: Partial<DashboardCard>) => void;
@@ -690,7 +690,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       case 'line': {
         const xp = getXAxisProps(displayData, xKey);
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <ReLineChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={onChartClick}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis dataKey={xKey} tickFormatter={xp.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xp.angle, textAnchor: xp.textAnchor }} axisLine={false} tickLine={false} height={xp.height} interval={xp.interval} />
@@ -719,7 +719,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const isCurrPie = isCurrencyKey(dataKeys[0] || card.title);
         const centerLabel = pieTotal > 0 ? (isCurrPie ? '$' : '') + formatCompact(pieTotal) : '';
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <PieChart>
               <RTooltip content={ChartTooltip} />
               <Legend content={ChartLegend} />
@@ -756,7 +756,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const areaPfx = `ag-${index ?? 0}`;
         const xpA = getXAxisProps(displayData, xKey);
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <AreaChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpA.height }} onClick={onChartClick}>
               <defs>
                 {dataKeys.map((k, i) => (
@@ -785,7 +785,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const sbPfx = `sbg-${index ?? 0}`;
         const xpSB = getXAxisProps(displayData, xKey);
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <BarChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpSB.height }} onClick={onChartClick} barCategoryGap="28%">
               <defs>
                 {dataKeys.map((k, i) => (
@@ -809,7 +809,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const cblId = `cbl-${index ?? 0}`;
         const xpCBL = getXAxisProps(displayData, xKey);
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpCBL.height }} onClick={onChartClick} barCategoryGap="28%">
               <defs>
                 <linearGradient id={cblId} x1="0" y1="0" x2="0" y2="1">
@@ -845,7 +845,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         }));
         const boundaryLabel = transformed.filter(r => !r.is_forecast).slice(-1)[0]?.[xKey];
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <ComposedChart data={transformed} margin={{ top: 8, right: 24, left: 0, bottom: 5 }}>
               <defs>
                 <linearGradient id="ci-band" x1="0" y1="0" x2="0" y2="1">
@@ -952,7 +952,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const origKey = trendKeys[0] || '';
         const maKeys  = trendKeys.filter(k => k.startsWith('ma_'));
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <ComposedChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
               <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
@@ -973,7 +973,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const catKey  = xKey;
         const valKey2 = dataKeys[0] || '';
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <ComposedChart data={displayData} margin={{ top: 5, right: 40, left: 0, bottom: 40 }}>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
               <XAxis dataKey={catKey} tick={{ fontSize: 10, fill: tickColor }} angle={-30} textAnchor="end" height={55} axisLine={false} tickLine={false}/>
@@ -1047,7 +1047,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const aInfo = (card as any).anomaly_info;
         const valKey3 = dataKeys[0] || '';
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
               <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
@@ -1170,7 +1170,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const dynH = Math.min(Math.max(displayData.length * 34 + 40, chartHeight), 520);
         const hbPfx = `hbg-${index ?? 0}`;
         return (
-          <ResponsiveContainer width="100%" height={dynH}>
+          <ResponsiveContainer debounce={1} width="100%" height={dynH}>
             <BarChart
               data={displayData}
               layout="vertical"
@@ -1225,7 +1225,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
       // ── Scatter plot — two numeric axes, each row = one dot ──────────────────
       case 'scatter': {
         return (
-          <ResponsiveContainer width="100%" height={chartHeight}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <ScatterChart margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} />
               <XAxis
@@ -1364,7 +1364,7 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
         const extraBottom = needsAngle ? 60 : 5;
         const gradPfx = `vbg-${index ?? 0}`;
         return (
-          <ResponsiveContainer width="100%" height={chartHeight + (needsAngle ? 28 : 0)}>
+          <ResponsiveContainer debounce={1} width="100%" height={chartHeight + (needsAngle ? 28 : 0)}>
             <BarChart
               data={displayData}
               margin={{ top: 8, right: 20, left: 0, bottom: extraBottom }}
@@ -1718,3 +1718,28 @@ export function InsightCard({ card, layout, onUpdate, editMode, font, colors, po
     </motion.div>
   );
 }
+
+// ── Lazy-render wrapper: mounts the chart only when it scrolls into view ──────
+function useLazyVisible(rootMargin = '200px') {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!ref.current) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { rootMargin }
+    );
+    obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [rootMargin]);
+  return { ref, visible };
+}
+
+export const InsightCard = memo(function InsightCard(props: Parameters<typeof InsightCardInner>[0]) {
+  const { ref, visible } = useLazyVisible();
+  return (
+    <div ref={ref} style={{ minHeight: visible ? undefined : 120 }}>
+      {visible && <InsightCardInner {...props} />}
+    </div>
+  );
+});

@@ -3029,12 +3029,21 @@ button { cursor: pointer; }
   display: flex;
   align-items: center;
   gap: 5px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background 0.12s, opacity 0.12s;
+  user-select: none;
 }
+.cl-item:hover { background: rgba(99,102,241,0.07); }
+.cl-item--hidden { opacity: 0.38; }
+.cl-item--hidden .cl-name { text-decoration: line-through; color: #9ca3af; }
 .cl-dot {
   width: 9px;
   height: 9px;
   border-radius: 3px;
   flex-shrink: 0;
+  transition: background 0.2s;
 }
 .cl-name {
   font-size: 0.74rem;
@@ -3042,6 +3051,29 @@ button { cursor: pointer; }
   color: #6b7280;
   white-space: nowrap;
 }
+
+/* ── Chart card grid-mode resize handle ──────────────────────────────────── */
+.chart-card {
+  position: relative; /* ensures resize handle positions correctly */
+}
+.card-resize-handle {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-400, #9ca3af);
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 5;
+  border-radius: 4px;
+}
+.chart-card:hover .card-resize-handle { opacity: 1; }
+.card-resize-handle:hover { color: var(--theme-accent, #6366f1); background: rgba(99,102,241,0.08); }
 
 /* ─── SIDEBAR COLLAPSE ───────────────────────────────────── */
 .sidebar {

@@ -54,9 +54,11 @@ interface DraggableCardsGridProps {
   onUpdate: (card: DashboardCard, u: Partial<DashboardCard>) => void;
   onDrillDown: (card: DashboardCard, dim: string, val: string | number) => void;
   onReorder: (oldIndex: number, newIndex: number) => void;
+  onDelete: (card: DashboardCard) => void;
+  onSave: (card: DashboardCard) => void;
 }
 
-function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme, globalFilters, dragEnabled, onUpdate, onDrillDown, onReorder }: DraggableCardsGridProps) {
+function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme, globalFilters, dragEnabled, onUpdate, onDrillDown, onReorder, onDelete, onSave }: DraggableCardsGridProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -73,7 +75,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
           <div className="metrics-strip">
             {metricCards.map((card, i) => (
               <ChartErrorBoundary key={i} title={card.title}>
-                <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters}/>
+                <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)}/>
               </ChartErrorBoundary>
             ))}
           </div>
@@ -82,7 +84,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
           <div className="charts-strip">
             {chartCards.map((card, i) => (
               <ChartErrorBoundary key={i} title={card.title}>
-                <InsightCard index={metricCards.length + i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters}/>
+                <InsightCard index={metricCards.length + i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)}/>
               </ChartErrorBoundary>
             ))}
           </div>
@@ -106,7 +108,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
         <div className="metrics-strip">
           {metricCards.map((card, i) => (
             <ChartErrorBoundary key={i} title={card.title}>
-              <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} />
+              <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)} />
             </ChartErrorBoundary>
           ))}
         </div>
@@ -142,6 +144,8 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
                   onUpdate={(u) => onUpdate(card, u)}
                   onDrillDown={(dim, val) => onDrillDown(card, dim, val)}
                   globalFilters={globalFilters}
+                  onDelete={() => onDelete(card)}
+                  onSave={() => onSave(card)}
                 />
               );
             })}
@@ -153,12 +157,14 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
 }
 
 // Individual sortable card item — only used inside DraggableCardsGrid
-function SortableGridCard({ id, card, index, layout, editMode, font, colors, posterTheme, onUpdate, onDrillDown, globalFilters }: {
+function SortableGridCard({ id, card, index, layout, editMode, font, colors, posterTheme, onUpdate, onDrillDown, globalFilters, onDelete, onSave }: {
   id: string; card: DashboardCard; index: number; layout: LayoutMode; editMode: boolean;
   font: string; colors: string[]; posterTheme: string;
   onUpdate: (u: Partial<DashboardCard>) => void;
   onDrillDown: (dim: string, val: string | number) => void;
   globalFilters: Record<string, string | number | null>;
+  onDelete: () => void;
+  onSave: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   // Map card size to 12-column grid span — matches the CSS grid system
@@ -188,6 +194,7 @@ function SortableGridCard({ id, card, index, layout, editMode, font, colors, pos
           index={index} card={card} layout={layout} editMode={editMode} font={font}
           colors={colors} posterTheme={posterTheme} onUpdate={onUpdate}
           onDrillDown={onDrillDown} globalFilters={globalFilters}
+          onDelete={onDelete} onSave={onSave}
         />
       </ChartErrorBoundary>
     </div>
@@ -2073,6 +2080,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
                       onUpdate={handleUpdateCard}
                       onDrillDown={(card, dim, val) => handleDrillDown(card, dim, val)}
                       onReorder={handleReorder}
+                      onDelete={handleDeleteCard}
+                      onSave={handleSaveToLibrary}
                     />
                   )}
                 </div>

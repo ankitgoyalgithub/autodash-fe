@@ -354,6 +354,10 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
+  const [gridResizeH, setGridResizeH] = useState<number | null>(null);
+  const gridResizeRef = useRef<{ startY: number; startH: number } | null>(null);
+  const gridResizeCurH = useRef<number>(0);
 
   const filteredData = useMemo(() => {
     let data: Record<string, any>[] = card.data || [];
@@ -386,10 +390,45 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
     }
   };
 
+  const toggleSeries = (key: string) => {
+    setHiddenSeries(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
   const handleResizeDown = (e: React.MouseEvent) => {
-    if (!editMode) return;
     e.stopPropagation();
-    setIsResizing(true);
+    e.preventDefault();
+    if (isPoster) {
+      if (!editMode) return;
+      setIsResizing(true);
+    } else {
+      // Grid mode: drag to resize height → snap to size class on release
+      const currentH = cardRef.current?.getBoundingClientRect().height ?? 280;
+      gridResizeRef.current = { startY: e.clientY, startH: currentH };
+      gridResizeCurH.current = currentH;
+      setGridResizeH(currentH);
+
+      const onMove = (me: MouseEvent) => {
+        if (!gridResizeRef.current) return;
+        const newH = Math.max(100, gridResizeRef.current.startH + (me.clientY - gridResizeRef.current.startY));
+        gridResizeCurH.current = newH;
+        setGridResizeH(newH);
+      };
+      const onUp = () => {
+        const h = gridResizeCurH.current;
+        const newSize = h < 160 ? 's' : h < 240 ? 'm' : h < 310 ? 'l' : h < 360 ? 'xl' : 'xxl';
+        onUpdate?.({ size: newSize });
+        setGridResizeH(null);
+        gridResizeRef.current = null;
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
   };
 
   useEffect(() => {
@@ -645,8 +684,31 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
     if (!filteredData?.length || !filteredData[0]) return <div className="dp-empty">No data</div>;
     const keys = Object.keys(filteredData[0]);
     if (!keys.length) return <div className="dp-empty">No data</div>;
-    const xKey = keys[0];
-    const dataKeys = keys.slice(1);
+
+    // ── Smart column sequencing: label columns (categorical) before metrics ──────
+    // Prevents charts where SQL returns columns in wrong order (e.g. revenue, region)
+    const sample = filteredData.slice(0, Math.min(8, filteredData.length));
+    const isYearInt = (k: string) => sample.every(r => {
+      const v = r[k]; return typeof v === 'number' && Number.isInteger(v) && v >= 1900 && v <= 2100;
+    });
+    const isNumeric = (k: string) => {
+      if (isYearInt(k)) return false; // year integers are labels, not metrics
+      const nonNull = sample.filter(r => r[k] !== null && r[k] !== undefined);
+      return nonNull.length > 0 && nonNull.every(r => typeof r[k] === 'number');
+    };
+    const numericCols = keys.filter(k => isNumeric(k));
+    const labelCols = keys.filter(k => !isNumeric(k));
+    // xKey = first label column; if all numeric, fall back to first key
+    const xKey = labelCols.length > 0 ? labelCols[0] : keys[0];
+    // dataKeys = all numeric columns (the series to chart)
+    const dataKeys = numericCols.length > 0 ? numericCols : keys.filter(k => k !== xKey);
+
+    // ── Per-card color offset: each card in the dashboard gets a distinct base color ──
+    // Single-series charts all used activeColors[0] → looked identical. Now card index
+    // determines the starting color, so each card has its own palette-consistent color.
+    const colorOffset = (index ?? 0) % activeColors.length;
+    const seriesColor = (i: number) => activeColors[(colorOffset + i) % activeColors.length];
+
     const displayData = sortByDateLabel(filteredData, xKey);
     const chartHeight = heightOverride ?? (
       size === 's' ? 120
@@ -686,6 +748,30 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
       }
     };
 
+    // ── Interactive legend: click to show/hide series ──────────────────────────
+    const LegendToggle = ({ payload }: any) => {
+      if (!payload?.length) return null;
+      const visible = payload.filter((p: any) => p.type !== 'none');
+      if (!visible.length || visible.length < 2) return null; // hide legend for single series
+      return (
+        <div className="chart-legend">
+          {visible.map((p: any, i: number) => {
+            const key = String(p.value ?? '');
+            const isHidden = hiddenSeries.has(key);
+            return (
+              <div key={i} className={`cl-item${isHidden ? ' cl-item--hidden' : ''}`} onClick={() => toggleSeries(key)} title={isHidden ? 'Click to show' : 'Click to hide'}>
+                <span className="cl-dot" style={{ background: isHidden ? 'var(--gray-300, #d1d5db)' : p.color }} />
+                <span className="cl-name">{prettifyCol(key)}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    // Only render visible series (hidden ones are toggled off)
+    const visibleDataKeys = dataKeys.filter(k => !hiddenSeries.has(k));
+
     switch (chartType) {
       case 'line': {
         const xp = getXAxisProps(displayData, xKey);
@@ -696,11 +782,11 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               <XAxis dataKey={xKey} tickFormatter={xp.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xp.angle, textAnchor: xp.textAnchor }} axisLine={false} tickLine={false} height={xp.height} interval={xp.interval} />
               <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
               <RTooltip content={ChartTooltip} />
-              <Legend content={ChartLegend} />
-              {dataKeys.map((k, i) => (
-                <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} strokeWidth={2.5}
-                  dot={displayData.length > 30 ? false : { r: 3.5, fill: activeColors[i % activeColors.length], strokeWidth: 0 }}
-                  activeDot={{ r: 6, fill: activeColors[i % activeColors.length], stroke: '#fff', strokeWidth: 2.5 }}
+              <Legend content={LegendToggle} />
+              {visibleDataKeys.map((k, i) => (
+                <Line key={k} type="monotone" dataKey={k} stroke={seriesColor(i)} strokeWidth={2.5}
+                  dot={displayData.length > 30 ? false : { r: 3.5, fill: seriesColor(i), strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: seriesColor(i), stroke: '#fff', strokeWidth: 2.5 }}
                 />
               ))}
             </ReLineChart>
@@ -722,7 +808,7 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <PieChart>
               <RTooltip content={ChartTooltip} />
-              <Legend content={ChartLegend} />
+              <Legend content={LegendToggle} />
               <Pie
                 data={pieData}
                 cx="50%" cy="50%"
@@ -746,7 +832,7 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
                   );
                 }} />
               )}
-              {pieData.map((_: any, i: number) => <Cell key={i} fill={activeColors[i % activeColors.length]} stroke="none" />)}
+              {pieData.map((_: any, i: number) => <Cell key={i} fill={seriesColor(i)} stroke="none" />)}
             </Pie>
             </PieChart>
           </ResponsiveContainer>
@@ -759,10 +845,10 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <AreaChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpA.height }} onClick={onChartClick}>
               <defs>
-                {dataKeys.map((k, i) => (
+                {visibleDataKeys.map((k, i) => (
                   <linearGradient key={k} id={`${areaPfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={activeColors[i % activeColors.length]} stopOpacity={0.5}/>
-                    <stop offset="88%" stopColor={activeColors[i % activeColors.length]} stopOpacity={0.04}/>
+                    <stop offset="0%" stopColor={seriesColor(i)} stopOpacity={0.5}/>
+                    <stop offset="88%" stopColor={seriesColor(i)} stopOpacity={0.04}/>
                   </linearGradient>
                 ))}
               </defs>
@@ -770,11 +856,11 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               <XAxis dataKey={xKey} tickFormatter={xpA.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpA.angle, textAnchor: xpA.textAnchor }} axisLine={false} tickLine={false} height={xpA.height} interval={xpA.interval} />
               <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
               <RTooltip content={ChartTooltip} />
-              <Legend content={ChartLegend} />
-              {dataKeys.map((k, i) => (
-                <Area key={k} type="monotone" dataKey={k} stroke={activeColors[i % activeColors.length]} fillOpacity={1} fill={`url(#${areaPfx}-${i})`} strokeWidth={2.5}
-                  dot={{ r: 3, fill: activeColors[i % activeColors.length], strokeWidth: 0 }}
-                  activeDot={{ r: 5.5, fill: activeColors[i % activeColors.length], stroke: '#fff', strokeWidth: 2 }}
+              <Legend content={LegendToggle} />
+              {visibleDataKeys.map((k, i) => (
+                <Area key={k} type="monotone" dataKey={k} stroke={seriesColor(i)} fillOpacity={1} fill={`url(#${areaPfx}-${i})`} strokeWidth={2.5}
+                  dot={{ r: 3, fill: seriesColor(i), strokeWidth: 0 }}
+                  activeDot={{ r: 5.5, fill: seriesColor(i), stroke: '#fff', strokeWidth: 2 }}
                 />
               ))}
             </AreaChart>
@@ -788,10 +874,10 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <BarChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpSB.height }} onClick={onChartClick} barCategoryGap="28%">
               <defs>
-                {dataKeys.map((k, i) => (
+                {visibleDataKeys.map((k, i) => (
                   <linearGradient key={k} id={`${sbPfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={activeColors[i % activeColors.length]} stopOpacity={1}/>
-                    <stop offset="100%" stopColor={activeColors[i % activeColors.length]} stopOpacity={0.7}/>
+                    <stop offset="0%" stopColor={seriesColor(i)} stopOpacity={1}/>
+                    <stop offset="100%" stopColor={seriesColor(i)} stopOpacity={0.7}/>
                   </linearGradient>
                 ))}
               </defs>
@@ -799,8 +885,8 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               <XAxis dataKey={xKey} tickFormatter={xpSB.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpSB.angle, textAnchor: xpSB.textAnchor }} axisLine={false} tickLine={false} height={xpSB.height} interval={xpSB.interval} />
               <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
               <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
-              <Legend content={ChartLegend} />
-              {dataKeys.map((k, i) => <Bar key={k} dataKey={k} stackId="a" fill={`url(#${sbPfx}-${i})`} radius={i === dataKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />)}
+              <Legend content={LegendToggle} />
+              {visibleDataKeys.map((k, i) => <Bar key={k} dataKey={k} stackId="a" fill={`url(#${sbPfx}-${i})`} radius={i === visibleDataKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />)}
             </BarChart>
           </ResponsiveContainer>
         );
@@ -813,20 +899,20 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
             <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpCBL.height }} onClick={onChartClick} barCategoryGap="28%">
               <defs>
                 <linearGradient id={cblId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={activeColors[0]} stopOpacity={1}/>
-                  <stop offset="100%" stopColor={activeColors[0]} stopOpacity={0.62}/>
+                  <stop offset="0%" stopColor={seriesColor(0)} stopOpacity={1}/>
+                  <stop offset="100%" stopColor={seriesColor(0)} stopOpacity={0.62}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
               <XAxis dataKey={xKey} tickFormatter={xpCBL.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpCBL.angle, textAnchor: xpCBL.textAnchor }} axisLine={false} tickLine={false} height={xpCBL.height} interval={xpCBL.interval} />
               <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
               <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
-              <Legend content={ChartLegend} />
-              <Bar dataKey={dataKeys[0]} fill={`url(#${cblId})`} radius={[6, 6, 0, 0]} maxBarSize={44} />
-              {dataKeys.slice(1).map((k, i) => (
-                <Line key={k} type="monotone" dataKey={k} stroke={activeColors[(i + 1) % activeColors.length]} strokeWidth={2.5}
-                  dot={{ r: 3.5, fill: activeColors[(i + 1) % activeColors.length], strokeWidth: 0 }}
-                  activeDot={{ r: 6, fill: activeColors[(i + 1) % activeColors.length], stroke: '#fff', strokeWidth: 2.5 }}
+              <Legend content={LegendToggle} />
+              {!hiddenSeries.has(dataKeys[0]) && <Bar dataKey={dataKeys[0]} fill={`url(#${cblId})`} radius={[6, 6, 0, 0]} maxBarSize={44} />}
+              {dataKeys.slice(1).map((k, i) => !hiddenSeries.has(k) && (
+                <Line key={k} type="monotone" dataKey={k} stroke={seriesColor(i + 1)} strokeWidth={2.5}
+                  dot={{ r: 3.5, fill: seriesColor(i + 1), strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: seriesColor(i + 1), stroke: '#fff', strokeWidth: 2.5 }}
                 />
               ))}
             </ComposedChart>
@@ -849,21 +935,21 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
             <ComposedChart data={transformed} margin={{ top: 8, right: 24, left: 0, bottom: 5 }}>
               <defs>
                 <linearGradient id="ci-band" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={activeColors[0]} stopOpacity={0.18}/>
-                  <stop offset="95%" stopColor={activeColors[0]} stopOpacity={0}/>
+                  <stop offset="5%"  stopColor={seriesColor(0)} stopOpacity={0.18}/>
+                  <stop offset="95%" stopColor={seriesColor(0)} stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
               <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v => formatAxisTick(v, valKey)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
               <RTooltip content={ChartTooltip} />
-              <Legend content={ChartLegend} />
+              <Legend content={LegendToggle} />
               {/* Confidence band */}
               <Area type="monotone" dataKey="upper" stroke="none" fill="url(#ci-band)" legendType="none" name="Upper bound"/>
               {/* Actual line — solid */}
-              <Line type="monotone" dataKey="actual" stroke={activeColors[0]} strokeWidth={3} dot={{ r: 3, fill: activeColors[0] }} name={valKey} connectNulls={false}/>
+              <Line type="monotone" dataKey="actual" stroke={seriesColor(0)} strokeWidth={3} dot={{ r: 3, fill: seriesColor(0) }} name={valKey} connectNulls={false}/>
               {/* Forecast line — dashed */}
-              <Line type="monotone" dataKey="forecast" stroke={activeColors[0]} strokeWidth={2} strokeDasharray="7 4" dot={{ r: 4, fill: '#fff', stroke: activeColors[0], strokeWidth: 2 }} name="Forecast" connectNulls={false}/>
+              <Line type="monotone" dataKey="forecast" stroke={seriesColor(0)} strokeWidth={2} strokeDasharray="7 4" dot={{ r: 4, fill: '#fff', stroke: seriesColor(0), strokeWidth: 2 }} name="Forecast" connectNulls={false}/>
               {boundaryLabel !== undefined && (
                 <ReferenceLine x={String(boundaryLabel)} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: '▶ Forecast', position: 'insideTopRight', fontSize: 10, fill: '#94a3b8' }}/>
               )}
@@ -958,10 +1044,10 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v => formatAxisTick(v, origKey)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
               <RTooltip content={ChartTooltip} />
-              <Legend content={ChartLegend} />
-              <Bar dataKey={origKey} fill={`${activeColors[0]}55`} radius={[3,3,0,0]} name={origKey}/>
+              <Legend content={LegendToggle} />
+              <Bar dataKey={origKey} fill={`${seriesColor(0)}55`} radius={[3,3,0,0]} name={origKey}/>
               {maKeys.map((k, i) => (
-                <Line key={k} type="monotone" dataKey={k} stroke={activeColors[i + 1] || '#f59e0b'} strokeWidth={2.5} dot={false} name={k.replace('_', ' ')}/>
+                <Line key={k} type="monotone" dataKey={k} stroke={seriesColor(i + 1)} strokeWidth={2.5} dot={false} name={k.replace('_', ' ')}/>
               ))}
             </ComposedChart>
           </ResponsiveContainer>
@@ -980,10 +1066,10 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: tickColor }} tickFormatter={v => formatAxisTick(v, valKey2)} axisLine={false} tickLine={false} width={56}/>
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={36}/>
               <RTooltip content={ChartTooltip} />
-              <Legend content={ChartLegend} />
+              <Legend content={LegendToggle} />
               <Bar yAxisId="left" dataKey={valKey2} radius={[6,6,0,0]} name={valKey2}>
                 {displayData.map((entry: any, idx: number) => (
-                  <Cell key={idx} fill={entry.is_vital_few ? activeColors[0] : '#cbd5e1'}/>
+                  <Cell key={idx} fill={entry.is_vital_few ? seriesColor(0) : '#cbd5e1'}/>
                 ))}
               </Bar>
               <Line yAxisId="right" type="monotone" dataKey="cumulative_pct" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} name="Cumulative %"/>
@@ -1053,13 +1139,13 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
               <YAxis tickFormatter={v => formatAxisTick(v, valKey3)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
               <RTooltip content={AnomalyTooltip} />
-              <Legend content={ChartLegend} />
+              <Legend content={LegendToggle} />
               {aInfo?.normal_range && (
                 <ReferenceArea y1={aInfo.normal_range[0]} y2={aInfo.normal_range[1]} fill="#10b98108" stroke="#10b98140" strokeDasharray="4 4" label={{ value: 'Normal range', position: 'insideTopRight', fontSize: 9, fill: '#10b981' }}/>
               )}
               <Bar dataKey={valKey3} name={valKey3} radius={[4,4,0,0]}>
                 {displayData.map((entry: any, idx: number) => (
-                  <Cell key={idx} fill={entry.is_anomaly ? '#ef4444' : activeColors[0]}/>
+                  <Cell key={idx} fill={entry.is_anomaly ? '#ef4444' : seriesColor(0)}/>
                 ))}
               </Bar>
             </ComposedChart>
@@ -1179,10 +1265,10 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               barCategoryGap="22%"
             >
               <defs>
-                {dataKeys.map((k, i) => (
+                {visibleDataKeys.map((k, i) => (
                   <linearGradient key={k} id={`${hbPfx}-${i}`} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={activeColors[i % activeColors.length]} stopOpacity={0.6}/>
-                    <stop offset="100%" stopColor={activeColors[i % activeColors.length]} stopOpacity={1}/>
+                    <stop offset="0%" stopColor={seriesColor(i)} stopOpacity={0.6}/>
+                    <stop offset="100%" stopColor={seriesColor(i)} stopOpacity={1}/>
                   </linearGradient>
                 ))}
               </defs>
@@ -1204,8 +1290,8 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
                 tickFormatter={(v) => { const s = String(v ?? ''); return s.length > 22 ? s.slice(0, 20) + '…' : s; }}
               />
               <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
-              <Legend content={ChartLegend} />
-              {dataKeys.map((k, i) => (
+              <Legend content={LegendToggle} />
+              {visibleDataKeys.map((k, i) => (
                 <Bar key={k} dataKey={k} fill={`url(#${hbPfx}-${i})`} radius={[0, 6, 6, 0]} maxBarSize={24}>
                   {displayData.length <= 12 && (
                     <LabelList
@@ -1265,7 +1351,7 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
                   );
                 }}
               />
-              <Scatter data={displayData} fill={activeColors[0]} opacity={0.72} />
+              <Scatter data={displayData} fill={seriesColor(0)} opacity={0.72} />
             </ScatterChart>
           </ResponsiveContainer>
         );
@@ -1372,10 +1458,10 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               barCategoryGap="28%"
             >
               <defs>
-                {dataKeys.map((k, i) => (
+                {visibleDataKeys.map((k, i) => (
                   <linearGradient key={k} id={`${gradPfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={activeColors[i % activeColors.length]} stopOpacity={1}/>
-                    <stop offset="100%" stopColor={activeColors[i % activeColors.length]} stopOpacity={0.62}/>
+                    <stop offset="0%" stopColor={seriesColor(i)} stopOpacity={1}/>
+                    <stop offset="100%" stopColor={seriesColor(i)} stopOpacity={0.62}/>
                   </linearGradient>
                 ))}
               </defs>
@@ -1396,8 +1482,8 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               />
               <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
               <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
-              <Legend content={ChartLegend} />
-              {dataKeys.map((k, i) => (
+              <Legend content={LegendToggle} />
+              {visibleDataKeys.map((k, i) => (
                 <Bar key={k} dataKey={k} fill={`url(#${gradPfx}-${i})`} radius={[6, 6, 0, 0]} maxBarSize={52}>
                   {numBars <= 8 && dataKeys.length === 1 && (
                     <LabelList
@@ -1617,7 +1703,7 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
         )}
       </div>}
       <div className={type === 'metric' && !isPoster ? '' : 'chart-body'}>
-        {isFullscreen ? <div style={{ height: chartType === 'table' ? 200 : (size === 's' ? 120 : 200), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}><Maximize2 size={20} style={{ opacity: 0.3 }}/></div> : renderContent()}
+        {isFullscreen ? <div style={{ height: chartType === 'table' ? 200 : (size === 's' ? 120 : 200), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}><Maximize2 size={20} style={{ opacity: 0.3 }}/></div> : renderContent(gridResizeH ?? undefined)}
       </div>
       {showData && <DataTableDrawer title={card.title} data={card.data} onClose={() => setShowData(false)} />}
       {(type === 'chart') && card.insight && (
@@ -1667,7 +1753,7 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
       })()}
       {showSql && card.sql && <pre className="sql-pre">{card.sql}</pre>}
 
-      {editMode && layout === 'poster' && (
+      {editMode && layout === 'poster' ? (
         <div
           className="resize-handle"
           onMouseDown={handleResizeDown}
@@ -1680,7 +1766,14 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
         >
           <div style={{ width: 4, height: 4, borderRight: '2px solid #fff', borderBottom: '2px solid #fff', transform: 'translate(-2px, -2px)' }} />
         </div>
-      )}
+      ) : !isPoster && type === 'chart' ? (
+        /* Grid/masonry/single: drag resize handle visible on card hover */
+        <div className="card-resize-handle" onMouseDown={handleResizeDown} title="Drag to resize">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 8L8 2M5 8L8 5M8 8L8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </div>
+      ) : null}
       {isFullscreen && createPortal(
         <div className="chart-fullscreen-overlay" onClick={() => setIsFullscreen(false)}>
           {/* Inherit theme CSS vars from the dashboard panel */}

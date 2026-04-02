@@ -10,7 +10,7 @@ import {
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
   Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown,
-  Library, Trash2, PlusCircle, BarChart2 as BarChartIcon,
+  Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -35,6 +35,7 @@ import type { Project, DashboardCard, HistoryEntry, UploadedFile, DashboardFilte
 import { BASE, THEMES, FONTS, PALETTES, TEMPLATES } from './constants';
 import { getBrandPaletteColors } from '../utils/brandPalette';
 import { InsightCard } from './InsightCard';
+import { ShareProjectModal } from './ShareProjectModal';
 
 // ─── Draggable Cards Grid (default layout only) ───────────────────────────────
 // This component is ONLY used for grid/masonry/single layout.
@@ -965,11 +966,13 @@ function InfographicEditor({ entry, projectColor }: { entry: any; projectColor: 
   );
 }
 
-export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
+export function Workspace({ project, onBack, initialThreadId, brandPalette, currentUser, onProjectUpdate }: {
   project: Project;
   onBack: () => void;
   initialThreadId?: number;
   brandPalette?: string[];
+  currentUser?: any;
+  onProjectUpdate?: (p: Project) => void;
 }) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<number | null>(initialThreadId || null);
@@ -1014,6 +1017,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
   const dashboardContentRef = useRef<HTMLDivElement>(null);
   const agentBtnRef = useRef<HTMLButtonElement>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   // Track previous thread so we only clear filters when SWITCHING threads,
   // not when a brand-new thread ID is first assigned (which would wipe filters
   // that were just returned in the same query response).
@@ -1914,6 +1918,16 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
                 ) : (
                   <button className="deploy-btn" onClick={handleDeploy}><Zap size={14}/> Deploy</button>
                 )}
+                <button
+                  className="dp-share-btn"
+                  onClick={() => setShowShare(true)}
+                  title="Share project / invite members"
+                >
+                  <Users size={13}/>
+                  {(project.members?.length ?? 0) > 1 && (
+                    <span className="dp-share-count">{project.members!.length}</span>
+                  )}
+                </button>
               </div>
             </div>
           ) : (
@@ -2091,6 +2105,14 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette }: {
         </div>
       </div>
 
+      {showShare && currentUser && (
+        <ShareProjectModal
+          project={project}
+          currentUser={currentUser}
+          onClose={() => setShowShare(false)}
+          onProjectUpdate={p => { onProjectUpdate?.(p); }}
+        />
+      )}
     </div>
   );
 }

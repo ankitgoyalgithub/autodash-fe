@@ -17,12 +17,13 @@ import { PublicDashboardView } from './components/PublicDashboardView';
 import { AgentsLibrary } from './components/AgentsLibrary';
 import { BrandKitEditor } from './components/BrandKitEditor';
 import { UserProfile } from './components/UserProfile';
+import { MySpace } from './components/MySpace';
 import { useBrandKit } from './hooks/useBrandKit';
 import { generatePalette } from './utils/brandPalette';
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
-export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents' | 'brand' | 'profile';
+export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents' | 'brand' | 'profile' | 'myspace';
 
 export interface Datasource {
   id: number;
@@ -31,6 +32,15 @@ export interface Datasource {
   port: number;
   database: string;
   username: string;
+  is_myspace?: boolean;
+}
+
+export interface ProjectMember {
+  id: number;
+  username: string;
+  email: string;
+  role: 'admin' | 'editor' | 'viewer';
+  is_owner?: boolean;
 }
 
 export interface Project {
@@ -45,6 +55,9 @@ export interface Project {
   datasource: Datasource | null;
   updated_at: string;
   created_at: string;
+  my_role?: 'admin' | 'editor' | 'viewer';
+  owner?: { id: number; username: string; email: string } | null;
+  members?: ProjectMember[];
 }
 
 export interface DashboardCard {
@@ -258,6 +271,9 @@ function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void
         {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} datasources={datasources} onApplied={handleTemplateApplied} onDelete={handleDeleteProject} onEdit={handleEditProject} />}
         {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.thread_id ?? e.id)} />}
         {view === 'datasources' && <DatasourcesManagement datasources={datasources} onRefresh={fetchBasics} />}
+        {view === 'myspace' && (
+          <MySpace onNavigateToProjects={() => { fetchBasics(); setShowNewModal(true); setView('home'); }} />
+        )}
         {view === 'agents' && <AgentsLibrary datasources={datasources} onApplied={handleTemplateApplied} />}
         {view === 'brand' && (
           <BrandKitEditor
@@ -280,6 +296,11 @@ function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void
             onBack={() => setView('home')}
             initialThreadId={initialThreadId}
             brandPalette={brandPalette}
+            currentUser={user}
+            onProjectUpdate={(updated) => {
+              setActiveProject(updated);
+              setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+            }}
           />
         )}
       </div>

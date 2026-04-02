@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, Loader2, Sparkles, ChevronRight, LayoutDashboard } from 'lucide-react';
+import { Lock, Mail, User, Loader2, Sparkles, ChevronRight, LayoutDashboard } from 'lucide-react';
 const logo = '/app-icon.png';
 
 interface LoginProps {
@@ -8,36 +8,81 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
-  const [email, setEmail] = useState('');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+
+  // Login fields
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+
+  // Register fields
+  const [regUsername, setRegUsername] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirm, setRegConfirm] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [requirements, setRequirements] = useState<string[]>([]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
+    setRequirements([]);
     try {
       const response = await fetch(`${base}/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',  // ensures Set-Cookie header is accepted
-        body: JSON.stringify({ username: email, password }),
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
       });
-
       const data = await response.json();
-
       if (response.ok) {
         onLogin(data.token, data);
       } else {
         setError(data.non_field_errors?.[0] || 'Invalid credentials. Please try again.');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to connect to the server. Please check your connection.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setRequirements([]);
+    if (regPassword !== regConfirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetch(`${base}/register/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: regUsername, email: regEmail, password: regPassword }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        onLogin(data.token, data);
+      } else {
+        setError(data.error || 'Registration failed.');
+        if (data.requirements) setRequirements(data.requirements);
+      }
+    } catch {
+      setError('Failed to connect to the server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchMode = (m: 'login' | 'register') => {
+    setMode(m);
+    setError('');
+    setRequirements([]);
   };
 
   return (
@@ -50,7 +95,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           </div>
           <h1>Turn your data into <span>visual stories</span> instantly.</h1>
           <p>The first AI-native dashboarding platform that builds, styles, and deploys your insights in seconds.</p>
-          
           <div className="visual-features">
             <div className="v-feat">
               <div className="v-feat-icon"><LayoutDashboard size={18} /></div>
@@ -70,58 +114,138 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
         <div className="login-card glass">
           <div className="login-header">
             <img src={logo} alt="LucentReport" className="login-logo" />
-            <h2>Welcome back</h2>
-            <p>Log in to your LucentReport account</p>
+            {mode === 'login' ? (
+              <>
+                <h2>Welcome back</h2>
+                <p>Log in to your LucentReport account</p>
+              </>
+            ) : (
+              <>
+                <h2>Create account</h2>
+                <p>Join LucentReport — it's free to get started</p>
+              </>
+            )}
           </div>
 
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className="auth-field">
-              <label>Username</label>
-              <div className="input-wrap">
-                <Mail size={18} className="input-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Enter your username" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)}
-                  required 
-                />
-              </div>
-            </div>
-
-            <div className="auth-field">
-              <label>Password</label>
-              <div className="input-wrap">
-                <Lock size={18} className="input-icon" />
-                <input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)}
-                  required 
-                />
-              </div>
-            </div>
-
-            {error && <div className="auth-error">{error}</div>}
-
-            <button type="submit" className="login-submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 size={18} className="spin" />
-                  <span>Logging in...</span>
-                </>
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <ChevronRight size={18} />
-                </>
-              )}
+          {/* Mode toggle tabs */}
+          <div className="auth-tabs">
+            <button className={`auth-tab ${mode === 'login' ? 'active' : ''}`} onClick={() => switchMode('login')}>
+              Sign In
             </button>
-          </form>
+            <button className={`auth-tab ${mode === 'register' ? 'active' : ''}`} onClick={() => switchMode('register')}>
+              Create Account
+            </button>
+          </div>
+
+          {mode === 'login' ? (
+            <form onSubmit={handleLogin} className="auth-form">
+              <div className="auth-field">
+                <label>Username</label>
+                <div className="input-wrap">
+                  <User size={18} className="input-icon" />
+                  <input
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="auth-field">
+                <label>Password</label>
+                <div className="input-wrap">
+                  <Lock size={18} className="input-icon" />
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              {error && <div className="auth-error">{error}</div>}
+              <button type="submit" className="login-submit" disabled={loading}>
+                {loading ? <><Loader2 size={18} className="spin" /><span>Signing in...</span></> : <><span>Sign In</span><ChevronRight size={18} /></>}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegister} className="auth-form">
+              <div className="auth-field">
+                <label>Username</label>
+                <div className="input-wrap">
+                  <User size={18} className="input-icon" />
+                  <input
+                    type="text"
+                    placeholder="Choose a username"
+                    value={regUsername}
+                    onChange={e => setRegUsername(e.target.value)}
+                    required
+                    autoFocus
+                    minLength={3}
+                    maxLength={30}
+                  />
+                </div>
+              </div>
+              <div className="auth-field">
+                <label>Email</label>
+                <div className="input-wrap">
+                  <Mail size={18} className="input-icon" />
+                  <input
+                    type="email"
+                    placeholder="you@company.com"
+                    value={regEmail}
+                    onChange={e => setRegEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="auth-field">
+                <label>Password</label>
+                <div className="input-wrap">
+                  <Lock size={18} className="input-icon" />
+                  <input
+                    type="password"
+                    placeholder="Min 8 chars, upper, lower, number, symbol"
+                    value={regPassword}
+                    onChange={e => setRegPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="auth-field">
+                <label>Confirm Password</label>
+                <div className="input-wrap">
+                  <Lock size={18} className="input-icon" />
+                  <input
+                    type="password"
+                    placeholder="Re-enter your password"
+                    value={regConfirm}
+                    onChange={e => setRegConfirm(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              {error && <div className="auth-error">{error}</div>}
+              {requirements.length > 0 && (
+                <ul className="auth-requirements">
+                  {requirements.map((r, i) => <li key={i}>{r}</li>)}
+                </ul>
+              )}
+              <button type="submit" className="login-submit" disabled={loading}>
+                {loading ? <><Loader2 size={18} className="spin" /><span>Creating account...</span></> : <><span>Create Account</span><ChevronRight size={18} /></>}
+              </button>
+            </form>
+          )}
 
           <div className="login-footer">
-            <p>Don't have an account? <span>Contact Admin</span></p>
+            {mode === 'login' ? (
+              <p>New here? <span onClick={() => switchMode('register')}>Create an account</span></p>
+            ) : (
+              <p>Already have an account? <span onClick={() => switchMode('login')}>Sign in</span></p>
+            )}
           </div>
         </div>
       </div>
@@ -253,12 +377,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           padding: 40px;
           background: #f9fafb;
           position: relative;
+          overflow-y: auto;
         }
 
         .login-card {
           width: 100%;
           max-width: 420px;
-          padding: 48px;
+          padding: 40px 48px;
           border-radius: 24px;
           background: white;
           box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
@@ -269,7 +394,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           width: 48px;
           height: 48px;
           border-radius: 12px;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
 
         .login-header h2 {
@@ -277,19 +402,48 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           font-weight: 800;
           color: #101828;
           letter-spacing: -0.5px;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
 
         .login-header p {
           font-size: 0.95rem;
           color: #667085;
-          margin-bottom: 36px;
+          margin-bottom: 0;
+        }
+
+        /* Mode toggle tabs */
+        .auth-tabs {
+          display: flex;
+          gap: 0;
+          background: #f4f4f5;
+          border-radius: 10px;
+          padding: 3px;
+          margin: 20px 0 24px;
+        }
+
+        .auth-tab {
+          flex: 1;
+          padding: 8px 0;
+          border-radius: 8px;
+          border: none;
+          background: transparent;
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #6b7280;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .auth-tab.active {
+          background: white;
+          color: #101828;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.08);
         }
 
         .auth-form {
           display: flex;
           flex-direction: column;
-          gap: 20px;
+          gap: 16px;
         }
 
         .auth-field {
@@ -318,28 +472,43 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
 
         .input-wrap input {
           width: 100%;
-          padding: 12px 14px 12px 42px;
+          padding: 11px 14px 11px 42px;
           border-radius: 12px;
           border: 1px solid #d0d5dd;
-          font-size: 1rem;
+          font-size: 0.95rem;
           color: #101828;
           outline: none;
           transition: all 0.2s;
+          background: #fafafa;
         }
 
         .input-wrap input:focus {
           border-color: #6366f1;
           box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+          background: #fff;
         }
 
         .auth-error {
-          padding: 12px;
+          padding: 10px 12px;
           background: #fef2f2;
           border: 1px solid #fecaca;
           color: #dc2626;
           border-radius: 10px;
-          font-size: 0.85rem;
+          font-size: 0.83rem;
           font-weight: 500;
+        }
+
+        .auth-requirements {
+          margin: 0;
+          padding: 10px 10px 10px 26px;
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-radius: 10px;
+          font-size: 0.8rem;
+          color: #92400e;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
         }
 
         .login-submit {
@@ -347,7 +516,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           align-items: center;
           justify-content: center;
           gap: 10px;
-          padding: 14px;
+          padding: 13px;
           background: #101828;
           color: white;
           border: none;
@@ -356,7 +525,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s;
-          margin-top: 12px;
+          margin-top: 4px;
         }
 
         .login-submit:hover:not(:disabled) {
@@ -371,7 +540,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
         }
 
         .login-footer {
-          margin-top: 32px;
+          margin-top: 24px;
           text-align: center;
         }
 
@@ -386,10 +555,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           cursor: pointer;
         }
 
+        .login-footer span:hover {
+          text-decoration: underline;
+        }
+
         @media (max-width: 992px) {
-          .login-visual {
-            display: none;
-          }
+          .login-visual { display: none; }
         }
       `}</style>
     </div>

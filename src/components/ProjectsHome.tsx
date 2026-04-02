@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown, Sparkles, MoreHorizontal, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown, Sparkles, MoreHorizontal, Pencil, Trash2, AlertTriangle, HardDrive } from 'lucide-react';
 import axios from 'axios';
 import type { Datasource, Project } from '../App';
 import { BASE, EMOJIS, PALETTES } from './constants';
@@ -178,32 +178,56 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
           <div className="np-body">
             {datasources.length > 0 && !addingNew && (
               <>
-                <div className="ds-list">
+                <div className="np-ds-header">
+                  <div className="np-ds-header-title">Your Connections</div>
+                  <div className="np-ds-header-sub">Select a datasource to power your dashboard</div>
+                </div>
+                <div className="np-ds-list">
                   {datasources.map(d => (
-                    <button key={d.id} className={`ds-item ${selectedDs === d.id ? 'sel' : ''}`}
-                      style={selectedDs === d.id ? { borderColor: accent, background: accent + '10' } : {}}
+                    <button key={d.id} className={`np-ds-item ${selectedDs === d.id ? 'sel' : ''}`}
+                      style={selectedDs === d.id ? { borderColor: accent, boxShadow: `0 0 0 3px ${accent}28` } : {}}
                       onClick={() => setSelectedDs(d.id)}>
-                      <div className="ds-icon" style={selectedDs === d.id ? { background: accent + '20', color: accent } : {}}>
-                        <Database size={16}/>
+                      <div className="np-ds-icon" style={d.is_myspace
+                        ? { background: '#ede9fe', color: '#7c3aed' }
+                        : selectedDs === d.id ? { background: accent + '22', color: accent } : {}
+                      }>
+                        {d.is_myspace ? <HardDrive size={18}/> : <Database size={18}/>}
                       </div>
-                      <div><strong>{d.name}</strong><span>{d.host}:{d.port}/{d.database}</span></div>
+                      <div className="np-ds-item-body">
+                        <strong>
+                          {d.name}
+                          {d.is_myspace && <span className="np-ds-myspace-badge">My Space</span>}
+                        </strong>
+                        <span>{d.is_myspace ? 'Personal CSV workspace' : `${d.host}:${d.port}/${d.database}`}</span>
+                      </div>
                       {selectedDs === d.id && <CheckCircle2 size={16} style={{ color: accent, flexShrink: 0 }}/>}
                     </button>
                   ))}
+                  <button className="np-ds-add-btn" onClick={() => setAddingNew(true)}>
+                    <Plus size={15}/> Add new datasource
+                  </button>
                 </div>
-                <button className="btn-link" onClick={() => setAddingNew(true)}><Plus size={13}/>Add new datasource</button>
               </>
             )}
             {addingNew && (
               <>
-                {savedDs && <div className="saved-badge"><CheckCircle2 size={13}/> "{savedDs}" connected</div>}
-                {!savedDs && (
-                  <DatasourceEditForm
-                    initialData={{ id: 0, name: '', host: '127.0.0.1', port: 5432, database: '', username: '' }}
-                    onSave={handleSaveDs} testing={testing} testResult={testResult} onTest={handleTest}
-                  />
+                {datasources.length > 0 && !savedDs && (
+                  <button className="np-ds-back-link" onClick={() => setAddingNew(false)}>← Use existing connection</button>
                 )}
-                {datasources.length > 0 && !savedDs && <button className="btn-link" onClick={() => setAddingNew(false)}>← Use existing</button>}
+                {savedDs ? (
+                  <div className="np-saved-badge"><CheckCircle2 size={14}/> "{savedDs}" connected successfully</div>
+                ) : (
+                  <div className="np-ds-form-wrap">
+                    <div className="np-ds-header">
+                      <div className="np-ds-header-title">New Connection</div>
+                      <div className="np-ds-header-sub">Enter your database credentials below</div>
+                    </div>
+                    <DatasourceEditForm
+                      initialData={{ id: 0, name: '', host: '127.0.0.1', port: 5432, database: '', username: '' }}
+                      onSave={handleSaveDs} testing={testing} testResult={testResult} onTest={handleTest}
+                    />
+                  </div>
+                )}
               </>
             )}
             <div className="np-footer">
@@ -305,6 +329,23 @@ function ProjectThumbCard({ p, onOpen, onEdit, onDelete }: {
             <span className="canva-proj-date"><Clock size={10} /> {timeAgo(p.updated_at)}</span>
             {p.chart_count > 0 && (
               <span className="canva-proj-charts"><BarChart2 size={10} /> {p.chart_count}</span>
+            )}
+            {(p.members?.length ?? 0) > 1 && (
+              <div className="proj-member-stack" title={`${p.members!.length} members`}>
+                {p.members!.slice(0, 3).map(m => {
+                  const hue = Array.from(m.username).reduce((a, ch) => a + ch.charCodeAt(0), 0) % 360;
+                  return (
+                    <div key={m.id} className="proj-member-avatar"
+                      style={{ background: `hsl(${hue},55%,52%)` }}
+                      title={m.username}>
+                      {m.username.slice(0,2).toUpperCase()}
+                    </div>
+                  );
+                })}
+                {p.members!.length > 3 && (
+                  <div className="proj-member-more">+{p.members!.length - 3}</div>
+                )}
+              </div>
             )}
           </div>
         </div>

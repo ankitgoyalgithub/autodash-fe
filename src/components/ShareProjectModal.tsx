@@ -210,7 +210,6 @@ export function ShareProjectModal({ project, currentUser, onClose, onProjectUpda
             <div className="spm-member-list">
               {members.map(m => {
                 const isMe = m.id === currentUser?.user_id;
-                const isOwner = m.is_owner || m.role === 'admin';
                 const canManage = isAdmin && !isMe && !m.is_owner;
                 return (
                   <div key={m.id} className="spm-member-row">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Upload, Trash2, Edit3, ChevronLeft, ChevronRight,
+  Trash2, Edit3, ChevronLeft, ChevronRight,
   Table2, FileSpreadsheet, Plus, Check, X, Loader2,
   Database, BarChart2, Info, RefreshCw, Search,
 } from 'lucide-react';
@@ -73,12 +73,11 @@ function UploadZone({ onUpload, uploading }: { onUpload: (f: File) => void; uplo
 
 // ─── Table data viewer/editor ─────────────────────────────────────────────────
 
-function TableViewer({ table, onClose, onDelete, onUseAsDatasource, datasourceId }: {
+function TableViewer({ table, onClose, onDelete, onUseAsDatasource }: {
   table: MSTable;
   onClose: () => void;
   onDelete: () => void;
   onUseAsDatasource: () => void;
-  datasourceId: number | null;
 }) {
   const [data, setData] = useState<MSDataResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -343,7 +342,6 @@ export function MySpace({ onNavigateToProjects }: { onNavigateToProjects?: () =>
           onClose={() => setActiveTable(null)}
           onDelete={() => handleDelete(activeTable)}
           onUseAsDatasource={handleUseAsDatasource}
-          datasourceId={datasourceId}
         />
       </div>
     );

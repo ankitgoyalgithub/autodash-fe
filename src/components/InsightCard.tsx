@@ -1204,7 +1204,6 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
                   dot={false}
                   name="smoothed"
                   isAnimationActive={false}
-                  strokeDasharray={(d: any) => d?.is_forecast ? '6 3' : '0'}
                 />
               </ComposedChart>
             </ResponsiveContainer>

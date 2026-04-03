@@ -164,7 +164,7 @@ function AgentCard({ agent, onSelect }: { agent: SpecializedAgent; onSelect: () 
 
 // ─── Main AgentsLibrary ───────────────────────────────────────────────────────
 
-const CATEGORIES = ['All', 'Marketing', 'Finance', 'Product', 'Data', 'RevOps'];
+const CATEGORIES = ['All', 'Data', 'Compliance', 'Policy', 'Marketing', 'Finance', 'Product', 'RevOps'];
 
 export function AgentsLibrary({
   datasources,

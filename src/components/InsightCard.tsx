@@ -1041,8 +1041,10 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
 
       // ── Analytics: Pareto ──────────────────────────────────────────────────────
       case 'pareto': {
-        const catKey  = xKey;
-        const valKey2 = dataKeys[0] || '';
+        // Use the exact column names the backend recorded; fall back to generic xKey/dataKeys[0]
+        const paretoConfig = (card as any)._pareto_config as { category_col: string; value_col: string } | undefined;
+        const catKey  = paretoConfig?.category_col ?? xKey;
+        const valKey2 = paretoConfig?.value_col ?? (dataKeys.find(k => k !== 'cumulative_pct' && k !== catKey) || dataKeys[0] || '');
         return (
           <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
             <ComposedChart data={displayData} margin={{ top: 5, right: 40, left: 0, bottom: 40 }}>
@@ -1061,6 +1063,152 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
               <ReferenceLine yAxisId="right" y={80} stroke="#ef4444" strokeDasharray="5 3" label={{ value: '80%', position: 'insideRight', fontSize: 10, fill: '#ef4444' }}/>
             </ComposedChart>
           </ResponsiveContainer>
+        );
+      }
+
+      // ── Analytics: Holt-Winters Time Series Forecast ─────────────────────────
+      case 'timeseries': {
+        const tsConfig = (card as any)._ts_config as {
+          date_col: string; value_col: string; horizon: number;
+          model_info?: string; mape?: number | null;
+        } | undefined;
+        // Resolve column names — try config first, then heuristics
+        const tsDateKey = tsConfig?.date_col ?? xKey;
+        const tsValKey  = tsConfig?.value_col ?? (dataKeys.find(k =>
+          k !== 'smoothed' && !k.endsWith('_lower') && !k.endsWith('_upper') && k !== 'is_forecast'
+        ) ?? dataKeys[0] ?? '');
+        const lowerKey = `${tsValKey}_lower`;
+        const upperKey = `${tsValKey}_upper`;
+        const hasCiBands = displayData.some(r => r[lowerKey] != null);
+
+        // Split history vs forecast for background shading
+        const firstForecastIdx = displayData.findIndex(r => r.is_forecast === true);
+        const forecastStartLabel = firstForecastIdx >= 0 ? displayData[firstForecastIdx]?.[tsDateKey] : null;
+
+        // Compose a single merged series for the CI area: [lower, upper-lower] stacked
+        const ciData = displayData.map(r => ({
+          ...r,
+          _ci_base:  r[lowerKey] ?? null,
+          _ci_width: (r[upperKey] != null && r[lowerKey] != null)
+            ? Math.max(0, Number(r[upperKey]) - Number(r[lowerKey])) : null,
+        }));
+
+        return (
+          <div style={{ width: '100%' }}>
+            {/* Model info badge */}
+            {tsConfig?.model_info && (
+              <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 6, lineHeight: 1.3, paddingLeft: 2 }}>
+                {tsConfig.model_info}
+                {tsConfig.mape != null && <span style={{ marginLeft: 8, color: '#10b981', fontWeight: 600 }}>MAPE {tsConfig.mape}%</span>}
+              </div>
+            )}
+            <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
+              <ComposedChart data={ciData} margin={{ top: 8, right: 24, left: 0, bottom: 40 }}>
+                <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
+                <XAxis
+                  dataKey={tsDateKey}
+                  tick={{ fontSize: 10, fill: tickColor }}
+                  angle={-30} textAnchor="end" height={55}
+                  axisLine={false} tickLine={false}
+                  tickFormatter={v => formatXAxis(v)}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: tickColor }}
+                  tickFormatter={v => formatAxisTick(v, tsValKey)}
+                  axisLine={false} tickLine={false} width={60}
+                />
+                <RTooltip
+                  content={({ active, payload, label }: any) => {
+                    if (!active || !payload?.length) return null;
+                    const isFc = payload[0]?.payload?.is_forecast;
+                    return (
+                      <div style={{ background: 'var(--card-bg,#fff)', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+                        <div style={{ fontWeight: 700, marginBottom: 6, color: isFc ? '#8b5cf6' : '#1e293b' }}>
+                          {String(label)}{isFc ? ' (forecast)' : ''}
+                        </div>
+                        {payload.map((p: any) => {
+                          if (p.dataKey === '_ci_base' || p.dataKey === '_ci_width') return null;
+                          return (
+                            <div key={p.dataKey} style={{ color: p.color ?? '#64748b' }}>
+                              {prettifyCol(p.dataKey)}: <strong>{typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</strong>
+                            </div>
+                          );
+                        })}
+                        {hasCiBands && payload[0]?.payload?.[lowerKey] != null && (
+                          <div style={{ color: '#94a3b8', marginTop: 4, fontSize: 11 }}>
+                            95% CI: {payload[0].payload[lowerKey].toLocaleString()} – {payload[0].payload[upperKey]?.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
+                <Legend content={({ payload }: any) => {
+                  if (!payload?.length) return null;
+                  const items = payload.filter((p: any) =>
+                    p.dataKey !== '_ci_base' && p.dataKey !== '_ci_width'
+                  );
+                  if (items.length < 2) return null;
+                  return (
+                    <div className="chart-legend">
+                      {items.map((p: any, i: number) => (
+                        <div key={i} className="cl-item">
+                          <span className="cl-dot" style={{ background: p.color }}/>
+                          <span className="cl-name">{prettifyCol(p.dataKey)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }}/>
+
+                {/* Forecast background shade */}
+                {forecastStartLabel != null && (
+                  <ReferenceArea
+                    x1={forecastStartLabel}
+                    fill="#8b5cf608"
+                    stroke="#8b5cf620"
+                    strokeDasharray="4 4"
+                    label={{ value: 'Forecast', position: 'insideTopLeft', fontSize: 9, fill: '#8b5cf6' }}
+                  />
+                )}
+
+                {/* CI bands (stacked area: transparent base + purple band) */}
+                {hasCiBands && (
+                  <>
+                    <Area dataKey="_ci_base" stroke="none" fill="transparent" legendType="none" isAnimationActive={false}/>
+                    <Area dataKey="_ci_width" stroke="none" fill="#8b5cf620" stackId="ci" legendType="none" isAnimationActive={false}/>
+                  </>
+                )}
+
+                {/* Historical bars */}
+                <Bar
+                  dataKey={tsValKey}
+                  radius={[3, 3, 0, 0]}
+                  name={tsValKey}
+                  isAnimationActive={false}
+                >
+                  {ciData.map((entry: any, idx: number) => (
+                    <Cell
+                      key={idx}
+                      fill={entry.is_forecast ? '#8b5cf640' : seriesColor(0)}
+                    />
+                  ))}
+                </Bar>
+
+                {/* Smoothed / forecast line */}
+                <Line
+                  type="monotone"
+                  dataKey="smoothed"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  dot={false}
+                  name="smoothed"
+                  isAnimationActive={false}
+                  strokeDasharray={(d: any) => d?.is_forecast ? '6 3' : '0'}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         );
       }
 

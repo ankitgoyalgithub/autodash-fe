@@ -10,7 +10,7 @@ import {
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
   Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown,
-  Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users,
+  Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users, AlertTriangle,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -1937,6 +1937,17 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
             </div>
           )}
         </div>
+
+        {/* MySpace datasource owned by another user — queries will be blocked */}
+        {project.datasource?.is_myspace && currentUser && project.owner?.id !== currentUser.id && (
+          <div className="dp-myspace-warning">
+            <AlertTriangle size={14}/>
+            <span>
+              This project uses <strong>{project.owner?.username || 'the owner'}'s</strong> personal My Space datasource.
+              Only the owner can run queries on private data — ask them to connect a shared datasource.
+            </span>
+          </div>
+        )}
 
         <div ref={dashboardContentRef} className={`dp-content ${layoutMode}-mode ${layout === 'poster' ? 'poster-content' : ''}`}>
           {!activeEntry && !loading && (

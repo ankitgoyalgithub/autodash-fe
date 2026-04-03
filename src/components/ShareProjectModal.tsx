@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus, Trash2, Crown, Edit3, Eye, ChevronDown, Loader2, Check } from 'lucide-react';
+import { X, UserPlus, Trash2, Crown, Edit3, Eye, ChevronDown, Loader2, Check, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import { BASE } from './constants';
 import type { Project, ProjectMember } from '../App';
@@ -157,6 +157,18 @@ export function ShareProjectModal({ project, currentUser, onClose, onProjectUpda
           </div>
           <button className="spm-close" onClick={onClose}><X size={16} /></button>
         </div>
+
+        {/* MySpace datasource warning */}
+        {project.datasource?.is_myspace && (
+          <div className="spm-myspace-warning">
+            <AlertTriangle size={14} style={{ flexShrink: 0 }}/>
+            <span>
+              This project is connected to <strong>My Space</strong> (a personal private datasource).
+              Collaborators you invite will <strong>not</strong> be able to run queries — they'll see the project
+              but the data belongs only to you. Connect a shared datasource to enable collaboration.
+            </span>
+          </div>
+        )}
 
         {/* Invite section (admin only) */}
         {isAdmin && (

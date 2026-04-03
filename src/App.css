@@ -1262,6 +1262,16 @@ button { cursor: pointer; }
 }
 .spm-close:hover { background: #e5e7eb; color: #1a1040; }
 
+/* MySpace datasource warning inside ShareProjectModal */
+.spm-myspace-warning {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 0 20px 4px;
+  padding: 11px 14px;
+  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;
+  color: #92400e; font-size: 0.8rem; line-height: 1.5;
+}
+.spm-myspace-warning strong { color: #78350f; }
+
 /* Invite section */
 .spm-invite-section {
   padding: 16px 22px; border-bottom: 1px solid #f0eaff;
@@ -3720,6 +3730,16 @@ button { cursor: pointer; }
   width: 18px; height: 18px; border-radius: 50%;
   background: #7c3aed; color: #fff; font-size: 0.68rem; font-weight: 700;
 }
+
+/* MySpace datasource warning banner inside dashboard panel */
+.dp-myspace-warning {
+  display: flex; align-items: flex-start; gap: 9px;
+  margin: 10px 16px 0;
+  padding: 10px 14px;
+  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;
+  color: #92400e; font-size: 0.79rem; line-height: 1.5;
+}
+.dp-myspace-warning strong { color: #78350f; }
 
 /* Member avatar stack on project cards */
 .proj-member-stack {

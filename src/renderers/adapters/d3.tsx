@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import type { ChartAdapterProps } from '../types';
-import { formatCompact, isCurrencyKey, prettifyCol } from '../utils';
+import { formatCompact, isCurrencyKey } from '../utils';
 
 // ── D3 adapter — chart types that need direct SVG control ─────────────────────
 // Handles: treemap | sunburst | sankey | bump | force
@@ -63,7 +63,7 @@ function Treemap({ spec }: ChartAdapterProps) {
       .range(colors.slice(colorOffset).concat(colors.slice(0, colorOffset)));
 
     const cell = svg.selectAll<SVGGElement, d3.HierarchyRectangularNode<any>>('g')
-      .data(root.leaves())
+      .data(root.leaves() as d3.HierarchyRectangularNode<any>[])
       .join('g')
       .attr('transform', d => `translate(${d.x0},${d.y0})`);
 
@@ -83,7 +83,7 @@ function Treemap({ spec }: ChartAdapterProps) {
       .attr('font-size', d => Math.min(13, Math.max(9, (d.x1 - d.x0) / 8)))
       .attr('font-weight', '600')
       .attr('fill', 'white')
-      .attr('clip-path', d => `inset(0 0 0 0 round 4px)`)
+      .attr('clip-path', _d => `inset(0 0 0 0 round 4px)`)
       .text(d => {
         const name = d.data.name;
         const maxLen = Math.floor((d.x1 - d.x0) / 7);
@@ -291,7 +291,7 @@ function Sankey({ spec }: ChartAdapterProps) {
     const nodeH: number[] = new Array(nodes.length).fill(0);
     const drawH = height - pad * 2;
 
-    byCol.forEach((colNodes, ci) => {
+    byCol.forEach((colNodes) => {
       const total = Math.max(1, colNodes.reduce((s, ni) => {
         const outVal = links.filter(l => l.source === ni).reduce((a, l) => a + l.value, 0);
         const inVal  = links.filter(l => l.target === ni).reduce((a, l) => a + l.value, 0);
@@ -321,7 +321,7 @@ function Sankey({ spec }: ChartAdapterProps) {
     const linkTargetOffset: Record<string, number> = {};
     nodes.forEach((_, ni) => { linkYOffset[ni] = nodeY[ni]; linkTargetOffset[ni] = nodeY[ni]; });
 
-    links.forEach((l, li) => {
+    links.forEach(l => {
       const x0 = nodeX(l.source) + nodeW;
       const x1 = nodeX(l.target);
       const total = Math.max(1, links.filter(ll => ll.source === l.source).reduce((s, ll) => s + ll.value, 0));

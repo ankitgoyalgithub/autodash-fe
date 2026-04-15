@@ -268,41 +268,42 @@ function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void
       />
 
       <div className="main-area">
-        {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} datasources={datasources} onApplied={handleTemplateApplied} onDelete={handleDeleteProject} onEdit={handleEditProject} />}
-        {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.thread_id ?? e.id)} />}
-        {view === 'datasources' && <DatasourcesManagement datasources={datasources} onRefresh={fetchBasics} />}
-        {view === 'myspace' && (
-          <MySpace onNavigateToProjects={() => { fetchBasics(); setShowNewModal(true); setView('home'); }} />
-        )}
-        {view === 'agents' && <AgentsLibrary datasources={datasources} onApplied={handleTemplateApplied} />}
-        {view === 'brand' && (
-          <BrandKitEditor
-            brandKit={brandKit}
-            saving={brandSaving}
-            error={brandError}
-            save={saveBrandKit}
-          />
-        )}
-        {view === 'profile' && (
-          <UserProfile
-            user={user}
-            onUserUpdate={(updates) => onUserUpdate({ ...user, ...updates })}
-          />
-        )}
-        {view === 'workspace' && activeProject && (
-          <Workspace
-            key={`${activeProject.id}-${initialThreadId ?? 'new'}-${newThreadKey}`}
-            project={activeProject}
-            onBack={() => setView('home')}
-            initialThreadId={initialThreadId}
-            brandPalette={brandPalette}
-            currentUser={user}
-            onProjectUpdate={(updated) => {
-              setActiveProject(updated);
-              setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
-            }}
-          />
-        )}
+        <div key={view === 'workspace' ? `ws-${activeProject?.id}-${initialThreadId ?? 'new'}-${newThreadKey}` : view} className="view-fade">
+          {view === 'home' && <ProjectsHome projects={projects} onOpen={openProject} onNewProject={() => setShowNewModal(true)} datasources={datasources} onApplied={handleTemplateApplied} onDelete={handleDeleteProject} onEdit={handleEditProject} />}
+          {view === 'dashboards' && <DashboardsList projects={projects} onOpenEntry={(p, e) => openThread(p, e.thread_id ?? e.id)} />}
+          {view === 'datasources' && <DatasourcesManagement datasources={datasources} onRefresh={fetchBasics} />}
+          {view === 'myspace' && (
+            <MySpace onNavigateToProjects={() => { fetchBasics(); setShowNewModal(true); setView('home'); }} />
+          )}
+          {view === 'agents' && <AgentsLibrary datasources={datasources} onApplied={handleTemplateApplied} />}
+          {view === 'brand' && (
+            <BrandKitEditor
+              brandKit={brandKit}
+              saving={brandSaving}
+              error={brandError}
+              save={saveBrandKit}
+            />
+          )}
+          {view === 'profile' && (
+            <UserProfile
+              user={user}
+              onUserUpdate={(updates) => onUserUpdate({ ...user, ...updates })}
+            />
+          )}
+          {view === 'workspace' && activeProject && (
+            <Workspace
+              project={activeProject}
+              onBack={() => setView('home')}
+              initialThreadId={initialThreadId}
+              brandPalette={brandPalette}
+              currentUser={user}
+              onProjectUpdate={(updated) => {
+                setActiveProject(updated);
+                setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+              }}
+            />
+          )}
+        </div>
       </div>
 
       {showNewModal && <NewProjectModal datasources={datasources} onClose={() => setShowNewModal(false)} onCreate={handleCreateProject} />}

@@ -9,40 +9,13 @@ import {
   Download, Maximize2, Minimize2, Pencil, Check, Box, MoreHorizontal, ChevronDown,
   Table2, RotateCcw, Trash2, Bookmark,
 } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend, ResponsiveContainer,
-  LineChart as ReLineChart, Line, PieChart, Pie, Cell, AreaChart, Area, ComposedChart,
-  ReferenceLine, ReferenceArea, ScatterChart, Scatter, LabelList, Label,
-} from 'recharts';
-import ReactECharts from 'echarts-for-react';
-import 'echarts-gl';
 import type { DashboardCard } from '../App';
 import { COLORS } from './constants';
+import { ChartRenderer } from '../renderers/ChartRenderer';
+import { formatCompact, isCurrencyKey, sortByDateLabel, deriveKeys } from '../renderers/utils';
 
-function parseDateLabelToMs(label: string): number | null {
-  const s = String(label).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s).getTime();
-  if (/^\d{4}$/.test(s)) return new Date(`${s}-01-01`).getTime();
-  if (/^\d{4}-\d{2}$/.test(s)) return new Date(`${s}-01`).getTime();
-  const monYear = s.match(/^([A-Za-z]{3,9})\s+(\d{4})$/);
-  if (monYear) { const t = new Date(`${monYear[1]} 1, ${monYear[2]}`).getTime(); if (!isNaN(t)) return t; }
-  const quarter = s.match(/^Q(\d)\s+(\d{4})$/i);
-  if (quarter) return new Date(`${quarter[2]}-${String((+quarter[1] - 1) * 3 + 1).padStart(2, '0')}-01`).getTime();
-  return null;
-}
 
-function sortByDateLabel(data: any[], xKey: string): any[] {
-  if (data.length < 2) return data;
-  const samples = data.slice(0, Math.min(5, data.length));
-  const parseable = samples.filter(r => parseDateLabelToMs(String(r[xKey] ?? '')) !== null).length;
-  if (parseable < Math.ceil(samples.length / 2)) return data;
-  return [...data].sort((a, b) => {
-    const ta = parseDateLabelToMs(String(a[xKey] ?? '')) ?? 0;
-    const tb = parseDateLabelToMs(String(b[xKey] ?? '')) ?? 0;
-    return ta - tb;
-  });
-}
-
+// ── DataTableDrawer ───────────────────────────────────────────────────────────
 export function DataTableDrawer({ title, data, onClose }: { title: string; data: any[]; onClose: () => void }) {
   if (!data?.length) return null;
   const cols = Object.keys(data[0]);
@@ -77,6 +50,8 @@ export function DataTableDrawer({ title, data, onClose }: { title: string; data:
   );
 }
 
+// ── Local helpers (card-level, not chart rendering) ───────────────────────────
+
 function exportToCSV(data: any[], title: string) {
   if (!data?.length) return;
   const cols = Object.keys(data[0]);
@@ -99,17 +74,6 @@ function exportToCSV(data: any[], title: string) {
   URL.revokeObjectURL(url);
 }
 
-function formatCompact(v: number): string {
-  const abs = Math.abs(v);
-  if (abs >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
-  return parseFloat(v.toFixed(2)).toLocaleString();
-}
-
-function isCurrencyKey(key: string): boolean {
-  return /revenue|sales|profit|cost|price|amount|budget|spend|earning|income|value|gmv|arr|mrr|ltv|cac|fee|payment|invoice/i.test(key);
-}
 
 function getMetricMeta(title: string): { Icon: any; color: string } {
   const t = (title || '').toLowerCase();
@@ -123,191 +87,6 @@ function getMetricMeta(title: string): { Icon: any; color: string } {
   return { Icon: BarChart2, color: '#06b6d4' };
 }
 
-function formatAxisTick(val: any, dataKey?: string): string {
-  if (typeof val !== 'number') return String(val ?? '');
-  const prefix = dataKey && isCurrencyKey(dataKey) ? '$' : '';
-  return prefix + formatCompact(val);
-}
-
-function formatTooltipValue(val: any, name: string | number | undefined): [string, string] {
-  const nameStr = String(name ?? '');
-  if (typeof val !== 'number') return [String(val ?? ''), nameStr];
-  const prefix = isCurrencyKey(nameStr) ? '$' : '';
-  return [prefix + formatCompact(val), nameStr];
-}
-
-function prettifyCol(col: string): string {
-  return col.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-// ── Custom Tooltip ────────────────────────────────────────────────────────────
-function ChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  const visible = payload.filter((p: any) => p.value !== null && p.value !== undefined && p.type !== 'none');
-  if (!visible.length) return null;
-  return (
-    <div className="chart-tooltip">
-      {label !== undefined && label !== '' && (
-        <div className="ct-label">{String(label)}</div>
-      )}
-      {visible.map((p: any, i: number) => {
-        const name = prettifyCol(String(p.name ?? p.dataKey ?? ''));
-        const [fmtVal] = formatTooltipValue(p.value, p.name ?? p.dataKey);
-        return (
-          <div key={i} className="ct-row">
-            <span className="ct-dot" style={{ background: p.color || p.fill }} />
-            <span className="ct-name">{name}</span>
-            <span className="ct-value">{fmtVal}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Custom Anomaly Tooltip (adds ⚠ flag) ─────────────────────────────────────
-function AnomalyTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  const p = payload[0];
-  if (!p) return null;
-  const isAnomaly = p.payload?.is_anomaly;
-  const [fmtVal] = formatTooltipValue(p.value, p.name ?? p.dataKey);
-  return (
-    <div className="chart-tooltip">
-      {label !== undefined && label !== '' && (
-        <div className="ct-label">{String(label)}</div>
-      )}
-      <div className="ct-row">
-        <span className="ct-dot" style={{ background: isAnomaly ? '#ef4444' : p.color }} />
-        <span className="ct-name">{prettifyCol(String(p.name ?? p.dataKey ?? ''))}</span>
-        <span className="ct-value">
-          {fmtVal}
-          {isAnomaly && <span className="ct-anomaly-flag">⚠ Anomaly</span>}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ChartLegend is replaced by the per-card interactive LegendToggle defined inside renderContent.
-
-function formatCellValue(val: any, col: string): string {
-  if (val === null || val === undefined) return '—';
-  if (typeof val === 'number') {
-    if (isCurrencyKey(col)) return '$' + formatCompact(val);
-    if (Number.isInteger(val)) return val.toLocaleString();
-    return parseFloat(val.toFixed(2)).toLocaleString();
-  }
-  return String(val);
-}
-
-function TableInsight({ data, colors }: { data: any[]; colors: string[] }) {
-  const [sortCol, setSortCol] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-
-  if (!data?.length) return null;
-  // Exclude internal analytics columns (moving averages, momentum, flags) that have no business meaning in a table
-  const HIDDEN_COL_PATTERNS = /^(ma_\d+|momentum_pct|is_vital_few|is_forecast|is_anomaly|deviation_factor|cumulative_pct)$/i;
-  const cols = Object.keys(data[0]).filter(c => !HIDDEN_COL_PATTERNS.test(c));
-
-  // Filter out rows where ALL numeric columns are null/undefined — these are
-  // ghost rows from bad JOINs (e.g. customers with no matching revenue).
-  const numericCols = cols.filter(c => data.slice(0, 5).some(r => typeof r[c] === 'number'));
-  const cleanData = numericCols.length > 0
-    ? data.filter(row => numericCols.some(c => row[c] != null && row[c] !== 0))
-    : data;
-
-  const sorted = useMemo(() => {
-    if (!sortCol) return cleanData;
-    return [...cleanData].sort((a, b) => {
-      const av = a[sortCol]; const bv = b[sortCol];
-      if (av === null || av === undefined) return 1;
-      if (bv === null || bv === undefined) return -1;
-      const cmp = typeof av === 'number' && typeof bv === 'number'
-        ? av - bv : String(av).localeCompare(String(bv));
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-  }, [cleanData, sortCol, sortDir]);
-
-  const handleSort = (col: string) => {
-    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortCol(col); setSortDir('desc'); }
-  };
-
-  const isNumeric = (col: string) => cleanData.slice(0, 5).some(r => typeof r[col] === 'number');
-  const accentColor = colors[0] || '#6366f1';
-
-  // Compute per-column max for data bar width calculation (Power BI-style conditional formatting)
-  const colMaxMap = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const col of numericCols) {
-      const vals = cleanData.map(r => typeof r[col] === 'number' ? Math.abs(r[col] as number) : 0);
-      m[col] = Math.max(...vals, 1);
-    }
-    return m;
-  }, [cleanData, numericCols]);
-
-  // Only show data bars for the primary measure column (first numeric non-id col)
-  const dataBarCol = numericCols.find(c => !/^(id|_id|rank|index|row_num|sequence)$/i.test(c));
-
-  return (
-    <div className="insight-table-wrap">
-      <table className="insight-table">
-        <thead>
-          <tr>
-            {cols.map((col, i) => (
-              <th
-                key={col}
-                className={`${isNumeric(col) ? 'num' : ''} ${sortCol === col ? 'sorted' : ''}`}
-                onClick={() => handleSort(col)}
-                style={sortCol === col ? { color: accentColor } : undefined}
-              >
-                <span className="th-inner">
-                  {prettifyCol(col)}
-                  <span className="sort-icon">
-                    {sortCol === col ? (sortDir === 'desc' ? '↓' : '↑') : '↕'}
-                  </span>
-                </span>
-                {i === 0 && <div className="th-accent" style={{ background: accentColor }} />}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((row, ri) => (
-            <tr key={ri}>
-              {cols.map((col, ci) => {
-                const val = row[col];
-                const numeric = typeof val === 'number';
-                const isDataBarCol = col === dataBarCol && numeric;
-                const barPct = isDataBarCol ? Math.min(100, (Math.abs(val as number) / colMaxMap[col]) * 100) : 0;
-                return (
-                  <td key={col} className={numeric ? 'num' : ''} style={isDataBarCol ? {
-                    position: 'relative',
-                    background: `linear-gradient(to right, ${accentColor}18 ${barPct}%, transparent ${barPct}%)`,
-                  } : undefined}>
-                    {ci === 0 && (
-                      <span className="row-rank" style={{ background: accentColor + '18', color: accentColor }}>
-                        {ri + 1}
-                      </span>
-                    )}
-                    {numeric && isCurrencyKey(col) ? (
-                      <span className="cell-currency">{formatCellValue(val, col)}</span>
-                    ) : numeric ? (
-                      <span className="cell-num">{formatCellValue(val, col)}</span>
-                    ) : (
-                      <span className="cell-text">{formatCellValue(val, col)}</span>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters, index, onDelete, onSave }: {
   card: DashboardCard;
@@ -350,7 +129,36 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
       data = data.filter(row => row[activeFilter.column] === activeFilter.value);
     }
     if (globalFilters && !card.is_analytics) {
+      // Handle __timeframe special key: filter by date range on the first date-like column
+      const timeframeDays = globalFilters['__timeframe'];
+      if (timeframeDays !== null && timeframeDays !== undefined) {
+        const days = Number(timeframeDays);
+        if (days > 0 && data.length > 0) {
+          // Detect a date column: first col where >50% of values parse as valid dates
+          const cols = Object.keys(data[0]);
+          const dateCols = cols.filter(col => {
+            const sample = data.slice(0, Math.min(10, data.length));
+            const parseable = sample.filter(r => {
+              const v = r[col];
+              if (!v || typeof v === 'number') return false;
+              const ts = Date.parse(String(v));
+              return !isNaN(ts) && ts > Date.parse('1970-01-02');
+            });
+            return parseable.length >= Math.ceil(sample.length * 0.5);
+          });
+          if (dateCols.length > 0) {
+            const dateCol = dateCols[0];
+            const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+            data = data.filter(row => {
+              const ts = Date.parse(String(row[dateCol]));
+              return !isNaN(ts) && ts >= cutoff;
+            });
+          }
+        }
+      }
+      // Standard column=value filters (skip __timeframe)
       for (const [col, val] of Object.entries(globalFilters)) {
+        if (col === '__timeframe') continue;
         if (val !== null && val !== undefined && data.some(r => col in r)) {
           data = data.filter(row => String(row[col]) === String(val));
         }
@@ -520,16 +328,6 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
 
   const activeColors = colors || COLORS;
 
-  const formatXAxis = (val: any) => {
-    if (val === null || val === undefined) return '';
-    const str = String(val);
-    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-      const d = new Date(str);
-      return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-    }
-    return str;
-  };
-
   // Normalize legacy size names to new taxonomy
   const _sizeNorm: Record<string, string> = { mini: 's', small: 's', medium: 'm', large: 'l', tall: 'l', wide: 'xl', full: 'xxl', 'ultra-wide': 'xxl' };
   const type = card.type || (card.data?.length === 1 && Object.keys(card.data?.[0] || {}).length <= 2 ? 'metric' : 'chart');
@@ -667,971 +465,38 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
     }
 
     if (!filteredData?.length || !filteredData[0]) return <div className="dp-empty">No data</div>;
-    const keys = Object.keys(filteredData[0]);
-    if (!keys.length) return <div className="dp-empty">No data</div>;
-
-    // ── Smart column sequencing: label columns (categorical) before metrics ──────
-    // Prevents charts where SQL returns columns in wrong order (e.g. revenue, region)
-    const sample = filteredData.slice(0, Math.min(8, filteredData.length));
-    const isYearInt = (k: string) => sample.every(r => {
-      const v = r[k]; return typeof v === 'number' && Number.isInteger(v) && v >= 1900 && v <= 2100;
-    });
-    const isNumeric = (k: string) => {
-      if (isYearInt(k)) return false; // year integers are labels, not metrics
-      const nonNull = sample.filter(r => r[k] !== null && r[k] !== undefined);
-      return nonNull.length > 0 && nonNull.every(r => typeof r[k] === 'number');
-    };
-    const numericCols = keys.filter(k => isNumeric(k));
-    const labelCols = keys.filter(k => !isNumeric(k));
-    // xKey = first label column; if all numeric, fall back to first key
-    const xKey = labelCols.length > 0 ? labelCols[0] : keys[0];
-    // dataKeys = all numeric columns (the series to chart)
-    const dataKeys = numericCols.length > 0 ? numericCols : keys.filter(k => k !== xKey);
-
-    // ── Per-card color offset: each card in the dashboard gets a distinct base color ──
-    // Single-series charts all used activeColors[0] → looked identical. Now card index
-    // determines the starting color, so each card has its own palette-consistent color.
-    const colorOffset = (index ?? 0) % activeColors.length;
-    const seriesColor = (i: number) => activeColors[(colorOffset + i) % activeColors.length];
+    const { xKey, dataKeys } = deriveKeys(filteredData);
 
     const displayData = sortByDateLabel(filteredData, xKey);
     const chartHeight = heightOverride ?? (
-      size === 's' ? 120
-      : size === 'm' ? 220
-      : size === 'l' ? 280
-      : size === 'xl' ? 320
-      : size === 'xxl' ? 360
+      size === 's' ? 120 : size === 'm' ? 220 : size === 'l' ? 280
+      : size === 'xl' ? 320 : size === 'xxl' ? 360
       : layout === 'single' ? 400 : 280
     );
-    // Poster mode: clean charts with no grid lines
-    const gridStroke = isPoster ? 'transparent' : '#f1f5f9';
-    const gridDash = isPoster ? '0' : '3 3';
-    const tickColor = '#64748b';
 
-    // ── Smart XAxis props: auto-rotate + thin out labels when data is dense ──
-    const getXAxisProps = (data: any[], key: string, forceAngle?: boolean) => {
-      const n = data.length;
-      const maxLabelLen = Math.max(...data.slice(0, 20).map(r => String(r[key] ?? '').length));
-      const needsAngle = forceAngle || n > 8 || maxLabelLen > 10;
-      const interval = n > 24 ? Math.ceil(n / 12) - 1
-                     : n > 12 ? 1 : 0;
-      return {
-        interval,
-        angle: needsAngle ? -35 : 0,
-        height: needsAngle ? 60 : 30,
-        textAnchor: needsAngle ? 'end' as const : 'middle' as const,
-        tickFormatter: (v: any) => {
-          const s = String(formatXAxis(v));
-          return needsAngle && s.length > 16 ? s.slice(0, 14) + '…' : s;
-        },
-      };
-    };
-
-    const onChartClick = (state: any) => {
-      if (state && state.activeLabel !== undefined && onDrillDown) {
-        onDrillDown(xKey, state.activeLabel);
-      }
-    };
-
-    // ── Interactive legend: click to show/hide series ──────────────────────────
-    const LegendToggle = ({ payload }: any) => {
-      if (!payload?.length) return null;
-      const visible = payload.filter((p: any) => p.type !== 'none');
-      if (!visible.length || visible.length < 2) return null; // hide legend for single series
-      return (
-        <div className="chart-legend">
-          {visible.map((p: any, i: number) => {
-            const key = String(p.value ?? '');
-            const isHidden = hiddenSeries.has(key);
-            return (
-              <div key={i} className={`cl-item${isHidden ? ' cl-item--hidden' : ''}`} onClick={() => toggleSeries(key)} title={isHidden ? 'Click to show' : 'Click to hide'}>
-                <span className="cl-dot" style={{ background: isHidden ? 'var(--gray-300, #d1d5db)' : p.color }} />
-                <span className="cl-name">{prettifyCol(key)}</span>
-              </div>
-            );
-          })}
-        </div>
-      );
-    };
-
-    // Only render visible series (hidden ones are toggled off)
-    const visibleDataKeys = dataKeys.filter(k => !hiddenSeries.has(k));
-
-    switch (chartType) {
-      case 'line': {
-        const xp = getXAxisProps(displayData, xKey);
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <ReLineChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={onChartClick}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey={xKey} tickFormatter={xp.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xp.angle, textAnchor: xp.textAnchor }} axisLine={false} tickLine={false} height={xp.height} interval={xp.interval} />
-              <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
-              <RTooltip content={ChartTooltip} />
-              <Legend content={LegendToggle} />
-              {visibleDataKeys.map((k, i) => (
-                <Line key={k} type="monotone" dataKey={k} stroke={seriesColor(i)} strokeWidth={2.5}
-                  dot={displayData.length > 30 ? false : { r: 3.5, fill: seriesColor(i), strokeWidth: 0 }}
-                  activeDot={{ r: 6, fill: seriesColor(i), stroke: '#fff', strokeWidth: 2.5 }}
-                />
-              ))}
-            </ReLineChart>
-          </ResponsiveContainer>
-        );
-      }
-      case 'pie': {
-        const PIE_MAX = 8;
-        let pieData = displayData;
-        if (displayData.length > PIE_MAX) {
-          const sorted = [...displayData].sort((a, b) => (b[dataKeys[0]] || 0) - (a[dataKeys[0]] || 0));
-          const otherVal = sorted.slice(PIE_MAX - 1).reduce((sum: number, row: any) => sum + (typeof row[dataKeys[0]] === 'number' ? row[dataKeys[0]] : 0), 0);
-          pieData = [...sorted.slice(0, PIE_MAX - 1), { [xKey]: 'Other', [dataKeys[0]]: otherVal }];
-        }
-        const pieTotal = pieData.reduce((sum, row) => sum + (typeof row[dataKeys[0]] === 'number' ? row[dataKeys[0]] : 0), 0);
-        const isCurrPie = isCurrencyKey(dataKeys[0] || card.title);
-        const centerLabel = pieTotal > 0 ? (isCurrPie ? '$' : '') + formatCompact(pieTotal) : '';
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <PieChart>
-              <RTooltip content={ChartTooltip} />
-              <Legend content={LegendToggle} />
-              <Pie
-                data={pieData}
-                cx="50%" cy="50%"
-                innerRadius={size === 's' ? 44 : 62}
-                outerRadius={size === 's' ? 66 : 90}
-                dataKey={dataKeys[0]}
-                nameKey={xKey}
-                paddingAngle={2}
-                label={({ percent }) => (percent || 0) > 0.05 ? `${((percent || 0) * 100).toFixed(0)}%` : ''}
-                labelLine={false}
-                onClick={(data: any) => onDrillDown && data?.name !== undefined && onDrillDown(xKey, data.name as string | number)}
-              >
-                {centerLabel && (
-                <Label position="center" content={({ viewBox }: any) => {
-                  const cx = viewBox?.cx ?? 0;
-                  const cy = viewBox?.cy ?? 0;
-                  return (
-                    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize={13} fontWeight={700} fill="var(--theme-text-main, #111827)">
-                      {centerLabel}
-                    </text>
-                  );
-                }} />
-              )}
-              {pieData.map((_: any, i: number) => <Cell key={i} fill={seriesColor(i)} stroke="none" />)}
-            </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        );
-      }
-      case 'area': {
-        const areaPfx = `ag-${index ?? 0}`;
-        const xpA = getXAxisProps(displayData, xKey);
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <AreaChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpA.height }} onClick={onChartClick}>
-              <defs>
-                {visibleDataKeys.map((k, i) => (
-                  <linearGradient key={k} id={`${areaPfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={seriesColor(i)} stopOpacity={0.5}/>
-                    <stop offset="88%" stopColor={seriesColor(i)} stopOpacity={0.04}/>
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey={xKey} tickFormatter={xpA.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpA.angle, textAnchor: xpA.textAnchor }} axisLine={false} tickLine={false} height={xpA.height} interval={xpA.interval} />
-              <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
-              <RTooltip content={ChartTooltip} />
-              <Legend content={LegendToggle} />
-              {visibleDataKeys.map((k, i) => (
-                <Area key={k} type="monotone" dataKey={k} stroke={seriesColor(i)} fillOpacity={1} fill={`url(#${areaPfx}-${i})`} strokeWidth={2.5}
-                  dot={{ r: 3, fill: seriesColor(i), strokeWidth: 0 }}
-                  activeDot={{ r: 5.5, fill: seriesColor(i), stroke: '#fff', strokeWidth: 2 }}
-                />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
-        );
-      }
-      case 'stacked_bar': {
-        const sbPfx = `sbg-${index ?? 0}`;
-        const xpSB = getXAxisProps(displayData, xKey);
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <BarChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpSB.height }} onClick={onChartClick} barCategoryGap="28%">
-              <defs>
-                {visibleDataKeys.map((k, i) => (
-                  <linearGradient key={k} id={`${sbPfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={seriesColor(i)} stopOpacity={1}/>
-                    <stop offset="100%" stopColor={seriesColor(i)} stopOpacity={0.7}/>
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey={xKey} tickFormatter={xpSB.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpSB.angle, textAnchor: xpSB.textAnchor }} axisLine={false} tickLine={false} height={xpSB.height} interval={xpSB.interval} />
-              <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
-              <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
-              <Legend content={LegendToggle} />
-              {visibleDataKeys.map((k, i) => <Bar key={k} dataKey={k} stackId="a" fill={`url(#${sbPfx}-${i})`} radius={i === visibleDataKeys.length - 1 ? [6, 6, 0, 0] : [0, 0, 0, 0]} />)}
-            </BarChart>
-          </ResponsiveContainer>
-        );
-      }
-      case 'combo_bar_line': {
-        const cblId = `cbl-${index ?? 0}`;
-        const xpCBL = getXAxisProps(displayData, xKey);
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: xpCBL.height }} onClick={onChartClick} barCategoryGap="28%">
-              <defs>
-                <linearGradient id={cblId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={seriesColor(0)} stopOpacity={1}/>
-                  <stop offset="100%" stopColor={seriesColor(0)} stopOpacity={0.62}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis dataKey={xKey} tickFormatter={xpCBL.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xpCBL.angle, textAnchor: xpCBL.textAnchor }} axisLine={false} tickLine={false} height={xpCBL.height} interval={xpCBL.interval} />
-              <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
-              <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
-              <Legend content={LegendToggle} />
-              {!hiddenSeries.has(dataKeys[0]) && <Bar dataKey={dataKeys[0]} fill={`url(#${cblId})`} radius={[6, 6, 0, 0]} maxBarSize={44} />}
-              {dataKeys.slice(1).map((k, i) => !hiddenSeries.has(k) && (
-                <Line key={k} type="monotone" dataKey={k} stroke={seriesColor(i + 1)} strokeWidth={2.5}
-                  dot={{ r: 3.5, fill: seriesColor(i + 1), strokeWidth: 0 }}
-                  activeDot={{ r: 6, fill: seriesColor(i + 1), stroke: '#fff', strokeWidth: 2.5 }}
-                />
-              ))}
-            </ComposedChart>
-          </ResponsiveContainer>
-        );
-      }
-      // ── Analytics: Forecast ──────────────────────────────────────────────────
-      case 'forecast': {
-        const valKey = dataKeys[0] || '';
-        const transformed = displayData.map(r => ({
-          ...r,
-          actual:   r.is_forecast ? null : r[valKey],
-          forecast: r.is_forecast ? r[valKey] : null,
-          upper:    r[`${valKey}_upper`] ?? null,
-          lower:    r[`${valKey}_lower`] ?? null,
-        }));
-        const boundaryLabel = transformed.filter(r => !r.is_forecast).slice(-1)[0]?.[xKey];
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <ComposedChart data={transformed} margin={{ top: 8, right: 24, left: 0, bottom: 5 }}>
-              <defs>
-                <linearGradient id="ci-band" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={seriesColor(0)} stopOpacity={0.18}/>
-                  <stop offset="95%" stopColor={seriesColor(0)} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-              <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v => formatAxisTick(v, valKey)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
-              <RTooltip content={ChartTooltip} />
-              <Legend content={LegendToggle} />
-              {/* Confidence band */}
-              <Area type="monotone" dataKey="upper" stroke="none" fill="url(#ci-band)" legendType="none" name="Upper bound"/>
-              {/* Actual line — solid */}
-              <Line type="monotone" dataKey="actual" stroke={seriesColor(0)} strokeWidth={3} dot={{ r: 3, fill: seriesColor(0) }} name={valKey} connectNulls={false}/>
-              {/* Forecast line — dashed */}
-              <Line type="monotone" dataKey="forecast" stroke={seriesColor(0)} strokeWidth={2} strokeDasharray="7 4" dot={{ r: 4, fill: '#fff', stroke: seriesColor(0), strokeWidth: 2 }} name="Forecast" connectNulls={false}/>
-              {boundaryLabel !== undefined && (
-                <ReferenceLine x={String(boundaryLabel)} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: '▶ Forecast', position: 'insideTopRight', fontSize: 10, fill: '#94a3b8' }}/>
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      // ── Analytics: Priority Matrix ────────────────────────────────────────────
-      case 'priority_matrix': {
-        const cols = displayData[0] ? Object.keys(displayData[0]) : [];
-        const xColKey = card.matrix_config?.x_col
-          || cols.find(c => !['quadrant','priority_rank'].includes(c) && typeof displayData[0][c] === 'number') || '';
-        const yColKey = card.matrix_config?.y_col
-          || cols.filter(c => !['quadrant','priority_rank'].includes(c) && typeof displayData[0][c] === 'number')[1] || '';
-        const labelKey = card.matrix_config?.label_col
-          || cols.find(c => typeof displayData[0][c] === 'string' && c !== 'quadrant') || '';
-        if (!xColKey || !yColKey) return <div className="dp-empty">Priority matrix data unavailable</div>;
-
-        const xVals = displayData.map(r => Number(r[xColKey]));
-        const yVals = displayData.map(r => Number(r[yColKey]));
-        const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
-        const yMin = Math.min(...yVals), yMax = Math.max(...yVals);
-        const xRange = xMax - xMin || 1;
-        const yRange = yMax - yMin || 1;
-
-        const QUAD_COLORS: Record<string, string> = {
-          'Quick Win':     '#10b981',
-          'Major Project': '#6366f1',
-          'Fill-In':       '#f59e0b',
-          'Avoid':         '#ef4444',
-        };
-        const QUAD_BG: Record<string, string> = {
-          'Quick Win':     '#10b98110',
-          'Major Project': '#6366f110',
-          'Fill-In':       '#f59e0b10',
-          'Avoid':         '#ef444410',
-        };
-
-        return (
-          <div style={{ position: 'relative', width: '100%', height: chartHeight, userSelect: 'none' }}>
-            {/* Quadrant backgrounds */}
-            <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 2 }}>
-              {[
-                { label: '⚡ Quick Win',      color: '#10b981', bg: QUAD_BG['Quick Win'] },
-                { label: '🚀 Major Project',  color: '#6366f1', bg: QUAD_BG['Major Project'] },
-                { label: '📋 Fill-In',        color: '#f59e0b', bg: QUAD_BG['Fill-In'] },
-                { label: '✗ Avoid',           color: '#ef4444', bg: QUAD_BG['Avoid'] },
-              ].map(q => (
-                <div key={q.label} style={{ background: q.bg, border: `1.5px solid ${q.color}30`, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: q.color, opacity: 0.9 }}>
-                  {q.label}
-                </div>
-              ))}
-            </div>
-            {/* Dots SVG */}
-            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
-              {displayData.map((row, i) => {
-                const px = ((Number(row[xColKey]) - xMin) / xRange) * 88 + 6;
-                const py = 100 - (((Number(row[yColKey]) - yMin) / yRange) * 88 + 6);
-                const qColor = QUAD_COLORS[String(row.quadrant)] || activeColors[0];
-                const lbl = String(row[labelKey] || '').slice(0, 14);
-                return (
-                  <g key={i}>
-                    <circle cx={`${px}%`} cy={`${py}%`} r={8} fill={qColor} fillOpacity={0.85}/>
-                    <text x={`${px}%`} y={`${py}%`} dy={-12} textAnchor="middle" fontSize={9} fill="#334155" fontWeight={600}>{lbl}</text>
-                  </g>
-                );
-              })}
-            </svg>
-            {/* Axis labels */}
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: 10, color: '#94a3b8', pointerEvents: 'none' }}>
-              ← {xColKey} (effort) →
-            </div>
-            <div style={{ position: 'absolute', top: '50%', left: 0, fontSize: 10, color: '#94a3b8', transform: 'rotate(-90deg) translateX(-50%)', transformOrigin: 'left center', pointerEvents: 'none' }}>
-              ↑ {yColKey}
-            </div>
-          </div>
-        );
-      }
-
-      // ── Analytics: Trend Decomposition ────────────────────────────────────────
-      case 'trend': {
-        const trendKeys = Object.keys(displayData[0] || {}).filter(k =>
-          k !== xKey && !['is_forecast', 'momentum_pct', 'is_anomaly', 'deviation_factor'].includes(k)
-        );
-        const origKey = trendKeys[0] || '';
-        const maKeys  = trendKeys.filter(k => k.startsWith('ma_'));
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <ComposedChart data={displayData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v => formatAxisTick(v, origKey)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
-              <RTooltip content={ChartTooltip} />
-              <Legend content={LegendToggle} />
-              <Bar dataKey={origKey} fill={`${seriesColor(0)}55`} radius={[3,3,0,0]} name={origKey}/>
-              {maKeys.map((k, i) => (
-                <Line key={k} type="monotone" dataKey={k} stroke={seriesColor(i + 1)} strokeWidth={2.5} dot={false} name={k.replace('_', ' ')}/>
-              ))}
-            </ComposedChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      // ── Analytics: Pareto ──────────────────────────────────────────────────────
-      case 'pareto': {
-        // Use the exact column names the backend recorded; fall back to generic xKey/dataKeys[0]
-        const paretoConfig = (card as any)._pareto_config as { category_col: string; value_col: string } | undefined;
-        const catKey  = paretoConfig?.category_col ?? xKey;
-        const valKey2 = paretoConfig?.value_col ?? (dataKeys.find(k => k !== 'cumulative_pct' && k !== catKey) || dataKeys[0] || '');
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <ComposedChart data={displayData} margin={{ top: 5, right: 40, left: 0, bottom: 40 }}>
-              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-              <XAxis dataKey={catKey} tick={{ fontSize: 10, fill: tickColor }} angle={-30} textAnchor="end" height={55} axisLine={false} tickLine={false}/>
-              <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: tickColor }} tickFormatter={v => formatAxisTick(v, valKey2)} axisLine={false} tickLine={false} width={56}/>
-              <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={36}/>
-              <RTooltip content={ChartTooltip} />
-              <Legend content={LegendToggle} />
-              <Bar yAxisId="left" dataKey={valKey2} radius={[6,6,0,0]} name={valKey2}>
-                {displayData.map((entry: any, idx: number) => (
-                  <Cell key={idx} fill={entry.is_vital_few ? seriesColor(0) : '#cbd5e1'}/>
-                ))}
-              </Bar>
-              <Line yAxisId="right" type="monotone" dataKey="cumulative_pct" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} name="Cumulative %"/>
-              <ReferenceLine yAxisId="right" y={80} stroke="#ef4444" strokeDasharray="5 3" label={{ value: '80%', position: 'insideRight', fontSize: 10, fill: '#ef4444' }}/>
-            </ComposedChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      // ── Analytics: Holt-Winters Time Series Forecast ─────────────────────────
-      case 'timeseries': {
-        const tsConfig = (card as any)._ts_config as {
-          date_col: string; value_col: string; horizon: number;
-          model_info?: string; mape?: number | null;
-        } | undefined;
-        // Resolve column names — try config first, then heuristics
-        const tsDateKey = tsConfig?.date_col ?? xKey;
-        const tsValKey  = tsConfig?.value_col ?? (dataKeys.find(k =>
-          k !== 'smoothed' && !k.endsWith('_lower') && !k.endsWith('_upper') && k !== 'is_forecast'
-        ) ?? dataKeys[0] ?? '');
-        const lowerKey = `${tsValKey}_lower`;
-        const upperKey = `${tsValKey}_upper`;
-        const hasCiBands = displayData.some(r => r[lowerKey] != null);
-
-        // Split history vs forecast for background shading
-        const firstForecastIdx = displayData.findIndex(r => r.is_forecast === true);
-        const forecastStartLabel = firstForecastIdx >= 0 ? displayData[firstForecastIdx]?.[tsDateKey] : null;
-
-        // Compose a single merged series for the CI area: [lower, upper-lower] stacked
-        const ciData = displayData.map(r => ({
-          ...r,
-          _ci_base:  r[lowerKey] ?? null,
-          _ci_width: (r[upperKey] != null && r[lowerKey] != null)
-            ? Math.max(0, Number(r[upperKey]) - Number(r[lowerKey])) : null,
-        }));
-
-        return (
-          <div style={{ width: '100%' }}>
-            {/* Model info badge */}
-            {tsConfig?.model_info && (
-              <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 6, lineHeight: 1.3, paddingLeft: 2 }}>
-                {tsConfig.model_info}
-                {tsConfig.mape != null && <span style={{ marginLeft: 8, color: '#10b981', fontWeight: 600 }}>MAPE {tsConfig.mape}%</span>}
-              </div>
-            )}
-            <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-              <ComposedChart data={ciData} margin={{ top: 8, right: 24, left: 0, bottom: 40 }}>
-                <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-                <XAxis
-                  dataKey={tsDateKey}
-                  tick={{ fontSize: 10, fill: tickColor }}
-                  angle={-30} textAnchor="end" height={55}
-                  axisLine={false} tickLine={false}
-                  tickFormatter={v => formatXAxis(v)}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: tickColor }}
-                  tickFormatter={v => formatAxisTick(v, tsValKey)}
-                  axisLine={false} tickLine={false} width={60}
-                />
-                <RTooltip
-                  content={({ active, payload, label }: any) => {
-                    if (!active || !payload?.length) return null;
-                    const isFc = payload[0]?.payload?.is_forecast;
-                    return (
-                      <div style={{ background: 'var(--card-bg,#fff)', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
-                        <div style={{ fontWeight: 700, marginBottom: 6, color: isFc ? '#8b5cf6' : '#1e293b' }}>
-                          {String(label)}{isFc ? ' (forecast)' : ''}
-                        </div>
-                        {payload.map((p: any) => {
-                          if (p.dataKey === '_ci_base' || p.dataKey === '_ci_width') return null;
-                          return (
-                            <div key={p.dataKey} style={{ color: p.color ?? '#64748b' }}>
-                              {prettifyCol(p.dataKey)}: <strong>{typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</strong>
-                            </div>
-                          );
-                        })}
-                        {hasCiBands && payload[0]?.payload?.[lowerKey] != null && (
-                          <div style={{ color: '#94a3b8', marginTop: 4, fontSize: 11 }}>
-                            95% CI: {payload[0].payload[lowerKey].toLocaleString()} – {payload[0].payload[upperKey]?.toLocaleString()}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }}
-                />
-                <Legend content={({ payload }: any) => {
-                  if (!payload?.length) return null;
-                  const items = payload.filter((p: any) =>
-                    p.dataKey !== '_ci_base' && p.dataKey !== '_ci_width'
-                  );
-                  if (items.length < 2) return null;
-                  return (
-                    <div className="chart-legend">
-                      {items.map((p: any, i: number) => (
-                        <div key={i} className="cl-item">
-                          <span className="cl-dot" style={{ background: p.color }}/>
-                          <span className="cl-name">{prettifyCol(p.dataKey)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                }}/>
-
-                {/* Forecast background shade */}
-                {forecastStartLabel != null && (
-                  <ReferenceArea
-                    x1={forecastStartLabel}
-                    fill="#8b5cf608"
-                    stroke="#8b5cf620"
-                    strokeDasharray="4 4"
-                    label={{ value: 'Forecast', position: 'insideTopLeft', fontSize: 9, fill: '#8b5cf6' }}
-                  />
-                )}
-
-                {/* CI bands (stacked area: transparent base + purple band) */}
-                {hasCiBands && (
-                  <>
-                    <Area dataKey="_ci_base" stroke="none" fill="transparent" legendType="none" isAnimationActive={false}/>
-                    <Area dataKey="_ci_width" stroke="none" fill="#8b5cf620" stackId="ci" legendType="none" isAnimationActive={false}/>
-                  </>
-                )}
-
-                {/* Historical bars */}
-                <Bar
-                  dataKey={tsValKey}
-                  radius={[3, 3, 0, 0]}
-                  name={tsValKey}
-                  isAnimationActive={false}
-                >
-                  {ciData.map((entry: any, idx: number) => (
-                    <Cell
-                      key={idx}
-                      fill={entry.is_forecast ? '#8b5cf640' : seriesColor(0)}
-                    />
-                  ))}
-                </Bar>
-
-                {/* Smoothed / forecast line */}
-                <Line
-                  type="monotone"
-                  dataKey="smoothed"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  dot={false}
-                  name="smoothed"
-                  isAnimationActive={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        );
-      }
-
-      // ── Analytics: Heatmap (Correlation) ─────────────────────────────────────
-      case 'heatmap': {
-        const allCols2 = [...new Set(displayData.flatMap(r => [String(r.col_a), String(r.col_b)]))];
-        const corrMap: Record<string, number> = {};
-        displayData.forEach(r => { corrMap[`${r.col_a}|${r.col_b}`] = Number(r.correlation); });
-
-        const corrColor = (v: number): string => {
-          if (v >  0.7) return '#1d4ed8';
-          if (v >  0.4) return '#3b82f6';
-          if (v >  0.1) return '#93c5fd';
-          if (v >= -0.1) return '#f8fafc';
-          if (v >= -0.4) return '#fca5a5';
-          if (v >= -0.7) return '#f87171';
-          return '#dc2626';
-        };
-        const textOnCorr = (v: number): string => Math.abs(v) > 0.4 ? '#fff' : '#334155';
-        const cSize = Math.max(36, Math.min(80, 300 / Math.max(allCols2.length, 1)));
-
-        return (
-          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: chartHeight + 40, padding: '4px 0' }}>
-            <div style={{ display: 'inline-grid', gridTemplateColumns: `80px ${allCols2.map(() => `${cSize}px`).join(' ')}`, gap: 3 }}>
-              {/* Header */}
-              <div/>
-              {allCols2.map(c => (
-                <div key={c} title={c} style={{ width: cSize, fontSize: 9, textAlign: 'center', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 2px', fontWeight: 600 }}>
-                  {c.slice(0, 8)}
-                </div>
-              ))}
-              {/* Rows */}
-              {allCols2.map(rowCol => (
-                <>
-                  <div key={`lbl-${rowCol}`} title={rowCol} style={{ fontSize: 9, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 600, display: 'flex', alignItems: 'center', paddingRight: 4 }}>
-                    {rowCol.slice(0, 12)}
-                  </div>
-                  {allCols2.map(colCol => {
-                    const v = corrMap[`${rowCol}|${colCol}`] ?? 1;
-                    return (
-                      <div key={`${rowCol}|${colCol}`} title={`${rowCol} × ${colCol}: ${v.toFixed(2)}`} style={{ width: cSize, height: cSize, background: corrColor(v), borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: textOnCorr(v) }}>
-                        {v.toFixed(2)}
-                      </div>
-                    );
-                  })}
-                </>
-              ))}
-            </div>
-          </div>
-        );
-      }
-
-      // ── Analytics: Anomaly Detection ──────────────────────────────────────────
-      case 'anomaly': {
-        const aInfo = (card as any).anomaly_info;
-        const valKey3 = dataKeys[0] || '';
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <ComposedChart data={displayData} margin={{ top: 8, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} vertical={false}/>
-              <XAxis dataKey={xKey} tickFormatter={formatXAxis} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}/>
-              <YAxis tickFormatter={v => formatAxisTick(v, valKey3)} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60}/>
-              <RTooltip content={AnomalyTooltip} />
-              <Legend content={LegendToggle} />
-              {aInfo?.normal_range && (
-                <ReferenceArea y1={aInfo.normal_range[0]} y2={aInfo.normal_range[1]} fill="#10b98108" stroke="#10b98140" strokeDasharray="4 4" label={{ value: 'Normal range', position: 'insideTopRight', fontSize: 9, fill: '#10b981' }}/>
-              )}
-              <Bar dataKey={valKey3} name={valKey3} radius={[4,4,0,0]}>
-                {displayData.map((entry: any, idx: number) => (
-                  <Cell key={idx} fill={entry.is_anomaly ? '#ef4444' : seriesColor(0)}/>
-                ))}
-              </Bar>
-            </ComposedChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      case 'timeline': {
-        const TL_COLORS = ['#374f6e', '#e6a817', '#c0395a', '#1b6ca8', '#2abaab', '#6366f1', '#10b981'];
-        return (
-          <div style={{ position: 'relative', padding: '20px 0 8px', width: '100%' }}>
-            {/* Vertical spine */}
-            <div style={{
-              position: 'absolute', left: '50%', top: 0, bottom: 0,
-              width: 2, background: 'var(--gray-200, #e2e8f0)', transform: 'translateX(-50%)',
-            }} />
-            {displayData.map((row, idx) => {
-              const label     = String(row[xKey] ?? '');
-              const titleVal  = dataKeys[0] ? String(row[dataKeys[0]] ?? '') : '';
-              const descVal   = dataKeys[1] ? String(row[dataKeys[1]] ?? '') : '';
-              const isLeft    = idx % 2 === 0;
-              const color     = TL_COLORS[idx % TL_COLORS.length];
-
-              const banner = (
-                <div style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
-                  {/* Left-pointing arrow for right-side entries */}
-                  {!isLeft && (
-                    <div style={{
-                      width: 0, height: 0,
-                      borderTop: '20px solid transparent',
-                      borderBottom: '20px solid transparent',
-                      borderRight: `13px solid ${color}`,
-                    }} />
-                  )}
-                  <div style={{
-                    background: color, color: '#fff',
-                    padding: '10px 20px',
-                    borderRadius: isLeft ? '6px 0 0 6px' : '0 6px 6px 0',
-                    fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em',
-                    whiteSpace: 'nowrap',
-                  }}>{label}</div>
-                  {/* Right-pointing arrow for left-side entries */}
-                  {isLeft && (
-                    <div style={{
-                      width: 0, height: 0,
-                      borderTop: '20px solid transparent',
-                      borderBottom: '20px solid transparent',
-                      borderLeft: `13px solid ${color}`,
-                    }} />
-                  )}
-                </div>
-              );
-
-              const card = (titleVal || descVal) ? (
-                <div style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid var(--gray-200, #e2e8f0)',
-                  borderRadius: 10, padding: '12px 16px', marginTop: 10,
-                }}>
-                  {titleVal && (
-                    <div style={{
-                      fontSize: '0.78rem', fontWeight: 700, color: 'var(--gray-700, #344054)',
-                      marginBottom: descVal ? 5 : 0,
-                      textTransform: 'uppercase', letterSpacing: '0.05em',
-                    }}>{titleVal}</div>
-                  )}
-                  {descVal && (
-                    <div style={{ fontSize: '0.82rem', color: 'var(--gray-500, #667085)', lineHeight: 1.55 }}>
-                      {descVal}
-                    </div>
-                  )}
-                </div>
-              ) : null;
-
-              return (
-                <div key={idx} style={{
-                  display: 'grid', gridTemplateColumns: '1fr 40px 1fr',
-                  alignItems: 'start', marginBottom: 28,
-                }}>
-                  {/* Left column */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingRight: 20 }}>
-                    {isLeft && <>{banner}{card}</>}
-                  </div>
-                  {/* Dot on spine */}
-                  <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 13, position: 'relative', zIndex: 1 }}>
-                    <div style={{
-                      width: 14, height: 14, borderRadius: '50%',
-                      border: `3px solid ${color}`, background: 'var(--theme-bg-card, #fff)',
-                      flexShrink: 0,
-                    }} />
-                  </div>
-                  {/* Right column */}
-                  <div style={{ paddingLeft: 20 }}>
-                    {!isLeft && <>{banner}{card}</>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
-      case 'table': {
-        return <TableInsight data={displayData} colors={activeColors} />;
-      }
-
-      // ── Horizontal bar — best for 8-20 named categories ──────────────────────
-      case 'horizontal_bar': {
-        const dynH = Math.min(Math.max(displayData.length * 34 + 40, chartHeight), 520);
-        const hbPfx = `hbg-${index ?? 0}`;
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={dynH}>
-            <BarChart
-              data={displayData}
-              layout="vertical"
-              margin={{ top: 4, right: 52, left: 4, bottom: 4 }}
-              onClick={onChartClick}
-              barCategoryGap="22%"
-            >
-              <defs>
-                {visibleDataKeys.map((k, i) => (
-                  <linearGradient key={k} id={`${hbPfx}-${i}`} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={seriesColor(i)} stopOpacity={0.6}/>
-                    <stop offset="100%" stopColor={seriesColor(i)} stopOpacity={1}/>
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} horizontal={false} />
-              <XAxis
-                type="number"
-                tickFormatter={(v) => formatAxisTick(v, dataKeys[0])}
-                tick={{ fontSize: 11, fill: tickColor }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey={xKey}
-                tick={{ fontSize: 11, fill: tickColor }}
-                axisLine={false}
-                tickLine={false}
-                width={130}
-                tickFormatter={(v) => { const s = String(v ?? ''); return s.length > 22 ? s.slice(0, 20) + '…' : s; }}
-              />
-              <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
-              <Legend content={LegendToggle} />
-              {visibleDataKeys.map((k, i) => (
-                <Bar key={k} dataKey={k} fill={`url(#${hbPfx}-${i})`} radius={[0, 6, 6, 0]} maxBarSize={24}>
-                  {displayData.length <= 12 && (
-                    <LabelList
-                      dataKey={k}
-                      position="right"
-                      formatter={(v: any) => typeof v === 'number' ? formatAxisTick(v, k) : ''}
-                      style={{ fontSize: 10, fill: tickColor, fontWeight: 600 }}
-                    />
-                  )}
-                </Bar>
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      // ── Scatter plot — two numeric axes, each row = one dot ──────────────────
-      case 'scatter': {
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight}>
-            <ScatterChart margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
-              <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} />
-              <XAxis
-                type="number"
-                dataKey={xKey}
-                name={prettifyCol(xKey)}
-                tickFormatter={(v) => formatAxisTick(v, xKey)}
-                tick={{ fontSize: 11, fill: tickColor }}
-                axisLine={false}
-                tickLine={false}
-                label={{ value: prettifyCol(xKey), position: 'insideBottom', offset: -12, fontSize: 11, fill: tickColor }}
-              />
-              <YAxis
-                type="number"
-                dataKey={dataKeys[0]}
-                name={prettifyCol(dataKeys[0])}
-                tickFormatter={(v) => formatAxisTick(v, dataKeys[0])}
-                tick={{ fontSize: 11, fill: tickColor }}
-                axisLine={false}
-                tickLine={false}
-                width={60}
-                label={{ value: prettifyCol(dataKeys[0]), angle: -90, position: 'insideLeft', offset: 10, fontSize: 11, fill: tickColor }}
-              />
-              <RTooltip
-                cursor={{ strokeDasharray: '3 3' }}
-                content={({ active, payload }: any) => {
-                  if (!active || !payload?.length) return null;
-                  return (
-                    <div className="chart-tooltip">
-                      {payload.map((p: any, i: number) => (
-                        <div key={i} className="ct-row">
-                          <span className="ct-name">{prettifyCol(p.name || '')}</span>
-                          <span className="ct-value">{formatAxisTick(p.value, p.name)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                }}
-              />
-              <Scatter data={displayData} fill={seriesColor(0)} opacity={0.72} />
-            </ScatterChart>
-          </ResponsiveContainer>
-        );
-      }
-
-      // ── 3D Bar chart (ECharts) ────────────────────────────────────────────────
-      case 'bar3d': {
-        const categories = displayData.map(r => String(r[xKey] ?? ''));
-        const seriesData = dataKeys.map((k, ki) => ({
-          type: 'bar3D' as const,
-          name: prettifyCol(k),
-          data: displayData.map((r, i) => [i, ki, typeof r[k] === 'number' ? r[k] : 0]),
-          shading: 'lambert',
-          itemStyle: { color: activeColors[ki % activeColors.length] + 'dd' },
-          emphasis: { itemStyle: { color: activeColors[ki % activeColors.length] } },
-          label: { show: false },
-        }));
-        const option3dBar = {
-          backgroundColor: 'transparent',
-          tooltip: { trigger: 'item' as const },
-          grid3D: {
-            boxWidth: 200, boxDepth: dataKeys.length * 40 + 20, boxHeight: 80,
-            viewControl: { projection: 'perspective', autoRotate: false, distance: 250, beta: 28, alpha: 18 },
-            light: { main: { intensity: 1.3 }, ambient: { intensity: 0.3 } },
-          },
-          xAxis3D: { type: 'category' as const, data: categories, axisLabel: { fontSize: 10, interval: categories.length > 10 ? Math.ceil(categories.length / 10) - 1 : 0 } },
-          yAxis3D: { type: 'category' as const, data: dataKeys.map(k => prettifyCol(k)), axisLabel: { fontSize: 10 } },
-          zAxis3D: { type: 'value' as const, axisLabel: { fontSize: 10 } },
-          series: seriesData,
-        };
-        return <ReactECharts option={option3dBar} style={{ height: Math.max(chartHeight + 60, 340), width: '100%' }} />;
-      }
-
-      // ── 3D Scatter chart (ECharts) ────────────────────────────────────────────
-      case 'scatter3d': {
-        const k0 = keys[0]; const k1 = keys[1]; const k2 = keys[2] || keys[1];
-        const sc3dData = displayData.map(r => [
-          typeof r[k0] === 'number' ? r[k0] : 0,
-          typeof r[k1] === 'number' ? r[k1] : 0,
-          typeof r[k2] === 'number' ? r[k2] : 0,
-        ]);
-        const option3dScatter = {
-          backgroundColor: 'transparent',
-          tooltip: { formatter: (p: any) => `${prettifyCol(k0)}: ${p.value[0]}<br/>${prettifyCol(k1)}: ${p.value[1]}<br/>${prettifyCol(k2)}: ${p.value[2]}` },
-          grid3D: {
-            viewControl: { autoRotate: false, distance: 200, beta: 30, alpha: 20 },
-            light: { main: { intensity: 1.2 }, ambient: { intensity: 0.3 } },
-          },
-          xAxis3D: { name: prettifyCol(k0), type: 'value' as const, axisLabel: { fontSize: 10 } },
-          yAxis3D: { name: prettifyCol(k1), type: 'value' as const, axisLabel: { fontSize: 10 } },
-          zAxis3D: { name: prettifyCol(k2), type: 'value' as const, axisLabel: { fontSize: 10 } },
-          series: [{
-            type: 'scatter3D' as const,
-            data: sc3dData,
-            symbolSize: 8,
-            itemStyle: { color: activeColors[0], opacity: 0.8 },
-          }],
-        };
-        return <ReactECharts option={option3dScatter} style={{ height: Math.max(chartHeight + 60, 340), width: '100%' }} />;
-      }
-
-      // ── 3D Pie / Donut (ECharts) ──────────────────────────────────────────────
-      case 'pie3d': {
-        const PIE3D_MAX = 8;
-        let pie3dData = displayData;
-        if (displayData.length > PIE3D_MAX) {
-          const sorted = [...displayData].sort((a, b) => (b[dataKeys[0]] || 0) - (a[dataKeys[0]] || 0));
-          const otherVal = sorted.slice(PIE3D_MAX - 1).reduce((s: number, r: any) => s + (typeof r[dataKeys[0]] === 'number' ? r[dataKeys[0]] : 0), 0);
-          pie3dData = [...sorted.slice(0, PIE3D_MAX - 1), { [xKey]: 'Other', [dataKeys[0]]: otherVal }];
-        }
-        const option3dPie = {
-          backgroundColor: 'transparent',
-          tooltip: { trigger: 'item' as const, formatter: '{b}: {c} ({d}%)' },
-          legend: { orient: 'vertical' as const, right: 10, top: 20, textStyle: { fontSize: 11, color: tickColor } },
-          series: [{
-            type: 'pie' as const,
-            radius: ['40%', '70%'],
-            center: ['42%', '52%'],
-            data: pie3dData.map((r: any, i: number) => ({
-              value: typeof r[dataKeys[0]] === 'number' ? r[dataKeys[0]] : 0,
-              name: String(r[xKey] ?? ''),
-              itemStyle: { color: activeColors[i % activeColors.length], shadowBlur: 14, shadowColor: activeColors[i % activeColors.length] + '55', shadowOffsetY: 6 },
-            })),
-            label: { fontSize: 11, formatter: '{b}\n{d}%' },
-            emphasis: { itemStyle: { shadowBlur: 24, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.3)' } },
-          }],
-        };
-        return <ReactECharts option={option3dPie} style={{ height: chartHeight, width: '100%' }} />;
-      }
-
-      // ── Default vertical bar ──────────────────────────────────────────────────
-      default: {
-        const numBars = displayData.length;
-        const hasLongLabels = displayData.some(d => String(d[xKey] ?? '').length > 10);
-        const needsAngle = numBars > 7 || hasLongLabels;
-        const extraBottom = needsAngle ? 60 : 5;
-        const gradPfx = `vbg-${index ?? 0}`;
-        return (
-          <ResponsiveContainer debounce={1} width="100%" height={chartHeight + (needsAngle ? 28 : 0)}>
-            <BarChart
-              data={displayData}
-              margin={{ top: 8, right: 20, left: 0, bottom: extraBottom }}
-              onClick={onChartClick}
-              barCategoryGap="28%"
-            >
-              <defs>
-                {visibleDataKeys.map((k, i) => (
-                  <linearGradient key={k} id={`${gradPfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={seriesColor(i)} stopOpacity={1}/>
-                    <stop offset="100%" stopColor={seriesColor(i)} stopOpacity={0.62}/>
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
-              <XAxis
-                dataKey={xKey}
-                tickFormatter={(v) => {
-                  const s = formatXAxis(v);
-                  return needsAngle && s.length > 14 ? s.slice(0, 12) + '…' : s;
-                }}
-                tick={needsAngle
-                  ? { fontSize: 10, fill: tickColor, angle: -38, textAnchor: 'end', dy: 4 }
-                  : { fontSize: 11, fill: tickColor }
-                }
-                axisLine={false}
-                tickLine={false}
-                interval={numBars > 20 ? Math.floor(numBars / 15) : 0}
-              />
-              <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
-              <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
-              <Legend content={LegendToggle} />
-              {visibleDataKeys.map((k, i) => (
-                <Bar key={k} dataKey={k} fill={`url(#${gradPfx}-${i})`} radius={[6, 6, 0, 0]} maxBarSize={52}>
-                  {numBars <= 8 && dataKeys.length === 1 && (
-                    <LabelList
-                      dataKey={k}
-                      position="top"
-                      formatter={(v: any) => typeof v === 'number' ? formatAxisTick(v, k) : ''}
-                      style={{ fontSize: 10, fill: tickColor, fontWeight: 600 }}
-                    />
-                  )}
-                </Bar>
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        );
-      }
-    }
+    return (
+      <ChartRenderer
+        spec={{
+          chart_type: chartType,
+          data: displayData,
+          xKey,
+          dataKeys,
+          colors: activeColors,
+          height: chartHeight,
+          index,
+          isPoster,
+          gridStroke: isPoster ? 'transparent' : '#f1f5f9',
+          gridDash: isPoster ? '0' : '3 3',
+          hiddenSeries,
+          onToggleSeries: toggleSeries,
+          onDrillDown,
+          anomaly_info: card.anomaly_info,
+          matrix_config: card.matrix_config,
+          _ts_config: (card as any)._ts_config,
+          _pareto_config: (card as any)._pareto_config,
+        }}
+      />
+    );
   };
 
   return (
@@ -1696,7 +561,14 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
                   { key: 'pie3d', icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>🥧</span>, label: '3D Pie' },
                   { key: 'scatter3d', icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>✦</span>, label: '3D Scatter' },
                 ] as const;
-                const allTypes = [...CHART_TYPES_2D, ...CHART_TYPES_3D];
+                const CHART_TYPES_D3 = [
+                  { key: 'treemap',  icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>▦</span>, label: 'Treemap' },
+                  { key: 'sunburst', icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>☀</span>, label: 'Sunburst' },
+                  { key: 'sankey',   icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>⇉</span>, label: 'Sankey' },
+                  { key: 'bump',     icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>↕</span>, label: 'Ranking' },
+                  { key: 'force',    icon: <span style={{fontSize:9,fontWeight:800,lineHeight:1}}>⬡</span>, label: 'Network' },
+                ] as const;
+                const allTypes = [...CHART_TYPES_2D, ...CHART_TYPES_3D, ...CHART_TYPES_D3];
                 const current = allTypes.find(t => t.key === chartType) ?? { icon: <BarChart2 size={13}/>, label: 'Chart' };
                 const isModified = chartType !== card.chart_type;
                 return (
@@ -1737,6 +609,20 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
                         <div className="ctm-section-label ctm-section-3d">3D</div>
                         <div className="ctm-grid">
                           {CHART_TYPES_3D.map(t => (
+                            <button
+                              key={t.key}
+                              className={`ctm-item ${chartType === t.key ? 'active' : ''}`}
+                              onClick={() => { setChartType(t.key); onUpdate?.({ chart_type: t.key }); setShowTypeMenu(false); }}
+                              title={t.label}
+                            >
+                              <span className="ctm-icon">{t.icon}</span>
+                              <span className="ctm-label">{t.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="ctm-section-label" style={{ color: '#10b981' }}>D3</div>
+                        <div className="ctm-grid">
+                          {CHART_TYPES_D3.map(t => (
                             <button
                               key={t.key}
                               className={`ctm-item ${chartType === t.key ? 'active' : ''}`}

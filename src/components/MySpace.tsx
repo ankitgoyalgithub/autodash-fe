@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   Trash2, Edit3, ChevronLeft, ChevronRight,
   Table2, FileSpreadsheet, Plus, Check, X, Loader2,
-  Database, BarChart2, Info, RefreshCw, Search,
+  Database, BarChart2, Info, RefreshCw, Search, Eye,
 } from 'lucide-react';
 import axios from 'axios';
 import { BASE } from './constants';
@@ -215,11 +215,107 @@ function TableViewer({ table, onClose, onDelete, onUseAsDatasource }: {
   );
 }
 
+// ─── Data Preview Panel (slide-over, shows first rows without leaving page) ───
+
+function DataPreviewPanel({ table, onClose, onOpenFull }: {
+  table: MSTable;
+  onClose: () => void;
+  onOpenFull: () => void;
+}) {
+  const [rows, setRows] = useState<Record<string, any>[]>([]);
+  const [cols, setCols] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    axios.get(`${BASE}/myspace/${table.id}/data/?page=1&page_size=10`)
+      .then(r => {
+        setCols(r.data.columns.filter((c: string) => c !== '_ms_id'));
+        setRows(r.data.rows);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [table.id]);
+
+  return (
+    <div className="ms-preview-overlay" onClick={onClose}>
+      <div className="ms-preview-panel" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="ms-preview-header">
+          <div className="ms-preview-title">
+            <FileSpreadsheet size={16} style={{ color: '#7c3aed' }} />
+            <span>{table.name}</span>
+          </div>
+          <div className="ms-preview-meta">
+            <span className="ms-badge ms-badge--blue">{table.row_count.toLocaleString()} rows</span>
+            <span className="ms-badge ms-badge--gray">{table.columns.length} cols</span>
+            <span className="ms-badge ms-badge--gray">{fmtSize(table.size_bytes)}</span>
+          </div>
+          <div className="ms-preview-actions">
+            <button className="ms-btn ms-btn--use" onClick={onOpenFull}>
+              <Table2 size={13} /> Open full view
+            </button>
+            <button className="ms-icon-btn" onClick={onClose} title="Close"><X size={15}/></button>
+          </div>
+        </div>
+
+        {/* Columns overview */}
+        <div className="ms-preview-cols">
+          {table.columns.map(col => (
+            <div key={col.name} className="ms-preview-col-chip">
+              <span className="ms-preview-col-name">{col.display_name}</span>
+              <span className="ms-preview-col-type">{col.pg_type}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Data sample */}
+        <div className="ms-preview-label">Preview · first 10 rows</div>
+        <div className="ms-preview-table-wrap">
+          {loading ? (
+            <div className="ms-loading"><Loader2 size={20} className="spin" /></div>
+          ) : (
+            <table className="ms-table ms-preview-table">
+              <thead>
+                <tr>
+                  {cols.map(c => (
+                    <th key={c}>{table.columns.find(col => col.name === c)?.display_name ?? c}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i}>
+                    {cols.map(c => (
+                      <td key={c}>
+                        {row[c] === null || row[c] === undefined
+                          ? <span className="ms-null">null</span>
+                          : String(row[c])}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        {!loading && table.row_count > 10 && (
+          <div className="ms-preview-footer">
+            Showing 10 of {table.row_count.toLocaleString()} rows ·{' '}
+            <button className="ms-preview-footer-link" onClick={onOpenFull}>Open full table →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Table card ───────────────────────────────────────────────────────────────
 
-function TableCard({ table, onView, onDelete, onRename }: {
+const TableCard = memo(function TableCard({ table, onView, onPreview, onDelete, onRename }: {
   table: MSTable;
   onView: () => void;
+  onPreview: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
 }) {
@@ -256,12 +352,13 @@ function TableCard({ table, onView, onDelete, onRename }: {
         <div className="ms-card-file">{table.file_name} · {fmtDate(table.created_at)}</div>
       </div>
       <div className="ms-card-actions" onClick={e => e.stopPropagation()}>
+        <button className="ms-icon-btn" onClick={onPreview} title="Quick preview"><Eye size={14}/></button>
         <button className="ms-icon-btn" onClick={() => setEditing(true)} title="Rename"><Edit3 size={14}/></button>
         <button className="ms-icon-btn ms-icon-btn--danger" onClick={onDelete} title="Delete table"><Trash2 size={14}/></button>
       </div>
     </div>
   );
-}
+});
 
 // ─── Main MySpace page ────────────────────────────────────────────────────────
 
@@ -272,6 +369,7 @@ export function MySpace({ onNavigateToProjects }: { onNavigateToProjects?: () =>
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [activeTable, setActiveTable] = useState<MSTable | null>(null);
+  const [previewTable, setPreviewTable] = useState<MSTable | null>(null);
 
   const fetchAll = async () => {
     try {
@@ -400,6 +498,7 @@ export function MySpace({ onNavigateToProjects }: { onNavigateToProjects?: () =>
                 key={t.id}
                 table={t}
                 onView={() => setActiveTable(t)}
+                onPreview={() => setPreviewTable(t)}
                 onDelete={() => handleDelete(t)}
                 onRename={(name) => handleRename(t, name)}
               />
@@ -407,6 +506,14 @@ export function MySpace({ onNavigateToProjects }: { onNavigateToProjects?: () =>
           </div>
         </div>
       ) : null}
+
+      {previewTable && (
+        <DataPreviewPanel
+          table={previewTable}
+          onClose={() => setPreviewTable(null)}
+          onOpenFull={() => { setActiveTable(previewTable); setPreviewTable(null); }}
+        />
+      )}
     </div>
   );
 }

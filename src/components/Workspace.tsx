@@ -9,7 +9,7 @@ import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
-  Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown,
+  Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown, Check,
   Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users, AlertTriangle,
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -503,14 +503,17 @@ const QUICK_AGENTS = [
 
 function WorkspaceAgentPicker({
   anchorRef,
-  onSelect,
+  selected,
+  onToggle,
   onClose,
 }: {
   anchorRef: React.RefObject<HTMLButtonElement | null>;
-  onSelect: (a: { id: string; name: string; emoji: string; color: string }) => void;
+  selected: { id: string; name: string; emoji: string; color: string }[];
+  onToggle: (a: { id: string; name: string; emoji: string; color: string }) => void;
   onClose: () => void;
 }) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const selectedIds = new Set(selected.map(a => a.id));
 
   useEffect(() => {
     if (anchorRef.current) {
@@ -531,18 +534,41 @@ function WorkspaceAgentPicker({
       className="ws-agent-picker"
       style={{ position: 'fixed', top: pos.top, left: pos.left, transform: 'translateY(-100%)' }}
     >
-      <div className="ws-agent-picker-header">Analysis Focus</div>
-      <div className="ws-agent-picker-list">
-        {QUICK_AGENTS.map(a => (
-          <button key={a.id} className="ws-agent-picker-item" onClick={() => onSelect(a)}>
-            <span className="ws-agent-picker-emoji">{a.emoji}</span>
-            <div>
-              <div className="ws-agent-picker-name">{a.name}</div>
-              <div className="ws-agent-picker-cat" style={{ color: a.color }}>{a.category}</div>
-            </div>
-          </button>
-        ))}
+      <div className="ws-agent-picker-header">
+        Analysis Focus
+        {selected.length > 0 && <span className="ws-agent-picker-count">{selected.length} selected</span>}
       </div>
+      <div className="ws-agent-picker-list">
+        {QUICK_AGENTS.map(a => {
+          const isSelected = selectedIds.has(a.id);
+          return (
+            <button
+              key={a.id}
+              className={`ws-agent-picker-item${isSelected ? ' selected' : ''}`}
+              style={isSelected ? { background: a.color + '12' } : {}}
+              onClick={() => onToggle(a)}
+            >
+              <span className="ws-agent-picker-emoji">{a.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <div className="ws-agent-picker-name">{a.name}</div>
+                <div className="ws-agent-picker-cat" style={{ color: a.color }}>{a.category}</div>
+              </div>
+              {isSelected && (
+                <div className="ws-agent-picker-check" style={{ color: a.color }}>
+                  <Check size={13} />
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {selected.length > 0 && (
+        <div className="ws-agent-picker-footer">
+          <button className="ws-agent-picker-clear" onClick={() => { selected.forEach(a => onToggle(a)); }}>
+            Clear all
+          </button>
+        </div>
+      )}
     </div>,
     document.body
   );
@@ -979,7 +1005,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const [threadType, setThreadType] = useState<'dashboard' | 'infographic' | null>(null);
   const [pendingThreadType, setPendingThreadType] = useState<'dashboard' | 'infographic' | null>(null);
   const [loading, setLoading] = useState(false);
-  const [query, setQuery] = useState('');
+  const [isQueryEmpty, setIsQueryEmpty] = useState(true);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -996,11 +1022,12 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const [optimisticPrompt, setOptimisticPrompt] = useState<string | null>(null);
   const [posterTheme, setPosterTheme] = useState<'light' | 'dark' | 'branded' | 'newspaper'>('light');
   const [infographicTemplate] = useState<string | null>(null);
-  const [activeAgent, setActiveAgent] = useState<{ id: string; name: string; emoji: string; color: string } | null>(null);
+  const [activeAgents, setActiveAgents] = useState<{ id: string; name: string; emoji: string; color: string }[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
   const [dashboardFilters, setDashboardFilters] = useState<DashboardFilter[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [timeframeFilter, setTimeframeFilter] = useState<number | null>(null); // days; null = All Time
   // HITL state
   const [pendingHITL, setPendingHITL] = useState<HITLRequest | null>(null);
   const [hitlResponses, setHitlResponses] = useState<Record<string, any>>({});
@@ -1066,6 +1093,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     }
     prevThreadIdRef.current = currentThreadId ?? null;
     setGlobalFilters({});
+    setTimeframeFilter(null);
   }, [currentThreadId, fetchThreadHistory]);
 
   // Persist results_data to backend after any change (debounced 1.5s)
@@ -1109,8 +1137,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   };
 
   const handleSubmit = async (promptOverride?: string, hitlResponsesOverride?: Record<string, any>) => {
-    if (!promptOverride && !query.trim() && uploads.length === 0) return;
-    const promptText = promptOverride || query.trim() || 'Build dashboard from the uploaded reference images.';
+    const rawQuery = textareaRef.current?.value.trim() ?? '';
+    if (!promptOverride && !rawQuery && uploads.length === 0) return;
+    const promptText = promptOverride || rawQuery || 'Build dashboard from the uploaded reference images.';
     const imgContexts = uploads.map(u => u.image_context).filter(Boolean);
     const imgUrls = uploads.map(u => u.url);
 
@@ -1118,7 +1147,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     const currentHITLResponses = { ...persistedHitlResponses.current, ...(hitlResponsesOverride ?? hitlResponses) };
 
     setOptimisticPrompt(promptText);
-    setLoading(true); setError(''); setQuery(''); setUploads([]);
+    if (textareaRef.current) { textareaRef.current.value = ''; textareaRef.current.style.height = 'auto'; }
+    setIsQueryEmpty(true);
+    setLoading(true); setError(''); setUploads([]);
 
     try {
       const r = await axios.post(`${BASE}/query/`, {
@@ -1129,7 +1160,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         reference_images: imgUrls,
         existing_charts: activeEntry?.results_data || [],
         hitl_responses: currentHITLResponses,
-        specialist_agent: activeAgent?.id || null,
+        specialist_agents: activeAgents.map(a => a.id),
       });
 
       const newThreadId = r.data.thread_id;
@@ -1198,11 +1229,13 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   };
 
   const handleInfographicSubmit = async (promptOverride?: string) => {
-    const promptText = promptOverride || query.trim();
+    const promptText = promptOverride || textareaRef.current?.value.trim() || '';
     if (!promptText) return;
 
     setOptimisticPrompt(promptText);
-    setLoading(true); setError(''); setQuery('');
+    if (textareaRef.current) { textareaRef.current.value = ''; textareaRef.current.style.height = 'auto'; }
+    setIsQueryEmpty(true);
+    setLoading(true); setError('');
     if (!threadType) setThreadType('infographic');
 
     try {
@@ -1395,7 +1428,20 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
 
   const handleClearAllFilters = async () => {
     setGlobalFilters({});
+    setTimeframeFilter(null);
     await applyFilters({});
+  };
+
+  const handleTimeframeChange = (days: number | null) => {
+    setTimeframeFilter(days);
+    // Inject __timeframe into globalFilters so InsightCard picks it up client-side
+    const newFilters = { ...globalFilters };
+    if (days === null) {
+      delete newFilters['__timeframe'];
+    } else {
+      newFilters['__timeframe'] = days;
+    }
+    setGlobalFilters(newFilters);
   };
 
   const handleHITLAnswer = async (questionId: string, answer: any) => {
@@ -1492,7 +1538,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
             {activeSideTab === 'templates' && (
               <div className="template-mini-grid">
                 {TEMPLATES.map(t => (
-                  <button key={t.id} className="template-mini-card" onClick={() => setQuery(t.prompt)}>
+                  <button key={t.id} className="template-mini-card" onClick={() => { if (textareaRef.current) { textareaRef.current.value = t.prompt; textareaRef.current.focus(); setIsQueryEmpty(!t.prompt.trim()); } }}>
                     <span>{t.emoji}</span>
                     <small>{t.name}</small>
                   </button>
@@ -1720,16 +1766,21 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 onClick={() => setActiveEntry(entry)}
               >
                 <div className="ai-avatar"><img src={logo} alt="AI"/></div>
-                <div className="charts-wrap">
+                <div className="ai-bubble">
                   {entry.narrative && (
                     <p className="ai-narrative">{entry.narrative}</p>
                   )}
-                  <div className="ai-intro">
-                    <Sparkles size={14}/>
-                    {entry.infographic_html
-                      ? <span>Infographic ready · click to view</span>
-                      : <span>{entry.results_data?.length || 0} charts · click to view</span>
-                    }
+                  <div className="ai-chart-badge">
+                    <div className="ai-chart-badge-left">
+                      <Sparkles size={13} className="ai-chart-badge-icon"/>
+                      <div>
+                        <div className="ai-chart-count">
+                          {entry.infographic_html ? 'Infographic ready' : `${entry.results_data?.length || 0} chart${(entry.results_data?.length || 0) !== 1 ? 's' : ''} ready`}
+                        </div>
+                        <div className="ai-chart-sub">Click to view in workspace</div>
+                      </div>
+                    </div>
+                    <ChevronRight size={14} className="ai-chart-chevron"/>
                   </div>
                 </div>
               </button>
@@ -1787,16 +1838,18 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               {uploading && <div className="upload-chip loading-chip"><Loader2 size={15} className="spin"/></div>}
             </div>
           )}
-          {/* ── Agent Focus chip ── */}
-          {activeAgent && (
+          {/* ── Agent Focus chips ── */}
+          {activeAgents.length > 0 && (
             <div className="comp-agent-row">
-              <div className="comp-agent-chip" style={{ borderColor: activeAgent.color + '60', background: activeAgent.color + '10' }}>
-                <span>{activeAgent.emoji}</span>
-                <span style={{ color: activeAgent.color, fontWeight: 600 }}>{activeAgent.name}</span>
-                <button onClick={() => setActiveAgent(null)} title="Remove focus">
-                  <X size={11} />
-                </button>
-              </div>
+              {activeAgents.map(a => (
+                <div key={a.id} className="comp-agent-chip" style={{ borderColor: a.color + '60', background: a.color + '10' }}>
+                  <span>{a.emoji}</span>
+                  <span style={{ color: a.color, fontWeight: 600 }}>{a.name}</span>
+                  <button onClick={() => setActiveAgents(prev => prev.filter(x => x.id !== a.id))} title="Remove focus">
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
@@ -1805,9 +1858,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               ref={textareaRef}
               className="comp-textarea"
               placeholder="Ask AI to build charts, refine existing ones, or add new insights…"
-              value={query}
+              defaultValue=""
               onChange={e => {
-                setQuery(e.target.value);
+                setIsQueryEmpty(!e.target.value.trim());
                 e.target.style.height = 'auto';
                 e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
               }}
@@ -1824,15 +1877,25 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 <button
                   ref={agentBtnRef}
                   className="comp-icon"
-                  title="Set analysis focus agent"
+                  title="Set analysis focus agents"
                   onClick={() => setShowAgentPicker(p => !p)}
-                  style={activeAgent ? { color: activeAgent.color } : {}}
+                  style={activeAgents.length > 0 ? { color: activeAgents[0].color } : {}}
                 >
                   <Bot size={16} />
+                  {activeAgents.length > 0 && <span className="comp-icon-badge">{activeAgents.length}</span>}
                 </button>
-                {showAgentPicker && <WorkspaceAgentPicker anchorRef={agentBtnRef} onSelect={a => { setActiveAgent(a); setShowAgentPicker(false); }} onClose={() => setShowAgentPicker(false)} />}
+                {showAgentPicker && (
+                  <WorkspaceAgentPicker
+                    anchorRef={agentBtnRef}
+                    selected={activeAgents}
+                    onToggle={a => setActiveAgents(prev =>
+                      prev.some(x => x.id === a.id) ? prev.filter(x => x.id !== a.id) : [...prev, a]
+                    )}
+                    onClose={() => setShowAgentPicker(false)}
+                  />
+                )}
               </div>
-              <button className="comp-send" style={{ background: project.color }} onClick={() => effectiveThreadType === 'infographic' ? handleInfographicSubmit() : handleSubmit()} disabled={loading || (!query.trim() && !uploads.length)}>
+              <button className="comp-send" style={{ background: project.color }} onClick={() => effectiveThreadType === 'infographic' ? handleInfographicSubmit() : handleSubmit()} disabled={loading || (isQueryEmpty && !uploads.length)}>
                 {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
               </button>
             </div>
@@ -1990,12 +2053,34 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
             </div>
           )}
 
-          {activeEntry && dashboardFilters.length > 0 && (
+          {activeEntry && (
             <div className="global-filter-bar">
               <div className="gf-label">
                 <Filter size={13}/>
                 {filterLoading ? <Loader2 size={11} className="spin"/> : 'Filters'}
               </div>
+              {/* Always-visible timeframe filter */}
+              <div className="gf-group">
+                <span className="gf-col-name">Timeframe</span>
+                <div className="gf-chips">
+                  {([
+                    { label: 'All', days: null },
+                    { label: '7D', days: 7 },
+                    { label: '30D', days: 30 },
+                    { label: '90D', days: 90 },
+                    { label: '6M', days: 180 },
+                    { label: 'YTD', days: Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000) },
+                    { label: '1Y', days: 365 },
+                  ] as { label: string; days: number | null }[]).map(({ label, days }) => (
+                    <button
+                      key={label}
+                      className={`gf-chip ${timeframeFilter === days ? 'active' : ''}`}
+                      onClick={() => handleTimeframeChange(days)}
+                    >{label}</button>
+                  ))}
+                </div>
+              </div>
+              {/* Dynamic dimension filters from backend */}
               {dashboardFilters.map(f => (
                 <div key={f.column} className="gf-group">
                   <span className="gf-col-name">{f.label || f.column.replace(/_/g, ' ')}</span>
@@ -2027,7 +2112,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   )}
                 </div>
               ))}
-              {Object.values(globalFilters).some(v => v !== null) && (
+              {(timeframeFilter !== null || Object.entries(globalFilters).some(([k, v]) => k !== '__timeframe' && v !== null)) && (
                 <button className="gf-clear" onClick={handleClearAllFilters}>
                   Clear all
                 </button>

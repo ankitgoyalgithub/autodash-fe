@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown, Sparkles, MoreHorizontal, Pencil, Trash2, AlertTriangle, HardDrive } from 'lucide-react';
 import axios from 'axios';
 import type { Datasource, Project } from '../App';
@@ -282,7 +282,7 @@ function ThumbMiniLine({ color }: { color: string }) {
   );
 }
 
-function ProjectThumbCard({ p, onOpen, onEdit, onDelete }: {
+const ProjectThumbCard = memo(function ProjectThumbCard({ p, onOpen, onEdit, onDelete }: {
   p: Project;
   onOpen: () => void;
   onEdit: () => void;
@@ -373,7 +373,7 @@ function ProjectThumbCard({ p, onOpen, onEdit, onDelete }: {
       </div>
     </div>
   );
-}
+});
 
 // ─── Edit Project Modal ───────────────────────────────────────────────────────
 
@@ -483,6 +483,19 @@ function DeleteProjectModal({ project, onClose, onConfirm }: {
   );
 }
 
+// Stable-ref wrapper so memo on ProjectThumbCard is never broken by inline arrow functions in map
+const MemoedCard = memo(function MemoedCard({ p, onOpen, onSetEdit, onSetDelete }: {
+  p: Project;
+  onOpen: (p: Project) => void;
+  onSetEdit: (p: Project) => void;
+  onSetDelete: (p: Project) => void;
+}) {
+  const handleOpen = useCallback(() => onOpen(p), [p, onOpen]);
+  const handleEdit = useCallback(() => onSetEdit(p), [p, onSetEdit]);
+  const handleDelete = useCallback(() => onSetDelete(p), [p, onSetDelete]);
+  return <ProjectThumbCard p={p} onOpen={handleOpen} onEdit={handleEdit} onDelete={handleDelete} />;
+});
+
 // ─── Projects Home ────────────────────────────────────────────────────────────
 
 export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onApplied, onDelete, onEdit }: {
@@ -550,11 +563,7 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
             <h2 className="canva-section-title">Recents</h2>
             <div className="canva-recents-row">
               {recents.map(p => (
-                <ProjectThumbCard key={p.id} p={p}
-                  onOpen={() => onOpen(p)}
-                  onEdit={() => setEditingProject(p)}
-                  onDelete={() => setDeletingProject(p)}
-                />
+                <MemoedCard key={p.id} p={p} onOpen={onOpen} onSetEdit={setEditingProject} onSetDelete={setDeletingProject} />
               ))}
             </div>
           </section>
@@ -582,11 +591,7 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
                 </button>
               )}
               {filtered.map(p => (
-                <ProjectThumbCard key={p.id} p={p}
-                  onOpen={() => onOpen(p)}
-                  onEdit={() => setEditingProject(p)}
-                  onDelete={() => setDeletingProject(p)}
-                />
+                <MemoedCard key={p.id} p={p} onOpen={onOpen} onSetEdit={setEditingProject} onSetDelete={setDeletingProject} />
               ))}
             </div>
           )}

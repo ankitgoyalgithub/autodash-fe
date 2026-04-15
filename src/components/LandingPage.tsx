@@ -1,4 +1,77 @@
 import { useEffect, useRef, useState } from 'react';
+import { ArrowUpRight } from 'lucide-react';
+
+// ── How it Works — Process Icons ─────────────────────────────────────────────
+
+function ConnectIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <ellipse cx="12" cy="6" rx="7" ry="2.5" fill="#3b82f6"/>
+      <path d="M5 6v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5V6c0 1.38-3.13 2.5-7 2.5S5 7.38 5 6z" fill="#60a5fa"/>
+      <path d="M5 10v4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5v-4c0 1.38-3.13 2.5-7 2.5S5 11.38 5 10z" fill="#93c5fd"/>
+      <circle cx="18" cy="19" r="3" fill="#1d4ed8"/>
+      <path d="M15.5 19h-3" stroke="#93c5fd" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M18 16.5v-2" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function AskIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8l-4 3V6a2 2 0 0 1 2-2z" fill="#7c3aed"/>
+      <rect x="7" y="8" width="6" height="1.5" rx="0.75" fill="#ddd6fe"/>
+      <rect x="7" y="11" width="10" height="1.5" rx="0.75" fill="#ddd6fe" opacity="0.7"/>
+      <circle cx="19" cy="5" r="2.5" fill="#f59e0b"/>
+      <path d="M18.3 4.5l.7.7 1.2-1.2" stroke="white" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function BuildIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="14" width="4" height="7" rx="1.5" fill="#f97316"/>
+      <rect x="10" y="9" width="4" height="12" rx="1.5" fill="#fbbf24"/>
+      <rect x="17" y="11" width="4" height="10" rx="1.5" fill="#f59e0b"/>
+      <path d="M5 12L12 7L21 9.5" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="19" cy="4" r="2.5" fill="#a78bfa"/>
+      <path d="M17.5 5.5l3-3M19 3.5l.5-.5" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function DeployIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="13" width="8" height="8" rx="2" fill="#10b981"/>
+      <rect x="13" y="3" width="8" height="8" rx="2" fill="#34d399"/>
+      <path d="M11 7H7a2 2 0 0 0-2 2v2" stroke="#059669" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M13 17h4a2 2 0 0 0 2-2v-2" stroke="#059669" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M8 16l-2 2 2 2M16 8l2-2-2-2" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// ── ProcessCard ───────────────────────────────────────────────────────────────
+
+interface ProcessCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+function ProcessCard({ icon, title, description }: ProcessCardProps) {
+  return (
+    <div className="process-card">
+      <div className="process-card-line-v" aria-hidden="true" />
+      <div className="process-card-line-h" aria-hidden="true" />
+      <div className="process-icon-wrap">{icon}</div>
+      <h3 className="process-card-title">{title}</h3>
+      <p className="process-card-desc">{description}</p>
+    </div>
+  );
+}
 
 const FAQ_ITEMS = [
   {
@@ -53,7 +126,10 @@ export default function LandingPage() {
       <nav className="lp-nav" role="navigation" aria-label="Main navigation">
         <div className="lp-nav-inner">
           <a href="/" className="lp-nav-brand" aria-label="LucentReport home">
-            <img src="/app-icon.png" alt="LucentReport" className="lp-nav-brand-img" />
+            <img src="/app-icon.png" alt="" className="lp-nav-logo" />
+            <span className="lp-nav-name">
+              <span className="lp-nav-name-lucent">Lucent</span><span className="lp-nav-name-report">Report</span>
+            </span>
           </a>
           <div className="lp-nav-links">
             <a href="#features" className="lp-nav-link">Features</a>
@@ -62,7 +138,7 @@ export default function LandingPage() {
             <a href="#faq" className="lp-nav-link">FAQ</a>
           </div>
           <a href="/login" className="lp-signin-btn" aria-label="Sign in to LucentReport">
-            Sign in <span className="lp-signin-arrow" aria-hidden="true">→</span>
+            Sign in
           </a>
         </div>
       </nav>
@@ -275,42 +351,46 @@ export default function LandingPage() {
         </section>
 
         {/* ── How it works ── */}
-        <section className="lp-section lp-how-section" id="how" aria-labelledby="how-heading">
-          <div className="lp-section-tag">How it works</div>
-          <h2 className="lp-section-h2" id="how-heading">
-            From any data source to dashboard<br/>in three steps
-          </h2>
+        <section className="lp-process-section" id="how" aria-labelledby="how-heading">
+          <div className="lp-process-inner">
+            {/* Left */}
+            <div className="lp-process-left">
+              <span className="lp-section-tag">How it works</span>
+              <h2 className="lp-process-h2" id="how-heading">
+                From raw data to live dashboard in minutes
+              </h2>
+              <p className="lp-process-desc">
+                No SQL knowledge, no BI training, no setup headaches. Just connect your data, ask a question, and LucentReport's AI pipeline handles everything from query to insight.
+              </p>
+              <a href="/login" className="lp-process-cta">
+                Get started free <ArrowUpRight size={18} />
+              </a>
+            </div>
 
-          <ol className="lp-steps" aria-label="Steps to build a dashboard">
-            {[
-              {
-                num: '01',
-                icon: '🔌',
-                title: 'Connect your data source',
-                desc: 'Add your connection: Postgres, Snowflake, Salesforce, S3, Google Drive, BigQuery, MySQL, and more. LucentReport automatically discovers your schema, tables, relationships, and data types with no manual configuration needed.',
-              },
-              {
-                num: '02',
-                icon: '💬',
-                title: 'Ask in plain English',
-                desc: 'Type naturally: "Show monthly revenue by product category" or "Build a CEO dashboard" and watch the AI pipeline plan, write SQL, execute queries, and render charts.',
-              },
-              {
-                num: '03',
-                icon: '✨',
-                title: 'Explore, refine, and deploy',
-                desc: 'Refine charts, apply themes, drill into any data point, run advanced analytics, and deploy a live public dashboard link for stakeholders in one click.',
-              },
-            ].map((s, i) => (
-              <li key={s.num} className="lp-step">
-                <div className="lp-step-num" aria-hidden="true">{s.num}</div>
-                <div className="lp-step-icon" aria-hidden="true">{s.icon}</div>
-                <h3 className="lp-step-title">{s.title}</h3>
-                <p className="lp-step-desc">{s.desc}</p>
-                {i < 2 && <div className="lp-step-connector" aria-hidden="true" />}
-              </li>
-            ))}
-          </ol>
+            {/* Right — 2×2 grid */}
+            <div className="lp-process-grid">
+              <ProcessCard
+                icon={<ConnectIcon />}
+                title="Connect your datasource"
+                description="Add Postgres, Snowflake, BigQuery, MySQL, Google Sheets, and more. LucentReport auto-discovers your schema and relationships instantly."
+              />
+              <ProcessCard
+                icon={<AskIcon />}
+                title="Ask in plain English"
+                description='Type naturally — "Show monthly revenue by region" — and the AI pipeline plans, writes SQL, and executes queries on your live data.'
+              />
+              <ProcessCard
+                icon={<BuildIcon />}
+                title="AI builds your dashboard"
+                description="Charts, metrics, and insights are generated automatically. The multi-agent AI picks the right visualization for every query result."
+              />
+              <ProcessCard
+                icon={<DeployIcon />}
+                title="Share and deploy"
+                description="Apply your brand kit, share a live public link, schedule email reports, or embed dashboards — all in one click."
+              />
+            </div>
+          </div>
         </section>
 
         {/* ── Advanced Analytics ── */}
@@ -447,7 +527,10 @@ export default function LandingPage() {
       <footer className="lp-footer" role="contentinfo">
         <div className="lp-footer-inner">
           <a href="/" className="lp-footer-brand" aria-label="LucentReport home">
-            <img src="/app-icon.png" alt="LucentReport" className="lp-footer-brand-img" loading="lazy" />
+            <img src="/app-icon.png" alt="" className="lp-nav-logo" />
+            <span className="lp-nav-name" style={{ color: '#e2e8f0' }}>
+              <span className="lp-nav-name-lucent">Lucent</span><span style={{ WebkitTextFillColor: '#e2e8f0', color: '#e2e8f0' }}>Report</span>
+            </span>
           </a>
           <nav aria-label="Footer navigation" className="lp-footer-nav">
             <a href="#features" className="lp-footer-link">Features</a>

@@ -36,6 +36,7 @@ import { BASE, THEMES, FONTS, PALETTES, TEMPLATES } from './constants';
 import { getBrandPaletteColors } from '../utils/brandPalette';
 import { InsightCard } from './InsightCard';
 import { ShareProjectModal } from './ShareProjectModal';
+import ExportModal from './ExportModal';
 
 // ─── Draggable Cards Grid (default layout only) ───────────────────────────────
 // This component is ONLY used for grid/masonry/single layout.
@@ -1024,6 +1025,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const [infographicTemplate] = useState<string | null>(null);
   const [activeAgents, setActiveAgents] = useState<{ id: string; name: string; emoji: string; color: string }[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
   const [dashboardFilters, setDashboardFilters] = useState<DashboardFilter[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
@@ -1968,11 +1970,10 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                     </button>
                     <button
                       className="dp-icon-btn"
-                      onClick={handleExportPDF}
-                      disabled={exportingPdf}
-                      title="Export dashboard as PDF"
+                      onClick={() => setShowExportModal(true)}
+                      title="Export dashboard (PDF / PPTX / PNG)"
                     >
-                      {exportingPdf ? <Loader2 size={14} className="spin"/> : <Download size={14}/>}
+                      <Download size={14}/>
                     </button>
                   </>
                 )}
@@ -2207,6 +2208,17 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           currentUser={currentUser}
           onClose={() => setShowShare(false)}
           onProjectUpdate={p => { onProjectUpdate?.(p); }}
+        />
+      )}
+
+      {showExportModal && activeEntry && (
+        <ExportModal
+          dashboardId={activeEntry.id}
+          projectId={project.id}
+          title={activeEntry.query}
+          palette={palette}
+          theme={theme.id}
+          onClose={() => setShowExportModal(false)}
         />
       )}
     </div>

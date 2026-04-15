@@ -1,0 +1,169 @@
+// RenderView.tsx
+// Headless dashboard render route: /render/:token
+// Visited by Playwright during export — no sidebar, no chrome, just charts.
+// Adds data-export-ready="true" once all InsightCards have mounted.
+
+import { useEffect, useState, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import { BASE, PALETTES } from './constants';
+import { InsightCard } from './InsightCard';
+import type { DashboardCard } from '../App';
+
+interface RenderData {
+  title: string;
+  query: string;
+  results_data: DashboardCard[];
+  options: {
+    palette?: string;
+    theme?: string;
+    layout?: string;
+    colors?: string[];
+  };
+  format: string;
+}
+
+// How many cards to put on each "slide" (screenshot panel).
+// Playwright screenshots every .export-panel element.
+const CARDS_PER_PANEL = 4;
+
+export default function RenderView() {
+  const { token } = useParams<{ token: string }>();
+  const [data, setData]   = useState<RenderData | null>(null);
+  const [error, setError] = useState('');
+  const readyRef = useRef(false);
+
+  useEffect(() => {
+    if (!token) return;
+    axios.get(`${BASE}/export/render-data/${token}/`)
+      .then(r => setData(r.data))
+      .catch(() => setError('Failed to load render data'));
+  }, [token]);
+
+  // Signal Playwright that charts are ready
+  useEffect(() => {
+    if (!data || readyRef.current) return;
+    // Give Recharts / D3 one animation frame to paint
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document.body.setAttribute('data-export-ready', 'true');
+        readyRef.current = true;
+      }, 1200); // 1.2 s — enough for chart animations to settle
+    });
+  }, [data]);
+
+  if (error) {
+    return (
+      <div style={{ padding: 40, fontFamily: 'Inter, sans-serif', color: '#ef4444' }}>
+        {error}
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div style={{ padding: 40, fontFamily: 'Inter, sans-serif', color: '#94a3b8' }}>
+        Loading…
+      </div>
+    );
+  }
+
+  const palette  = data.options?.palette || 'vibrant';
+  const colors   = data.options?.colors || PALETTES[palette as keyof typeof PALETTES] || PALETTES.vibrant;
+  const cards    = data.results_data || [];
+
+  // Split cards into panels of CARDS_PER_PANEL for multi-slide exports
+  const panels: DashboardCard[][] = [];
+  for (let i = 0; i < cards.length; i += CARDS_PER_PANEL) {
+    panels.push(cards.slice(i, i + CARDS_PER_PANEL));
+  }
+
+  return (
+    <div
+      className="render-root"
+      style={{
+        background: '#ffffff',
+        minHeight: '100vh',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      {panels.map((panelCards, pi) => (
+        <div
+          key={pi}
+          className="export-panel"
+          style={{
+            width: 1440,
+            minHeight: 900,
+            background: '#ffffff',
+            padding: '48px 56px 40px',
+            boxSizing: 'border-box',
+            pageBreakAfter: 'always',
+          }}
+        >
+          {/* Panel header — title on first panel */}
+          {pi === 0 && data.title && (
+            <div style={{
+              marginBottom: 32,
+              borderBottom: '2px solid #e2e8f0',
+              paddingBottom: 20,
+            }}>
+              <h1 style={{
+                margin: 0,
+                fontSize: 28,
+                fontWeight: 700,
+                color: '#0f172a',
+                letterSpacing: '-0.02em',
+              }}>
+                {data.title}
+              </h1>
+              <p style={{ margin: '6px 0 0', fontSize: 13, color: '#64748b' }}>
+                {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+            </div>
+          )}
+
+          {/* Cards grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 24,
+          }}>
+            {panelCards.map((card, ci) => (
+              <div
+                key={card.id || `${pi}-${ci}`}
+                style={{
+                  background: '#f8fafc',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                }}
+              >
+                <InsightCard
+                  card={card}
+                  layout="grid"
+                  colors={colors}
+                  index={pi * CARDS_PER_PANEL + ci}
+                  globalFilters={{}}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Page footer */}
+          <div style={{
+            marginTop: 24,
+            paddingTop: 12,
+            borderTop: '1px solid #e2e8f0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: 11,
+            color: '#94a3b8',
+          }}>
+            <span>Generated by Lucent Report</span>
+            <span>Page {pi + 1} of {panels.length}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

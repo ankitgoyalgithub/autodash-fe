@@ -8,6 +8,23 @@ import './App.css';
 import Login from './components/Login';
 import LandingPage from './components/LandingPage';
 import { BASE } from './components/constants';
+
+// Global 401 interceptor — expired or deleted token → force re-login.
+// Skips /me/, /login/, /logout/ to avoid redirect loops.
+axios.interceptors.response.use(
+  res => res,
+  err => {
+    const url: string = err?.config?.url ?? '';
+    const is401 = err?.response?.status === 401;
+    const isAuthEndpoint = url.includes('/me/') || url.includes('/login/') || url.includes('/logout/');
+    if (is401 && !isAuthEndpoint) {
+      // Best-effort server logout (clears DB token), then hard-reload to /
+      axios.post(`${BASE}/logout/`).catch(() => {});
+      window.location.href = '/';
+    }
+    return Promise.reject(err);
+  }
+);
 import { Sidebar } from './components/Sidebar';
 import { ProjectsHome, NewProjectModal } from './components/ProjectsHome';
 import { DashboardsList } from './components/DashboardsList';
@@ -18,6 +35,7 @@ import { AgentsLibrary } from './components/AgentsLibrary';
 import { BrandKitEditor } from './components/BrandKitEditor';
 import { UserProfile } from './components/UserProfile';
 import { MySpace } from './components/MySpace';
+import RenderView from './components/RenderView';
 import { useBrandKit } from './hooks/useBrandKit';
 import { generatePalette } from './utils/brandPalette';
 
@@ -345,6 +363,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/view/:slug" element={<PublicDashboardView />} />
+        {/* Headless render route — visited by Playwright during export, no auth chrome */}
+        <Route path="/render/:token" element={<RenderView />} />
         <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} user={user} onUserUpdate={setUser} />} />
         <Route path="/login" element={!isLoggedIn ? <Login onLogin={handleLogin} base={BASE} /> : <Navigate to="/" replace />} />
         <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} user={user} onUserUpdate={setUser} />} />

@@ -4,6 +4,7 @@ import axios from 'axios';
 const logo = '/brand-logo.png';
 import type { View, Project, DashboardThread } from '../App';
 import { BASE } from './constants';
+import { CreditsBadge, CreditsModal } from './CreditsPanel';
 
 // ── Colorful nav icons ────────────────────────────────────────────────────────
 
@@ -14,6 +15,18 @@ function ProjectsIcon() {
       <rect x="10.5" y="2" width="7.5" height="7.5" rx="2" fill="#93c5fd"/>
       <rect x="2" y="10.5" width="7.5" height="7.5" rx="2" fill="#93c5fd"/>
       <rect x="10.5" y="10.5" width="7.5" height="7.5" rx="2" fill="#3b82f6"/>
+    </svg>
+  );
+}
+
+function DocumentsIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+      <rect x="3" y="2" width="10" height="13" rx="2" fill="#6366f1"/>
+      <rect x="5" y="2" width="10" height="13" rx="2" fill="#818cf8" transform="translate(2 2)"/>
+      <rect x="3" y="2" width="10" height="13" rx="2" fill="#4f46e5" transform="translate(0 3)"/>
+      <rect x="6"  y="8"  width="5" height="1.2" rx="0.6" fill="#fff" opacity="0.8"/>
+      <rect x="6"  y="10.5" width="3.5" height="1.2" rx="0.6" fill="#fff" opacity="0.5"/>
     </svg>
   );
 }
@@ -92,6 +105,7 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
   onProfile: () => void;
 }) {
   const [threads, setThreads] = useState<DashboardThread[]>([]);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const username = JSON.parse(localStorage.getItem('autodash_user') || '{}').username || 'U';
 
   useEffect(() => {
@@ -107,6 +121,7 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
     { id: 'myspace',     label: 'My Space',   icon: <MySpaceIcon />,    color: '#0d9488', bg: '#f0fdfa' },
     { id: 'agents',      label: 'Agents',     icon: <AgentsIcon />,     color: '#7c3aed', bg: '#faf5ff' },
     { id: 'dashboards',  label: 'Dashboards', icon: <DashboardsIcon />, color: '#f59e0b', bg: '#fffbeb' },
+    { id: 'documents',   label: 'Documents',  icon: <DocumentsIcon />,  color: '#6366f1', bg: '#eef2ff' },
     { id: 'datasources', label: 'Data',       icon: <DataIcon />,       color: '#059669', bg: '#ecfdf5' },
     { id: 'brand',       label: 'Brand Kit',  icon: <BrandKitIcon />,   color: '#ec4899', bg: '#fdf2f8' },
   ];
@@ -181,7 +196,12 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
         </>
       )}
 
-      {/* ── Footer ── */}
+      {/* ── Credits ── */}
+      <div className="sidebar-credits-wrap">
+        <CreditsBadge collapsed={collapsed} onClick={() => setShowCreditsModal(true)} />
+      </div>
+
+      {/* ��─ Footer ── */}
       <div className="sidebar-footer">
         <button className="sidebar-toggle" onClick={onToggle} title={collapsed ? 'Expand' : 'Collapse'}>
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -196,6 +216,8 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
           )}
         </div>
       </div>
+
+      {showCreditsModal && <CreditsModal onClose={() => setShowCreditsModal(false)} />}
     </aside>
   );
 }

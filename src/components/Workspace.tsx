@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, Component } from 'react';
+import { useDashboardStore } from '../store/dashboardStore';
 import { createPortal } from 'react-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -37,6 +38,9 @@ import { getBrandPaletteColors } from '../utils/brandPalette';
 import { InsightCard } from './InsightCard';
 import { ShareProjectModal } from './ShareProjectModal';
 import ExportModal from './ExportModal';
+import { CreditsWarningBanner } from './CreditsPanel';
+import { RichInfographicViewer } from './RichInfographicViewer';
+import { ReportViewer, type ReportData } from './ReportViewer';
 
 // ─── Draggable Cards Grid (default layout only) ───────────────────────────────
 // This component is ONLY used for grid/masonry/single layout.
@@ -599,7 +603,8 @@ const IG_HERO_STYLES: { name: string; css: (a: string) => string }[] = [
 
 type IgSection = {
   id: string;
-  type: 'metric_row' | 'bar_chart' | 'line_chart' | 'table' | 'insight' | 'text' | 'image';
+  type: 'metric_row' | 'bar_chart' | 'line_chart' | 'table' | 'insight' | 'text' | 'image'
+      | 'highlight_number' | 'stat_comparison' | 'key_takeaways' | 'data_story' | 'progress_bar';
   title: string;
   metrics?: { label: string; value: string; raw: any }[];
   data?: { label: string; value: number }[] | { x: string; y: number }[];
@@ -611,6 +616,25 @@ type IgSection = {
   style?: 'default' | 'quote' | 'callout';
   url?: string;
   caption?: string;
+  // highlight_number
+  value?: string;
+  raw?: number;
+  context?: string;
+  // stat_comparison
+  value_a?: string;
+  value_b?: string;
+  label_a?: string;
+  label_b?: string;
+  change_pct?: number;
+  // key_takeaways
+  bullets?: string[];
+  // progress_bar
+  current?: number;
+  target?: number;
+  pct?: number;
+  current_fmt?: string;
+  target_fmt?: string;
+  unit?: string;
 };
 
 // ─── Section renderers ────────────────────────────────────────────────────────
@@ -751,6 +775,85 @@ function IgImageSection({ section, onCaptionChange, onUpload }: {
   );
 }
 
+// ─── New poster-grade section renderers ──────────────────────────────────────
+
+function IgHighlightNumber({ section, accent }: { section: IgSection; accent: string }) {
+  return (
+    <div className="ig-highlight-number">
+      <div className="ig-highlight-value" style={{ color: accent }}>{section.value}</div>
+      {section.context && <div className="ig-highlight-context">{section.context}</div>}
+    </div>
+  );
+}
+
+function IgStatComparison({ section, accent }: { section: IgSection; accent: string }) {
+  const isPositive = (section.change_pct ?? 0) >= 0;
+  return (
+    <div className="ig-stat-comparison">
+      <div className="ig-stat-pair">
+        <div className="ig-stat-box ig-stat-box--a" style={{ borderColor: accent }}>
+          <div className="ig-stat-box-value" style={{ color: accent }}>{section.value_a}</div>
+          <div className="ig-stat-box-label">{section.label_a}</div>
+        </div>
+        <div className="ig-stat-arrow">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M6 14h16m0 0l-5-5m5 5l-5 5" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div className="ig-stat-box ig-stat-box--b" style={{ borderColor: accent + '60' }}>
+          <div className="ig-stat-box-value">{section.value_b}</div>
+          <div className="ig-stat-box-label">{section.label_b}</div>
+        </div>
+      </div>
+      {section.change_pct !== undefined && (
+        <div className={`ig-stat-change ${isPositive ? 'positive' : 'negative'}`}>
+          <span>{isPositive ? '↑' : '↓'} {Math.abs(section.change_pct)}% change</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IgKeyTakeaways({ section, accent }: { section: IgSection; accent: string }) {
+  return (
+    <div className="ig-key-takeaways">
+      {(section.bullets || []).map((b, i) => (
+        <div key={i} className="ig-takeaway-item">
+          <div className="ig-takeaway-num" style={{ background: accent }}>{i + 1}</div>
+          <p className="ig-takeaway-text">{b}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function IgDataStory({ section, accent }: { section: IgSection; accent: string }) {
+  return (
+    <div className="ig-data-story">
+      <div className="ig-data-story-bar" style={{ background: accent }} />
+      <p className="ig-data-story-text">{section.text}</p>
+    </div>
+  );
+}
+
+function IgProgressBar({ section, accent }: { section: IgSection; accent: string }) {
+  const pct = Math.min(section.pct ?? 0, 100);
+  return (
+    <div className="ig-progress-section">
+      <div className="ig-progress-header">
+        <span className="ig-progress-current" style={{ color: accent }}>
+          {section.unit}{section.current_fmt}
+        </span>
+        <span className="ig-progress-target">of {section.unit}{section.target_fmt}</span>
+      </div>
+      <div className="ig-progress-track">
+        <div className="ig-progress-fill" style={{ width: `${pct}%`, background: accent }} />
+      </div>
+      <div className="ig-progress-pct">{pct.toFixed(0)}% complete</div>
+    </div>
+  );
+}
+
 // ─── Sortable section card ────────────────────────────────────────────────────
 
 function IgSectionCard({
@@ -763,7 +866,7 @@ function IgSectionCard({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: section.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
-  const isWide = ['metric_row', 'table', 'image', 'text'].includes(section.type);
+  const isWide = ['metric_row', 'table', 'image', 'text', 'key_takeaways', 'data_story', 'stat_comparison'].includes(section.type);
 
   const [uploading, setUploading] = useState(false);
 
@@ -794,11 +897,16 @@ function IgSectionCard({
         </div>
 
         {/* Content */}
-        {section.type === 'metric_row'  && <IgMetricRow section={section} accent={accent} />}
-        {section.type === 'bar_chart'   && <IgBarChart section={section} accent={accent} />}
-        {section.type === 'line_chart'  && <IgLineChart section={section} accent={accent} />}
-        {section.type === 'table'       && <IgTable section={section} />}
-        {section.type === 'insight'     && (
+        {section.type === 'metric_row'       && <IgMetricRow section={section} accent={accent} />}
+        {section.type === 'bar_chart'        && <IgBarChart section={section} accent={accent} />}
+        {section.type === 'line_chart'       && <IgLineChart section={section} accent={accent} />}
+        {section.type === 'table'            && <IgTable section={section} />}
+        {section.type === 'highlight_number' && <IgHighlightNumber section={section} accent={accent} />}
+        {section.type === 'stat_comparison'  && <IgStatComparison section={section} accent={accent} />}
+        {section.type === 'key_takeaways'    && <IgKeyTakeaways section={section} accent={accent} />}
+        {section.type === 'data_story'       && <IgDataStory section={section} accent={accent} />}
+        {section.type === 'progress_bar'     && <IgProgressBar section={section} accent={accent} />}
+        {section.type === 'insight'          && (
           <textarea className="ig-insight-textarea" value={section.text || ''} onChange={e => onUpdate(section.id, { text: e.target.value })} rows={3} style={{ borderLeftColor: accent }} />
         )}
         {section.type === 'text' && (
@@ -835,18 +943,24 @@ function IgToolbar({ accent, heroStyleIdx, onAccent, onHeroStyle, onAdd }: {
         </button>
         {addOpen && (
           <div className="ig-dropdown" onMouseLeave={() => setAddOpen(false)}>
-            <div className="ig-dropdown-section-label">Visualizations</div>
+            <div className="ig-dropdown-section-label">Narrative</div>
             <button className="ig-dropdown-item" onClick={() => { onAdd('insight'); setAddOpen(false); }}>
               <Sparkles size={14}/> Key Insight
             </button>
-            <button className="ig-dropdown-item" onClick={() => { onAdd('text', 'default'); setAddOpen(false); }}>
-              <LayoutList size={14}/> Text Block
+            <button className="ig-dropdown-item" onClick={() => { onAdd('data_story'); setAddOpen(false); }}>
+              <LayoutList size={14}/> Data Story
+            </button>
+            <button className="ig-dropdown-item" onClick={() => { onAdd('key_takeaways'); setAddOpen(false); }}>
+              <Check size={14}/> Key Takeaways
             </button>
             <button className="ig-dropdown-item" onClick={() => { onAdd('text', 'quote'); setAddOpen(false); }}>
               <span className="ig-dropdown-icon">"</span> Pull Quote
             </button>
             <button className="ig-dropdown-item" onClick={() => { onAdd('text', 'callout'); setAddOpen(false); }}>
               <Zap size={14}/> Callout Box
+            </button>
+            <button className="ig-dropdown-item" onClick={() => { onAdd('text', 'default'); setAddOpen(false); }}>
+              <LayoutList size={14}/> Text Block
             </button>
             <div className="ig-dropdown-section-label">Media</div>
             <button className="ig-dropdown-item" onClick={() => { onAdd('image'); setAddOpen(false); }}>
@@ -931,6 +1045,8 @@ function InfographicEditor({ entry, projectColor }: { entry: any; projectColor: 
       insight: { title: 'Key Insight', text: '' },
       text: { title: 'Text Block', text: '', style: style || 'default' },
       image: { title: 'Image', url: '', caption: '' },
+      data_story: { title: 'Data Story', text: 'Write your data narrative here...' },
+      key_takeaways: { title: 'Key Takeaways', bullets: ['First takeaway', 'Second takeaway', 'Third takeaway'] },
     };
     setSections(prev => [...prev, { id, type, title: '', ...defaults[type] } as IgSection]);
   };
@@ -993,30 +1109,45 @@ function InfographicEditor({ entry, projectColor }: { entry: any; projectColor: 
   );
 }
 
-export function Workspace({ project, onBack, initialThreadId, brandPalette, currentUser, onProjectUpdate }: {
+export function Workspace({ project, onBack, initialThreadId, brandPalette, currentUser, onProjectUpdate, onNewThread }: {
   project: Project;
   onBack: () => void;
   initialThreadId?: number;
   brandPalette?: string[];
   currentUser?: any;
   onProjectUpdate?: (p: Project) => void;
+  onNewThread?: (threadId: number) => void;
 }) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<number | null>(initialThreadId || null);
-  const [threadType, setThreadType] = useState<'dashboard' | 'infographic' | null>(null);
-  const [pendingThreadType, setPendingThreadType] = useState<'dashboard' | 'infographic' | null>(null);
+  const [threadType, setThreadType] = useState<'dashboard' | 'infographic' | 'report' | 'newsletter' | null>(null);
+  const [pendingThreadType, setPendingThreadType] = useState<'dashboard' | 'infographic' | 'report' | 'newsletter' | null>(null);
+  const [igStyle, setIgStyle] = useState<string>('executive');
+  const [reportLength, setReportLength] = useState<'brief' | 'standard' | 'deep'>('standard');
+  const [activeReport, setActiveReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [isQueryEmpty, setIsQueryEmpty] = useState(true);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [activeEntry, setActiveEntry] = useState<HistoryEntry | null>(null);
-  const [layout, setLayout] = useState<'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation'>('grid');
+  // ── Zustand store — cards, layout, filters, edit/drag mode, undo/redo ──
+  const {
+    cards: storeCards, setCards,
+    updateCard: storeUpdateCard, deleteCard: storeDeleteCard, reorderCards: storeReorderCards,
+    layout, setLayout,
+    editMode, setEditMode,
+    dragEnabled, setDragEnabled,
+    globalFilters, setGlobalFilter, clearGlobalFilters,
+    dashboardFilters, setDashboardFilters,
+    timeframeFilter, setTimeframeFilter,
+    canUndo, canRedo, undo, redo,
+  } = useDashboardStore();
+
   const [theme, setTheme] = useState(THEMES[0]);
   const [font, setFont] = useState(FONTS[0]);
   const [palette, setPalette] = useState(project.palette || 'vibrant');
   const [layoutMode, setLayoutMode] = useState<'dashboard' | 'infographic'>('dashboard');
-  const [editMode, setEditMode] = useState(false);
   const [activeSideTab, setActiveSideTab] = useState<'templates' | 'themes' | 'layouts' | 'library' | null>(null);
   const [libraryInsights, setLibraryInsights] = useState<{ id: number; card_data: any; saved_at: string }[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -1026,10 +1157,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const [activeAgents, setActiveAgents] = useState<{ id: string; name: string; emoji: string; color: string }[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
-  const [dashboardFilters, setDashboardFilters] = useState<DashboardFilter[]>([]);
   const [filterLoading, setFilterLoading] = useState(false);
-  const [timeframeFilter, setTimeframeFilter] = useState<number | null>(null); // days; null = All Time
   // HITL state
   const [pendingHITL, setPendingHITL] = useState<HITLRequest | null>(null);
   const [hitlResponses, setHitlResponses] = useState<Record<string, any>>({});
@@ -1037,7 +1165,6 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const persistedHitlResponses = useRef<Record<string, any>>({});
   const [hitlQueryRef, setHitlQueryRef] = useState<string>('');
   // Drag-and-drop + layout optimizer
-  const [dragEnabled, setDragEnabled] = useState(true);
   const [layoutOptimizing, setLayoutOptimizing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1047,10 +1174,43 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const agentBtnRef = useRef<HTMLButtonElement>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [creditsWarning, setCreditsWarning] = useState<'near_limit' | 'at_limit' | null>(null);
   // Track previous thread so we only clear filters when SWITCHING threads,
   // not when a brand-new thread ID is first assigned (which would wipe filters
   // that were just returned in the same query response).
   const prevThreadIdRef = useRef<number | null>(initialThreadId || null);
+  // Tracks the last entry id we synced into the store — avoids circular updates
+  const lastSyncedEntryIdRef = useRef<number | null>(null);
+
+  // ── Hydrate store when a new entry is loaded ─────────────────────────────────
+  useEffect(() => {
+    if (!activeEntry) { setCards([], undefined); lastSyncedEntryIdRef.current = null; return; }
+    if (activeEntry.id === lastSyncedEntryIdRef.current) return; // cards came from store, not a new entry
+    lastSyncedEntryIdRef.current = activeEntry.id;
+    setCards(activeEntry.results_data ?? []);
+  }, [activeEntry?.id, activeEntry?.results_data, setCards]);
+
+  // ── Sync store cards back → activeEntry (for the persistence debounce) ────────
+  useEffect(() => {
+    if (!activeEntry || lastSyncedEntryIdRef.current !== activeEntry.id) return;
+    // Only update if actually different (avoids infinite loop)
+    if (storeCards === activeEntry.results_data) return;
+    setActiveEntry(prev => prev ? { ...prev, results_data: storeCards } : prev);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeCards]);
+
+  // ── Keyboard undo / redo ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return; // don't intercept text editing
+      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if ((e.key === 'y') || (e.key === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [undo, redo]);
 
   const fetchThreadHistory = useCallback(async (tId: number) => {
     try {
@@ -1061,12 +1221,26 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       if (threadHistory.length > 0) {
         setActiveEntry(threadHistory[threadHistory.length - 1]);
       }
-      // Scroll to the latest entry (bottom of chat) after history loads
+
+      // For report / newsletter threads, fetch the latest report attached to this thread
+      if (r.data.thread_type === 'report' || r.data.thread_type === 'newsletter') {
+        try {
+          const reps = await axios.get(`${BASE}/reports/list/?project_id=${project.id}`);
+          const matchingReport = (reps.data || []).find((rep: any) => rep.thread_id === tId);
+          if (matchingReport) {
+            const detail = await axios.get(`${BASE}/reports/${matchingReport.id}/`);
+            setActiveReport(detail.data);
+          }
+        } catch (e) { console.warn('Could not load report/newsletter for thread:', e); }
+      } else {
+        setActiveReport(null);
+      }
+
       setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     } catch {
       setError("Failed to load conversation history.");
     }
-  }, []);
+  }, [project.id]);
 
   // Sync only when the parent explicitly changes the thread selection.
   // Do NOT include currentThreadId in deps — that would reset the thread
@@ -1094,7 +1268,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       setPendingThreadType(null);
     }
     prevThreadIdRef.current = currentThreadId ?? null;
-    setGlobalFilters({});
+    clearGlobalFilters();
     setTimeframeFilter(null);
   }, [currentThreadId, fetchThreadHistory]);
 
@@ -1160,7 +1334,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         thread_id: currentThreadId,
         image_contexts: imgContexts,
         reference_images: imgUrls,
-        existing_charts: activeEntry?.results_data || [],
+        existing_charts: storeCards,
         hitl_responses: currentHITLResponses,
         specialist_agents: activeAgents.map(a => a.id),
       });
@@ -1205,6 +1379,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
 
       if (!currentThreadId && newThreadId) {
         setCurrentThreadId(newThreadId);
+        onNewThread?.(newThreadId);
       }
 
       if (suggestedLayout) {
@@ -1220,8 +1395,11 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       // (which clears dashboardFilters on thread change) has already fired.
       if (incomingFilters?.length) {
         setDashboardFilters(incomingFilters);
-        setGlobalFilters({});
+        clearGlobalFilters();
       }
+
+      // Credits warning
+      if (r.data.credits_warning) setCreditsWarning(r.data.credits_warning);
 
       setOptimisticPrompt(null);
     } catch (e: any) {
@@ -1245,27 +1423,74 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         query: promptText,
         project_id: project.id,
         thread_id: currentThreadId,
+        style: igStyle,
       });
 
       const newThreadId = r.data.thread_id;
-      if (!currentThreadId && newThreadId) setCurrentThreadId(newThreadId);
+      if (!currentThreadId && newThreadId) {
+        setCurrentThreadId(newThreadId);
+        // Notify parent so Sidebar refreshes its thread list
+        onNewThread?.(newThreadId);
+      }
 
-      const newEntry: HistoryEntry = {
-        id: r.data.step_id,
-        thread_id: newThreadId,
-        query: promptText,
-        results_data: [],
-        reference_images: [],
-        created_at: new Date().toISOString(),
-        narrative: r.data.narrative,
-        infographic_data: r.data.infographic_data,
-      };
-      setHistory(prev => [...prev, newEntry]);
-      setActiveEntry(newEntry);
-      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      // Fetch the full thread history from the backend (mirrors handleSubmit flow).
+      // This ensures the entry is properly loaded with all persisted fields.
+      if (newThreadId) {
+        await fetchThreadHistory(newThreadId);
+      }
+
+      if (r.data.credits_warning) setCreditsWarning(r.data.credits_warning);
       setOptimisticPrompt(null);
     } catch (e: any) {
       setError(e.response?.data?.error || 'Infographic generation failed. Please try again.');
+      setOptimisticPrompt(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Report / Newsletter submit ──────────────────────────────────────────
+  const handleReportSubmit = async (promptOverride?: string, formatOverride?: 'report' | 'newsletter') => {
+    const promptText = promptOverride || textareaRef.current?.value.trim() || '';
+    if (!promptText) return;
+    const fmt: 'report' | 'newsletter' = formatOverride
+      || (effectiveThreadType === 'newsletter' ? 'newsletter' : 'report');
+
+    setOptimisticPrompt(promptText);
+    if (textareaRef.current) { textareaRef.current.value = ''; textareaRef.current.style.height = 'auto'; }
+    setIsQueryEmpty(true);
+    setLoading(true); setError('');
+    if (!threadType) setThreadType(fmt);
+
+    try {
+      const r = await axios.post(`${BASE}/reports/`, {
+        query: promptText,
+        project_id: project.id,
+        thread_id: currentThreadId,
+        format: fmt,
+        length: reportLength,
+      }, {
+        timeout: 180000,
+      });
+
+      const newThreadId = r.data.thread_id;
+      if (!currentThreadId && newThreadId) {
+        setCurrentThreadId(newThreadId);
+        onNewThread?.(newThreadId);
+      }
+
+      if (r.data.report) {
+        setActiveReport(r.data.report);
+      }
+
+      if (newThreadId) {
+        await fetchThreadHistory(newThreadId);
+      }
+
+      if (r.data.credits_warning) setCreditsWarning(r.data.credits_warning);
+      setOptimisticPrompt(null);
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Report generation failed. Try simplifying your prompt.');
       setOptimisticPrompt(null);
     } finally {
       setLoading(false);
@@ -1293,10 +1518,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
 
   const handleUpdateCard = (card: DashboardCard, updates: Partial<DashboardCard>) => {
     if (!activeEntry) return;
-    const updatedResults = (activeEntry.results_data || []).map(c =>
-      c.title === card.title ? { ...c, ...updates } : c
-    );
-    setActiveEntry({ ...activeEntry, results_data: updatedResults });
+    const index = storeCards.findIndex(c => c === card || (c.title === card.title && c.sql === card.sql));
+    if (index >= 0) storeUpdateCard(index, updates);
   };
 
   const handleDownloadPNG = async () => {
@@ -1342,12 +1565,13 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       w: 340,
       h: 160,
     };
-    setActiveEntry({ ...activeEntry, results_data: [...(activeEntry.results_data || []), newCard] });
+    setCards([...(storeCards), newCard], 'add text block');
   };
 
   const handleDeleteCard = (card: DashboardCard) => {
     if (!activeEntry) return;
-    setActiveEntry({ ...activeEntry, results_data: (activeEntry.results_data || []).filter(c => c !== card) });
+    const index = storeCards.findIndex(c => c === card || (c.title === card.title && c.sql === card.sql));
+    if (index >= 0) storeDeleteCard(index);
   };
 
   const fetchLibrary = useCallback(async () => {
@@ -1382,7 +1606,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
 
   const handlePullFromLibrary = (card: DashboardCard) => {
     if (!activeEntry) return;
-    setActiveEntry({ ...activeEntry, results_data: [...(activeEntry.results_data || []), { ...card }] });
+    setCards([...storeCards, { ...card }], 'add from library');
   };
 
   const handleDrillDown = (card: DashboardCard, dimension: string, value: string | number) => {
@@ -1392,7 +1616,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
 
   const applyFilters = async (filterOverrides: Record<string, string | number | null>) => {
     if (!activeEntry) return;
-    const charts = (activeEntry.results_data || [])
+    const charts = storeCards
       .map((c, i) => ({ index: i, sql: c.sql }))
       .filter(c => c.sql);
     if (!charts.length) return;
@@ -1405,13 +1629,13 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         charts,
         filter_overrides: filterOverrides,
       });
-      const updatedResults = [...(activeEntry.results_data || [])];
+      const updatedResults = [...storeCards];
       for (const res of r.data.results || []) {
         if (!res.error && res.data) {
           updatedResults[res.index] = { ...updatedResults[res.index], data: res.data };
         }
       }
-      setActiveEntry({ ...activeEntry, results_data: updatedResults });
+      setCards(updatedResults, 'apply filters');
     } catch (e) {
       console.error('Filter API error:', e);
     } finally {
@@ -1420,30 +1644,22 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   };
 
   const handleFilterChange = async (column: string, value: string | number | null) => {
+    setGlobalFilter(column, value);
     const newFilters = { ...globalFilters, [column]: value };
     if (value === null) delete newFilters[column];
-    setGlobalFilters(newFilters);
-    // Always call the API — when all filters cleared it returns unfiltered data,
-    // restoring activeEntry.results_data that was previously overwritten.
+    // Always call the API — when all filters cleared it returns unfiltered data
     await applyFilters(newFilters);
   };
 
   const handleClearAllFilters = async () => {
-    setGlobalFilters({});
+    clearGlobalFilters();
     setTimeframeFilter(null);
     await applyFilters({});
   };
 
   const handleTimeframeChange = (days: number | null) => {
     setTimeframeFilter(days);
-    // Inject __timeframe into globalFilters so InsightCard picks it up client-side
-    const newFilters = { ...globalFilters };
-    if (days === null) {
-      delete newFilters['__timeframe'];
-    } else {
-      newFilters['__timeframe'] = days;
-    }
-    setGlobalFilters(newFilters);
+    setGlobalFilter('__timeframe', days);
   };
 
   const handleHITLAnswer = async (questionId: string, answer: any) => {
@@ -1465,8 +1681,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   // ── Drag reorder callback (called by DraggableCardsGrid) ────────────────────
   const handleReorder = (oldIndex: number, newIndex: number) => {
     if (!activeEntry) return;
-    const reordered = arrayMove([...(activeEntry.results_data || [])], oldIndex, newIndex);
-    setActiveEntry({ ...activeEntry, results_data: reordered });
+    storeReorderCards(oldIndex, newIndex);
   };
 
   // ── AI Layout Optimizer ──────────────────────────────────────────────────────
@@ -1477,14 +1692,14 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       const r = await axios.post(`${BASE}/layout-optimize/`, {
         dashboard_id: activeEntry.id,
         project_id: project.id,
-        cards: activeEntry.results_data,
+        cards: storeCards,
         query: activeEntry.query,
       });
       if (r.data.cards) {
-        setActiveEntry({ ...activeEntry, results_data: r.data.cards });
+        setCards(r.data.cards, 'optimize layout');
       }
       if (r.data.layout && r.data.layout !== layout) {
-        setLayout(r.data.layout);
+        setLayout(r.data.layout as any);
       }
     } catch (e) {
       console.error('Layout optimization failed', e);
@@ -1494,7 +1709,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   };
 
   // ── Render cards: plain InsightCard array, used by all specialized layouts ───
-  const renderCards = (cards: DashboardCard[]) => {
+  const renderCards = (cards: DashboardCard[] = storeCards) => {
     const sorted = [...cards].sort((a, b) => {
       const aM = a.type === 'metric' || a.size === 's' || a.size === 'mini' || a.size === 'small' ? 0 : 1;
       const bM = b.type === 'metric' || b.size === 's' || b.size === 'mini' || b.size === 'small' ? 0 : 1;
@@ -1741,7 +1956,21 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   <div className="ttp-option-icon">🎨</div>
                   <div className="ttp-option-body">
                     <strong>Infographic</strong>
-                    <span>A fully designed, shareable HTML visual generated from your data. Best for reports and presentations.</span>
+                    <span>A fully designed, shareable HTML poster generated from your data. Best for sharable visuals.</span>
+                  </div>
+                </button>
+                <button className="ttp-option" onClick={() => setPendingThreadType('report')}>
+                  <div className="ttp-option-icon">📑</div>
+                  <div className="ttp-option-body">
+                    <strong>Report</strong>
+                    <span>Long-form analytical document with sections, exhibits, and an executive summary. Deep research-grade output.</span>
+                  </div>
+                </button>
+                <button className="ttp-option" onClick={() => setPendingThreadType('newsletter')}>
+                  <div className="ttp-option-icon">📰</div>
+                  <div className="ttp-option-body">
+                    <strong>Newsletter</strong>
+                    <span>Sharp, conversational issue with a hook, 3-5 short sections, and a clear point of view. Email-friendly format.</span>
                   </div>
                 </button>
               </div>
@@ -1750,7 +1979,72 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           {history.length === 0 && !loading && effectiveThreadType !== null && (
             <div className="chat-empty">
               <div className="chat-empty-icon" style={{ background: project.color + '18' }}>{project.emoji}</div>
-              <p>{effectiveThreadType === 'infographic' ? 'Describe the infographic you want to generate.' : 'How can I help you today?'}</p>
+              <p>
+                {effectiveThreadType === 'infographic' ? 'Describe the infographic you want to generate.'
+                  : effectiveThreadType === 'report' ? 'What would you like a report on? Be specific about the question or topic.'
+                  : effectiveThreadType === 'newsletter' ? 'What should this newsletter issue cover? A specific topic or question works best.'
+                  : 'How can I help you today?'}
+              </p>
+
+              {/* Infographic style picker */}
+              {effectiveThreadType === 'infographic' && (
+                <div className="ig-style-picker">
+                  <div className="ig-style-picker-label">Choose a visual style</div>
+                  <div className="ig-style-picker-grid">
+                    {([
+                      { id: 'executive', emoji: '🏢', name: 'Executive', desc: 'Clean & professional', colors: ['#0f172a', '#1e293b', '#ffffff'] },
+                      { id: 'vibrant',   emoji: '🎨', name: 'Vibrant',   desc: 'Bold with dot patterns', colors: ['#6366f1', '#8b5cf6', '#ffffff'] },
+                      { id: 'dark',      emoji: '🌙', name: 'Dark Mode', desc: 'Dark with glow accents', colors: ['#0f172a', '#1e293b', '#6366f1'] },
+                      { id: 'magazine',  emoji: '📰', name: 'Magazine',  desc: 'Editorial serif style', colors: ['#faf9f6', '#ffffff', '#1a1a2e'] },
+                      { id: 'gradient',  emoji: '🌊', name: 'Gradient',  desc: 'Flowing glass cards', colors: ['#ffffff', '#6366f1', '#8b5cf6'] },
+                    ] as const).map(s => (
+                      <button
+                        key={s.id}
+                        className={`ig-style-card ${igStyle === s.id ? 'active' : ''}`}
+                        onClick={() => setIgStyle(s.id)}
+                        style={igStyle === s.id ? { borderColor: project.color } : {}}
+                      >
+                        <div className="ig-style-card-swatches">
+                          {s.colors.map((c, i) => (
+                            <div key={i} style={{ width: 16, height: 16, borderRadius: 4, background: c, border: '1px solid rgba(0,0,0,0.08)' }} />
+                          ))}
+                        </div>
+                        <span className="ig-style-card-emoji">{s.emoji}</span>
+                        <strong>{s.name}</strong>
+                        <span className="ig-style-card-desc">{s.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Length picker for report & newsletter */}
+              {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') && (
+                <div className="ig-style-picker">
+                  <div className="ig-style-picker-label">Length</div>
+                  <div className="report-length-row">
+                    {(effectiveThreadType === 'report' ? [
+                      { id: 'brief',    label: 'Brief',    desc: '3 sections · ~3 min read'  },
+                      { id: 'standard', label: 'Standard', desc: '5 sections · ~7 min read'  },
+                      { id: 'deep',     label: 'Deep dive',desc: '7 sections · ~14 min read' },
+                    ] : [
+                      { id: 'brief',    label: 'Brief',    desc: '3 sections · ~1 min read' },
+                      { id: 'standard', label: 'Standard', desc: '4 sections · ~3 min read' },
+                      { id: 'deep',     label: 'Deep dive',desc: '5 sections · ~5 min read' },
+                    ] as const).map(l => (
+                      <button
+                        key={l.id}
+                        className={`report-length-btn ${reportLength === l.id ? 'active' : ''}`}
+                        onClick={() => setReportLength(l.id as 'brief' | 'standard' | 'deep')}
+                        style={reportLength === l.id ? { borderColor: project.color, background: project.color + '0d' } : {}}
+                      >
+                        <strong>{l.label}</strong>
+                        <span>{l.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1777,7 +2071,14 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                       <Sparkles size={13} className="ai-chart-badge-icon"/>
                       <div>
                         <div className="ai-chart-count">
-                          {entry.infographic_html ? 'Infographic ready' : `${entry.results_data?.length || 0} chart${(entry.results_data?.length || 0) !== 1 ? 's' : ''} ready`}
+                          {(() => {
+                            // Pick the badge label based on what kind of artifact this entry produced
+                            if (effectiveThreadType === 'newsletter') return 'Newsletter ready';
+                            if (effectiveThreadType === 'report')     return 'Report ready';
+                            if (entry.infographic_html || entry.infographic_data) return 'Infographic ready';
+                            const n = entry.results_data?.length || 0;
+                            return `${n} chart${n !== 1 ? 's' : ''} ready`;
+                          })()}
                         </div>
                         <div className="ai-chart-sub">Click to view in workspace</div>
                       </div>
@@ -1813,7 +2114,12 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               </div>
               <div className="thinking">
                 <div className="thinking-dots"><span/><span/><span/></div>
-                <span>{effectiveThreadType === 'infographic' ? 'Generating infographic from your data…' : 'AI is analyzing your data and building charts…'}</span>
+                <span>
+                  {effectiveThreadType === 'infographic' ? 'Generating infographic from your data…'
+                    : effectiveThreadType === 'report' ? 'Researching and writing your report (60-90s)…'
+                    : effectiveThreadType === 'newsletter' ? 'Drafting your newsletter issue…'
+                    : 'AI is analyzing your data and building charts…'}
+                </span>
               </div>
             </div>
           )}
@@ -1866,7 +2172,14 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 e.target.style.height = 'auto';
                 e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
               }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); effectiveThreadType === 'infographic' ? handleInfographicSubmit() : handleSubmit(); } }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (effectiveThreadType === 'infographic') handleInfographicSubmit();
+                  else if (effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') handleReportSubmit();
+                  else handleSubmit();
+                }
+              }}
               rows={1}
             />
             <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.csv" style={{ display: 'none' }} onChange={e => handleUpload(e.target.files)}/>
@@ -1897,7 +2210,11 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   />
                 )}
               </div>
-              <button className="comp-send" style={{ background: project.color }} onClick={() => effectiveThreadType === 'infographic' ? handleInfographicSubmit() : handleSubmit()} disabled={loading || (isQueryEmpty && !uploads.length)}>
+              <button className="comp-send" style={{ background: project.color }} onClick={() => {
+                if (effectiveThreadType === 'infographic') handleInfographicSubmit();
+                else if (effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') handleReportSubmit();
+                else handleSubmit();
+              }} disabled={loading || (isQueryEmpty && !uploads.length)}>
                 {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
               </button>
             </div>
@@ -1920,7 +2237,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   <span>{new Date(activeEntry.created_at).toLocaleTimeString()}</span>
                   {activeEntry.infographic_html
                     ? <span className="dp-badge dp-badge--infographic">🎨 Infographic</span>
-                    : <span className="dp-badge">{activeEntry.results_data?.length || 0} insights</span>
+                    : <span className="dp-badge">{storeCards.length || 0} insights</span>
                   }
                   {activeEntry.is_deployed && <span className="dp-deployed-badge"><Eye size={10}/> Public</span>}
                 </div>
@@ -1959,11 +2276,18 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 >
                   <RefreshCw size={14} className={loading ? 'spin' : ''}/>
                 </button>
-                {(activeEntry.results_data?.length ?? 0) > 0 && (
+                {/* Undo / redo */}
+                <button className="dp-icon-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+                </button>
+                <button className="dp-icon-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 14 5-5-5-5"/><path d="M19 9H8.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+                </button>
+                {(storeCards.length ?? 0) > 0 && (
                   <>
                     <button
                       className="dp-icon-btn"
-                      onClick={() => exportAllChartsCSV(activeEntry.results_data || [], project.name)}
+                      onClick={() => exportAllChartsCSV(storeCards, project.name)}
                       title="Export all charts as CSV"
                     >
                       <FileDown size={14}/>
@@ -2001,6 +2325,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
             </div>
           )}
         </div>
+
+        {/* Credits warning banner */}
+        <CreditsWarningBanner warning={creditsWarning} onDismiss={() => setCreditsWarning(null)} />
 
         {/* MySpace datasource owned by another user — queries will be blocked */}
         {project.datasource?.is_myspace && currentUser && project.owner?.id !== currentUser.id && (
@@ -2122,65 +2449,89 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           )}
 
           {activeEntry && activeEntry.infographic_data && (
-            <InfographicEditor entry={activeEntry} projectColor={project.color} />
+            activeEntry.infographic_html
+              ? <RichInfographicViewer
+                  html={activeEntry.infographic_html}
+                  title={activeEntry.query}
+                />
+              : <InfographicEditor entry={activeEntry} projectColor={project.color} />
           )}
 
-          {activeEntry && !activeEntry.infographic_data && (
+          {/* Report / Newsletter viewer */}
+          {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') && activeReport && (
+            <ReportViewer report={activeReport} />
+          )}
+
+          {/* Loading message while report/newsletter is being generated */}
+          {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') && !activeReport && loading && (
+            <div className="report-loading-state">
+              <Loader2 size={32} className="report-loading-icon spin" />
+              <h3>{effectiveThreadType === 'newsletter' ? 'Drafting your newsletter issue...' : 'Researching and writing your report...'}</h3>
+              <p className="report-loading-hint">
+                {effectiveThreadType === 'newsletter'
+                  ? 'Newsletters take 30-60 seconds. We are pulling data, writing the hook, and drafting each section.'
+                  : 'Reports take 60-90 seconds. We are planning the outline, fetching data, writing each section, and assembling the document.'}
+                {' '}Please don't close this tab.
+              </p>
+            </div>
+          )}
+
+          {activeEntry && !activeEntry.infographic_data && effectiveThreadType !== 'report' && effectiveThreadType !== 'newsletter' && (
             <div key={activeEntry.id} className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''}`}>
               {theme.id === 'canva' ? (
                 <div className="canvas-container">
                   <div className="canvas-page">
                     <header className="canvas-header">
                       <h1 className="canvas-title">{activeEntry.query}</h1>
-                      <p className="canvas-subtitle">{project.name} • {new Date(activeEntry.created_at).toLocaleDateString()} • {activeEntry.results_data?.length || 0} Insights</p>
+                      <p className="canvas-subtitle">{project.name} • {new Date(activeEntry.created_at).toLocaleDateString()} • {storeCards.length} Insights</p>
                     </header>
                     <div className="dp-grid">
-                      {renderCards(activeEntry.results_data || [])}
+                      {renderCards()}
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="dp-grid">
-                  {(activeEntry.results_data || []).length === 0 ? (
+                  {storeCards.length === 0 ? (
                     <div className="dp-empty"><h3>No charts in this response</h3></div>
                   ) : layout === 'exec' ? (
                     <div className="exec-grid">
                       <div className="exec-metrics">
-                        {renderCards((activeEntry.results_data || []).filter(c => c.size === 'small' || c.size === 'mini' || c.type === 'metric'))}
+                        {renderCards(storeCards.filter(c => c.size === 'small' || c.size === 'mini' || c.type === 'metric'))}
                       </div>
                       <div className="exec-charts">
-                        {renderCards((activeEntry.results_data || []).filter(c => c.size !== 'small' && c.size !== 'mini' && c.type !== 'metric'))}
+                        {renderCards(storeCards.filter(c => c.size !== 'small' && c.size !== 'mini' && c.type !== 'metric'))}
                       </div>
                     </div>
                   ) : layout === 'hub' ? (
                     <div className="hub-grid">
                       <div className="hub-main">
-                        {renderCards((activeEntry.results_data || []).filter(c => (c.size === 'wide' || c.size === 'full') && c.type !== 'metric').slice(0, 1))}
+                        {renderCards(storeCards.filter(c => (c.size === 'wide' || c.size === 'full') && c.type !== 'metric').slice(0, 1))}
                       </div>
                       <div className="hub-side">
-                        {renderCards((activeEntry.results_data || []).filter((c, i) => (c.size !== 'wide' && c.size !== 'full') || i > 0))}
+                        {renderCards(storeCards.filter((c, i) => (c.size !== 'wide' && c.size !== 'full') || i > 0))}
                       </div>
                     </div>
                   ) : layout === 'split' ? (
                     <div className="split-grid">
-                      {renderCards((activeEntry.results_data || []).slice(0, 2))}
+                      {renderCards(storeCards.slice(0, 2))}
                     </div>
                   ) : layout === 'magazine' ? (
                     <div className="magazine-grid">
-                      {renderCards(activeEntry.results_data || [])}
+                      {renderCards()}
                     </div>
                   ) : layout === 'presentation' ? (
                     <div className="presentation-grid">
-                      {renderCards(activeEntry.results_data || [])}
+                      {renderCards()}
                     </div>
                   ) : layout === 'poster' ? (
                     <div ref={posterRef} className={`poster-canvas poster-theme-${posterTheme}${infographicTemplate ? ` infographic-tpl-${infographicTemplate}` : ''}`}>
-                      {renderCards(activeEntry.results_data || [])}
+                      {renderCards()}
                     </div>
                   ) : (
                     /* Default: grid / masonry / single — supports drag-and-drop */
                     <DraggableCardsGrid
-                      cards={activeEntry.results_data || []}
+                      cards={storeCards}
                       layout={layout}
                       editMode={editMode}
                       font={font.value}

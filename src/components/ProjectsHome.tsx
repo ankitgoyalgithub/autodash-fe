@@ -72,6 +72,58 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ok: boolean; msg: string} | null>(null);
   const [savedDs, setSavedDs] = useState<string>('');
+  // MySpace table picker state — only relevant when a MySpace datasource is selected
+  const [msTables, setMsTables] = useState<{ id: number; name: string; table_name: string; row_count: number; columns: any[] }[]>([]);
+  const [msLoading, setMsLoading] = useState(false);
+  const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
+
+  const selectedDsObj = datasources.find(d => d.id === selectedDs) || null;
+  const isMySpaceSelected = !!selectedDsObj?.is_myspace;
+  const isHubSpotSelected = !!selectedDsObj?.is_hubspot;
+  const showTablePicker = isMySpaceSelected || isHubSpotSelected;
+
+  // Fetch tables based on datasource type
+  useEffect(() => {
+    if (!showTablePicker) { setMsTables([]); setSelectedTables(new Set()); return; }
+    setMsLoading(true);
+    if (isMySpaceSelected) {
+      axios.get(`${BASE}/myspace/`)
+        .then(r => {
+          const tables = r.data?.tables ?? [];
+          setMsTables(tables);
+          setSelectedTables(new Set());
+        })
+        .catch(() => setMsTables([]))
+        .finally(() => setMsLoading(false));
+    } else if (isHubSpotSelected) {
+      axios.get(`${BASE}/hubspot/status/`)
+        .then(r => {
+          const synced = r.data?.synced_objects || {};
+          // Convert synced_objects map → table-list shape the picker expects
+          const tables = Object.entries(synced).map(([objId, info]: [string, any], i) => ({
+            id: i,
+            name: objId.charAt(0).toUpperCase() + objId.slice(1),
+            table_name: objId,
+            row_count: info.rows || 0,
+            columns: Array(info.columns || 0).fill({}),
+          }));
+          setMsTables(tables);
+          setSelectedTables(new Set());
+        })
+        .catch(() => setMsTables([]))
+        .finally(() => setMsLoading(false));
+    }
+  }, [showTablePicker, isMySpaceSelected, isHubSpotSelected]);
+
+  const toggleTable = (tableName: string) => {
+    setSelectedTables(prev => {
+      const next = new Set(prev);
+      if (next.has(tableName)) next.delete(tableName); else next.add(tableName);
+      return next;
+    });
+  };
+  const selectAllTables = () => setSelectedTables(new Set(msTables.map(t => t.table_name)));
+  const clearAllTables = () => setSelectedTables(new Set());
 
   const accent = paletteAccent(paletteId);
   const colors = PALETTES[paletteId as keyof typeof PALETTES] || PALETTES.vibrant;
@@ -187,18 +239,28 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
                     <button key={d.id} className={`np-ds-item ${selectedDs === d.id ? 'sel' : ''}`}
                       style={selectedDs === d.id ? { borderColor: accent, boxShadow: `0 0 0 3px ${accent}28` } : {}}
                       onClick={() => setSelectedDs(d.id)}>
-                      <div className="np-ds-icon" style={d.is_myspace
-                        ? { background: '#ede9fe', color: '#7c3aed' }
-                        : selectedDs === d.id ? { background: accent + '22', color: accent } : {}
+                      <div className="np-ds-icon" style={
+                        d.is_hubspot ? { background: '#fff5f1', color: '#ff7a59' } :
+                        d.is_myspace ? { background: '#ede9fe', color: '#7c3aed' } :
+                        selectedDs === d.id ? { background: accent + '22', color: accent } : {}
                       }>
-                        {d.is_myspace ? <HardDrive size={18}/> : <Database size={18}/>}
+                        {d.is_hubspot ? (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.27-1.974v-.075a2.21 2.21 0 0 0-2.211-2.21h-.075a2.21 2.21 0 0 0-2.21 2.21v.075a2.198 2.198 0 0 0 1.27 1.974V7.93a6.261 6.261 0 0 0-2.973 1.31L4.989 3.108a2.49 2.49 0 1 0-1.193 1.605l7.81 6.082a6.314 6.314 0 0 0 .096 7.117L9.327 20.49a2.05 2.05 0 1 0 1.439 1.439l2.343-2.343a6.328 6.328 0 1 0 5.055-11.656zM17.186 17.66a3.231 3.231 0 1 1 0-6.462 3.231 3.231 0 0 1 0 6.462z"/>
+                          </svg>
+                        ) : d.is_myspace ? <HardDrive size={18}/> : <Database size={18}/>}
                       </div>
                       <div className="np-ds-item-body">
                         <strong>
                           {d.name}
                           {d.is_myspace && <span className="np-ds-myspace-badge">My Space</span>}
+                          {d.is_hubspot && <span className="np-ds-myspace-badge" style={{ background: '#fff5f1', color: '#ff7a59' }}>HubSpot</span>}
                         </strong>
-                        <span>{d.is_myspace ? 'Personal CSV workspace' : `${d.host}:${d.port}/${d.database}`}</span>
+                        <span>
+                          {d.is_hubspot ? 'HubSpot CRM (synced)'
+                            : d.is_myspace ? 'Personal CSV workspace'
+                            : `${d.host}:${d.port}/${d.database}`}
+                        </span>
                       </div>
                       {selectedDs === d.id && <CheckCircle2 size={16} style={{ color: accent, flexShrink: 0 }}/>}
                     </button>
@@ -230,10 +292,73 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
                 )}
               </>
             )}
+            {/* Table picker — appears for MySpace and HubSpot datasources */}
+            {showTablePicker && !addingNew && (
+              <div className="np-ds-table-picker">
+                <div className="np-ds-header" style={{ marginTop: 12 }}>
+                  <div className="np-ds-header-title">
+                    {isHubSpotSelected ? 'Select HubSpot objects for this project' : 'Select tables for this project'}
+                  </div>
+                  <div className="np-ds-header-sub">
+                    {isHubSpotSelected
+                      ? 'Pick which CRM objects this project can analyze. Leave empty to use all synced objects.'
+                      : 'Pick which CSV tables this project can access. Leave empty to use all tables.'}
+                  </div>
+                </div>
+                {msLoading ? (
+                  <div className="np-tables-loading">Loading {isHubSpotSelected ? 'objects' : 'tables'}…</div>
+                ) : msTables.length === 0 ? (
+                  <div className="np-tables-empty">
+                    {isHubSpotSelected
+                      ? 'No HubSpot objects synced yet. Go to Data Sources → Manage HubSpot and run a sync first.'
+                      : 'No tables in your My Space yet. Upload some CSVs first, or pick another datasource.'}
+                  </div>
+                ) : (
+                  <>
+                    <div className="np-tables-actions">
+                      <button className="np-table-action" onClick={selectAllTables}>Select all</button>
+                      <button className="np-table-action" onClick={clearAllTables}>Clear</button>
+                      <span className="np-tables-counter">
+                        {selectedTables.size === 0
+                          ? `Will use all ${msTables.length} ${isHubSpotSelected ? 'objects' : 'tables'}`
+                          : `${selectedTables.size} of ${msTables.length} selected`}
+                      </span>
+                    </div>
+                    <div className="np-tables-grid">
+                      {msTables.map(t => {
+                        const checked = selectedTables.has(t.table_name);
+                        return (
+                          <button
+                            key={t.id}
+                            className={`np-table-card ${checked ? 'sel' : ''}`}
+                            style={checked ? { borderColor: accent, background: accent + '0d' } : {}}
+                            onClick={() => toggleTable(t.table_name)}
+                          >
+                            <div className="np-table-card-check"
+                                 style={checked ? { background: accent, borderColor: accent } : {}}>
+                              {checked && <CheckCircle2 size={11} style={{ color: '#fff' }}/>}
+                            </div>
+                            <div className="np-table-card-body">
+                              <strong>{t.name}</strong>
+                              <span>{t.row_count.toLocaleString()} rows · {t.columns.length} cols</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="np-footer">
               <button className="btn-outline" onClick={() => setStep(1)}>← Back</button>
               <button className="np-btn-primary" style={{ background: accent }}
-                onClick={() => onCreate({ name, description: desc, emoji, color: accent, palette: paletteId, datasource_id: selectedDs })}>
+                onClick={() => onCreate({
+                  name, description: desc, emoji, color: accent, palette: paletteId,
+                  datasource_id: selectedDs,
+                  allowed_tables: Array.from(selectedTables),
+                })}>
                 <Sparkles size={14}/> Create Project
               </button>
             </div>

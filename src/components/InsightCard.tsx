@@ -12,6 +12,7 @@ import {
 import type { DashboardCard } from '../App';
 import { COLORS } from './constants';
 import { ChartRenderer } from '../renderers/ChartRenderer';
+import { LazyChart, type SkeletonType } from './LazyChart';
 import { formatCompact, isCurrencyKey, sortByDateLabel, deriveKeys } from '../renderers/utils';
 
 
@@ -465,7 +466,14 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
     }
 
     if (!filteredData?.length || !filteredData[0]) return <div className="dp-empty">No data</div>;
-    const { xKey, dataKeys } = deriveKeys(filteredData);
+
+    // Prefer the canonical chart_spec derived on the backend (present on all
+    // widgets generated after the normalize_chart_spec() pass was added).
+    // Fall back to the runtime heuristic for older stored data.
+    const spec = card.chart_spec;
+    const { xKey, dataKeys } = (spec?.x_key != null && spec.y_keys.length > 0)
+      ? { xKey: spec.x_key, dataKeys: spec.y_keys }
+      : deriveKeys(filteredData);
 
     const displayData = sortByDateLabel(filteredData, xKey);
     const chartHeight = heightOverride ?? (
@@ -721,7 +729,31 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
         )}
       </div>}
       <div className={type === 'metric' && !isPoster ? '' : 'chart-body'}>
-        {isFullscreen ? <div style={{ height: chartType === 'table' ? 200 : (size === 's' ? 120 : 200), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}><Maximize2 size={20} style={{ opacity: 0.3 }}/></div> : renderContent(gridResizeH ?? undefined)}
+        {isFullscreen
+          ? <div style={{ height: chartType === 'table' ? 200 : (size === 's' ? 120 : 200), display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}><Maximize2 size={20} style={{ opacity: 0.3 }}/></div>
+          : (type === 'metric' || type === 'text' || chartType === 'text')
+            // Metric / text cards are cheap — render immediately
+            ? renderContent(gridResizeH ?? undefined)
+            : (
+              <LazyChart
+                height={
+                  gridResizeH ??
+                  (size === 's' ? 120 : size === 'm' ? 220 : size === 'l' ? 280
+                  : size === 'xl' ? 320 : size === 'xxl' ? 360
+                  : layout === 'single' ? 400 : 280)
+                }
+                skeletonType={
+                  (['bar', 'stacked_bar', 'horizontal_bar', 'grouped_bar'].includes(chartType) ? 'bar'
+                  : ['line', 'area', 'multi_line', 'bump', 'stream'].includes(chartType) ? 'line'
+                  : ['pie', 'donut'].includes(chartType) ? 'pie'
+                  : chartType === 'table' ? 'table'
+                  : 'default') as SkeletonType
+                }
+              >
+                {renderContent(gridResizeH ?? undefined)}
+              </LazyChart>
+            )
+        }
       </div>
       {showData && <DataTableDrawer title={card.title} data={card.data} onClose={() => setShowData(false)} />}
       {(type === 'chart') && card.insight && (

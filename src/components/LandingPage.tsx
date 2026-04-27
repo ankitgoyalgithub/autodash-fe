@@ -88,7 +88,15 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What chart types does LucentReport generate?',
-    a: 'LucentReport automatically selects the best visualization based on your data shape and query intent: bar, line, area, pie/donut, stacked bar, combo, horizontal bar, scatter, and data table.',
+    a: 'LucentReport automatically selects the best visualization based on your data shape and query intent. Standard types include bar, line, area, pie/donut, stacked bar, combo, horizontal bar, scatter, and data table. Advanced D3 visualizations include treemap, sunburst, Sankey diagram, bump chart, and force graph — 15+ chart types in total, powered by Recharts and D3.',
+  },
+  {
+    q: 'Can I export dashboards to PowerPoint or PDF?',
+    a: 'Yes. The built-in Export Pipeline uses a headless browser to render pixel-perfect screenshots of your dashboard and package them into PPTX, PDF, or a high-resolution PNG poster — ready to drop straight into board decks or client reports.',
+  },
+  {
+    q: 'Does LucentReport support finance and accounting workflows?',
+    a: 'Yes. LucentReport includes 7 Finance Specialist AI Agents pre-loaded with domain expertise: Reconciliation, Month-End Close, Variance Analysis, Financial Statement Close, Actuals Reporting, Exception Identification, and Close Process Monitoring. Each agent understands accounting terminology, required output cards, and escalation logic out of the box.',
   },
   {
     q: 'Can I share dashboards publicly?',
@@ -135,6 +143,7 @@ export default function LandingPage() {
             <a href="#features" className="lp-nav-link">Features</a>
             <a href="#how" className="lp-nav-link">How it works</a>
             <a href="#analytics" className="lp-nav-link">Analytics</a>
+            <a href="#finance" className="lp-nav-link">Finance AI</a>
             <a href="#faq" className="lp-nav-link">FAQ</a>
           </div>
           <a href="/login" className="lp-signin-btn" aria-label="Sign in to LucentReport">
@@ -155,7 +164,7 @@ export default function LandingPage() {
           <div className="lp-hero-content">
             <div className="lp-hero-badge" aria-label="Product highlights">
               <span className="lp-badge-dot" aria-hidden="true" />
-              Multi-Agent AI · Any Data Source · Real-time Analytics
+              Multi-Agent AI · Finance AI Agents · Any Data Source · Export to PDF/PPTX
             </div>
 
             <h1 className="lp-hero-h1">
@@ -164,9 +173,9 @@ export default function LandingPage() {
             </h1>
 
             <p className="lp-hero-sub">
-              Connect Postgres, Snowflake, Salesforce, S3, Google Drive, or any other data source —
+              Connect any data source — Snowflake, BigQuery, MySQL, Salesforce, S3, Google Drive, or your own database —
               ask in plain English, and LucentReport's AI generates pixel-perfect charts,
-              advanced analytics, and executive dashboards automatically. No SQL or BI experience needed.
+              advanced analytics, and boardroom-ready dashboards automatically. No SQL or BI experience needed.
             </p>
 
             <div className="lp-hero-actions">
@@ -270,7 +279,7 @@ export default function LandingPage() {
         <section className="lp-trust" aria-label="Compatible data sources">
           <p className="lp-trust-label">Connects to any data source</p>
           <div className="lp-trust-logos" role="list">
-            {['PostgreSQL', 'Snowflake', 'Salesforce', 'Amazon S3', 'Google Drive', 'BigQuery', 'MySQL', 'Redshift', 'Supabase', 'RDS'].map(name => (
+            {['PostgreSQL', 'MySQL', 'Snowflake', 'Salesforce', 'Amazon S3', 'Google Drive', 'BigQuery', 'Redshift', 'Supabase', 'RDS'].map(name => (
               <div key={name} className="lp-trust-logo" role="listitem">{name}</div>
             ))}
           </div>
@@ -281,8 +290,8 @@ export default function LandingPage() {
           <div className="lp-stats-grid">
             {[
               { num: '< 10s', label: 'From question to dashboard', desc: 'Average time to first chart' },
-              { num: '8+',    label: 'Chart types generated', desc: 'Automatically selected by AI' },
-              { num: '6',     label: 'Analytics algorithms', desc: 'Forecasting, anomaly detection & more' },
+              { num: '15+',   label: 'Chart types generated', desc: 'Recharts, D3, and custom renderers' },
+              { num: '7',     label: 'Finance AI Agents', desc: 'Reconciliation, close, variance & more' },
               { num: '100%',  label: 'Read-only queries', desc: 'Your database is never written to' },
             ].map(s => (
               <div key={s.num} className="lp-stat-card">
@@ -310,8 +319,8 @@ export default function LandingPage() {
               },
               {
                 img: '/feat-nl-charts.png',
-                title: 'Natural Language to Charts',
-                desc: 'Bar, line, area, pie, stacked, combo, scatter, horizontal bar, and table. LucentReport automatically picks the right chart type based on your data shape and query intent.',
+                title: '15+ Chart Types',
+                desc: 'Standard charts (bar, line, area, pie, stacked, combo, scatter, table) plus advanced D3 visualizations: treemap, sunburst, Sankey diagram, bump chart, and force graph — automatically selected by AI.',
                 accent: '#8b5cf6',
               },
               {
@@ -328,14 +337,14 @@ export default function LandingPage() {
               },
               {
                 img: '/feat-design.png',
-                title: 'Beautiful Design System',
-                desc: 'Multiple themes, 7 color palettes, and layout modes. Export as PNG, deploy as a public shareable link, or embed live dashboards in your product.',
-                accent: '#6366f1',
+                title: 'Export to PDF, PPTX & PNG',
+                desc: 'One-click pixel-perfect export pipeline. A headless browser renders your full dashboard and packages it into a PowerPoint deck, PDF report, or high-resolution PNG poster — board-ready in seconds.',
+                accent: '#0891b2',
               },
               {
                 img: '/feat-secure.png',
                 title: 'Secure by Design',
-                desc: 'Database credentials never leave your server. All SQL runs in read-only mode against your own database. No data is stored or transmitted externally.',
+                desc: 'Database credentials never leave your server. All SQL runs in read-only mode against your own database. No data is stored or transmitted externally. httpOnly cookie auth prevents token theft.',
                 accent: '#4f46e5',
               },
             ].map(f => (
@@ -372,7 +381,7 @@ export default function LandingPage() {
               <ProcessCard
                 icon={<ConnectIcon />}
                 title="Connect your datasource"
-                description="Add Postgres, Snowflake, BigQuery, MySQL, Google Sheets, and more. LucentReport auto-discovers your schema and relationships instantly."
+                description="Add any database or cloud source — Postgres, Snowflake, BigQuery, MySQL, Google Sheets, and more. LucentReport auto-discovers your schema instantly."
               />
               <ProcessCard
                 icon={<AskIcon />}
@@ -387,7 +396,7 @@ export default function LandingPage() {
               <ProcessCard
                 icon={<DeployIcon />}
                 title="Share and deploy"
-                description="Apply your brand kit, share a live public link, schedule email reports, or embed dashboards — all in one click."
+                description="Apply your brand kit, share a live public link, export to PDF/PPTX, or embed dashboards — all in one click."
               />
             </div>
           </div>
@@ -472,6 +481,93 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Finance AI Agents ── */}
+        <section className="lp-finance-section" id="finance" aria-labelledby="finance-heading">
+          <div className="lp-finance-inner">
+            <div className="lp-section-tag">Finance &amp; Compliance</div>
+            <h2 className="lp-section-h2" id="finance-heading">Finance AI Agents — built for close teams</h2>
+            <p className="lp-section-sub">
+              Seven specialist AI agents pre-loaded with accounting domain expertise. No prompt engineering required —
+              just pick an agent and it already knows the required outputs, SQL patterns, and escalation logic for your workflow.
+            </p>
+
+            <div className="lp-finance-grid">
+              {[
+                { emoji: '🔄', title: 'Reconciliation Agent', desc: 'Auto-match rates, break amounts by category, aging buckets, and exception tables with drill-down into unmatched items.' },
+                { emoji: '📅', title: 'Month-End Close', desc: 'Close status by entity, task completion tracker, open item aging, and blocking issue summary — updated in real time.' },
+                { emoji: '📊', title: 'Variance Analysis', desc: 'Favorable/unfavorable bridges, root cause ranking, period-over-period comparison, and budget vs. actuals waterfalls.' },
+                { emoji: '📋', title: 'Financial Statement Close', desc: 'P&L, balance sheet, and cash flow statement cards with inter-statement consistency checks and footnote flags.' },
+                { emoji: '📈', title: 'Actuals Reporting', desc: 'YTD actuals vs. budget, prior year comparatives, rolling 12-month trends, and executive KPI summary panels.' },
+                { emoji: '⚠️', title: 'Exception Identification', desc: 'Threshold-based alerts, duplicate detection, outlier flagging, and a prioritized exception queue for review.' },
+                { emoji: '⏱️', title: 'Close Process Monitoring', desc: 'Predictive close date, bottleneck identification, entity-level status heatmap, and days-to-close trend.' },
+              ].map(agent => (
+                <article key={agent.title} className="lp-finance-card">
+                  <div className="lp-finance-emoji">{agent.emoji}</div>
+                  <h3 className="lp-finance-title">{agent.title}</h3>
+                  <p className="lp-finance-desc">{agent.desc}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="lp-finance-cta">
+              <a href="/login" className="lp-cta-primary">
+                Explore Finance Agents
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Enterprise Trust ── */}
+        <section className="lp-enterprise-section" aria-labelledby="enterprise-heading">
+          <div className="lp-enterprise-inner">
+          <div className="lp-section-tag">Enterprise Ready</div>
+          <h2 className="lp-section-h2" id="enterprise-heading">Built for teams that need to trust their tools</h2>
+          <p className="lp-section-sub">Security, data governance, and audit readiness are first-class features — not afterthoughts.</p>
+
+          <div className="lp-enterprise-grid">
+            {[
+              {
+                icon: '🔒',
+                title: 'Read-Only Data Access',
+                desc: 'All SQL executes in strict read-only mode. LucentReport can never modify, delete, or write to your database — guaranteed by design.',
+              },
+              {
+                icon: '🍪',
+                title: 'httpOnly Cookie Auth',
+                desc: 'Auth tokens are stored in httpOnly cookies, invisible to JavaScript. XSS attacks cannot steal session credentials.',
+              },
+              {
+                icon: '🔑',
+                title: 'Credential Isolation',
+                desc: 'Database credentials are stored encrypted on your own server. They are never transmitted to LucentReport\'s infrastructure.',
+              },
+              {
+                icon: '👥',
+                title: 'Role-Based Access',
+                desc: 'Admin, Editor, and Viewer roles per project. Control who can query, who can edit dashboards, and who can only view.',
+              },
+              {
+                icon: '📤',
+                title: 'Audit-Ready Exports',
+                desc: 'Export any dashboard to PDF or PPTX for audit trails, board presentations, or regulatory submissions — pixel-perfect and timestamped.',
+              },
+              {
+                icon: '⏰',
+                title: 'Session Token Expiry',
+                desc: 'Auth tokens expire after 24 hours and are automatically rotated on each login. Stale tokens are deleted server-side immediately.',
+              },
+            ].map(item => (
+              <article key={item.title} className="lp-enterprise-card">
+                <div className="lp-enterprise-icon">{item.icon}</div>
+                <h3 className="lp-enterprise-title">{item.title}</h3>
+                <p className="lp-enterprise-desc">{item.desc}</p>
+              </article>
+            ))}
+          </div>
+          </div>
+        </section>
+
         {/* ── FAQ ── */}
         <section className="lp-section lp-faq-section" id="faq" aria-labelledby="faq-heading">
           <div className="lp-section-tag">FAQ</div>
@@ -512,7 +608,7 @@ export default function LandingPage() {
             <span className="lp-grad-text">Let AI tell it.</span>
           </h2>
           <p className="lp-cta-sub">
-            Join teams using LucentReport to turn raw PostgreSQL data into actionable intelligence —
+            Join teams using LucentReport to turn raw data from any source into actionable intelligence —
             no SQL expertise, no BI consultants, no setup time.
           </p>
           <a href="/login" className="lp-cta-primary lp-cta-large">
@@ -536,9 +632,10 @@ export default function LandingPage() {
             <a href="#features" className="lp-footer-link">Features</a>
             <a href="#how" className="lp-footer-link">How it works</a>
             <a href="#analytics" className="lp-footer-link">Analytics</a>
+            <a href="#finance" className="lp-footer-link">Finance AI</a>
             <a href="#faq" className="lp-footer-link">FAQ</a>
           </nav>
-          <p className="lp-footer-copy">© 2025 LucentReport. AI-powered dashboard builder for PostgreSQL.</p>
+          <p className="lp-footer-copy">© 2026 LucentReport. AI-powered multi-database dashboard builder.</p>
           <a href="/login" className="lp-footer-signin">
             Sign in →
           </a>

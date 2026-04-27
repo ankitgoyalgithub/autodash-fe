@@ -35,13 +35,15 @@ import { AgentsLibrary } from './components/AgentsLibrary';
 import { BrandKitEditor } from './components/BrandKitEditor';
 import { UserProfile } from './components/UserProfile';
 import { MySpace } from './components/MySpace';
+import { DocumentsList } from './components/DocumentsList';
+import { DocumentEditor } from './components/DocumentEditor';
 import RenderView from './components/RenderView';
 import { useBrandKit } from './hooks/useBrandKit';
 import { generatePalette } from './utils/brandPalette';
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
-export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents' | 'brand' | 'profile' | 'myspace';
+export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents' | 'brand' | 'profile' | 'myspace' | 'documents';
 
 export interface Datasource {
   id: number;
@@ -51,6 +53,7 @@ export interface Datasource {
   database: string;
   username: string;
   is_myspace?: boolean;
+  is_hubspot?: boolean;
 }
 
 export interface ProjectMember {
@@ -71,11 +74,26 @@ export interface Project {
   thumbnail_url?: string;
   chart_count: number;
   datasource: Datasource | null;
+  allowed_tables?: string[];
   updated_at: string;
   created_at: string;
   my_role?: 'admin' | 'editor' | 'viewer';
   owner?: { id: number; username: string; email: string } | null;
   members?: ProjectMember[];
+}
+
+/** Canonical chart spec — derived once on the backend, consumed by all renderers. */
+export interface CardChartSpec {
+  type:          string;
+  x_key:         string | null;
+  y_keys:        string[];
+  color_scheme:  string;
+  annotations:   { x: string | number; label: string; color?: string }[];
+  goal_line:     { value: number; label: string } | null;
+  log_scale:     boolean;
+  x_label:       string | null;
+  y_label:       string | null;
+  series_labels: Record<string, string>;
 }
 
 export interface DashboardCard {
@@ -87,6 +105,9 @@ export interface DashboardCard {
   h?: number;
   data: Record<string, any>[];
   chart_type: string;
+  /** Canonical spec derived by normalize_chart_spec() on the backend. Present on all
+   *  new widgets; absent on data stored before this feature was added. */
+  chart_spec?: CardChartSpec;
   title: string;
   insight: string;
   sql: string;
@@ -152,12 +173,14 @@ export interface HistoryEntry {
       text?: string;
     }>;
   };
+  // Long-form report (when thread_type === 'report')
+  report_id?: number;
 }
 
 export interface DashboardThread {
   id: number;
   title: string;
-  thread_type: 'dashboard' | 'infographic';
+  thread_type: 'dashboard' | 'infographic' | 'report' | 'newsletter';
   updated_at: string;
   created_at: string;
 }
@@ -180,6 +203,7 @@ export interface UploadedFile {
 
 function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void; user: any; onUserUpdate: (u: any) => void }) {
   const [view, setView] = useState<View>('home');
+  const [activeDocId, setActiveDocId] = useState<number | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasources, setDatasources] = useState<Datasource[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
@@ -293,6 +317,18 @@ function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void
           {view === 'myspace' && (
             <MySpace onNavigateToProjects={() => { fetchBasics(); setShowNewModal(true); setView('home'); }} />
           )}
+          {view === 'documents' && !activeDocId && (
+            <DocumentsList
+              projects={projects}
+              onOpen={doc => setActiveDocId(doc.id)}
+            />
+          )}
+          {view === 'documents' && activeDocId && (
+            <DocumentEditor
+              docId={activeDocId}
+              onBack={() => setActiveDocId(null)}
+            />
+          )}
           {view === 'agents' && <AgentsLibrary datasources={datasources} onApplied={handleTemplateApplied} />}
           {view === 'brand' && (
             <BrandKitEditor
@@ -319,6 +355,7 @@ function MainAppContent({ onLogout, user, onUserUpdate }: { onLogout: () => void
                 setActiveProject(updated);
                 setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
               }}
+              onNewThread={(tId) => setInitialThreadId(tId)}
             />
           )}
         </div>

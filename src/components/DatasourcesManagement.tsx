@@ -3,6 +3,7 @@ import { Database, Plus, X, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2, Zap
 import axios from 'axios';
 import type { Datasource } from '../App';
 import { BASE } from './constants';
+import { HubSpotConnectModal } from './HubSpotConnectModal';
 
 export function DatasourceEditForm({ initialData, onSave, testing, testResult, onTest }: {
   initialData: Datasource | { id: number; name: string; host: string; port: number; database: string; username: string; };
@@ -63,6 +64,7 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
   const [editingDs, setEditingDs] = useState<Datasource | null>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [showHubSpot, setShowHubSpot] = useState(false);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this datasource? (This may affect associated projects)')) return;
@@ -104,11 +106,19 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
       <div className="page-header">
         <div>
           <h1 className="page-title">Data Sources</h1>
-          <p className="page-sub">Manage your database connections</p>
+          <p className="page-sub">Manage your database connections and integrations</p>
         </div>
-        <button className="btn-primary" onClick={() => setEditingDs({ id: 0, name: '', host: '127.0.0.1', port: 5432, database: '', username: '' } as Datasource)}>
-          <Plus size={15} /> Add New Source
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-secondary hs-connect-btn" onClick={() => setShowHubSpot(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#ff7a59">
+              <path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.27-1.974v-.075a2.21 2.21 0 0 0-2.211-2.21h-.075a2.21 2.21 0 0 0-2.21 2.21v.075a2.198 2.198 0 0 0 1.27 1.974V7.93a6.261 6.261 0 0 0-2.973 1.31L4.989 3.108a2.49 2.49 0 1 0-1.193 1.605l7.81 6.082a6.314 6.314 0 0 0 .096 7.117L9.327 20.49a2.05 2.05 0 1 0 1.439 1.439l2.343-2.343a6.328 6.328 0 1 0 5.055-11.656zM17.186 17.66a3.231 3.231 0 1 1 0-6.462 3.231 3.231 0 0 1 0 6.462z"/>
+            </svg>
+            Connect HubSpot
+          </button>
+          <button className="btn-primary" onClick={() => setEditingDs({ id: 0, name: '', host: '127.0.0.1', port: 5432, database: '', username: '' } as Datasource)}>
+            <Plus size={15} /> Add New Source
+          </button>
+        </div>
       </div>
 
       <div className="ds-grid">
@@ -119,20 +129,45 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
             <p>Connect your first database to start building dashboards.</p>
           </div>
         ) : (
-          datasources.map(ds => (
-            <div key={ds.id} className="ds-card">
-              <div className="ds-card-icon"><Database size={24} /></div>
-              <div className="ds-card-info">
-                <h3>{ds.name}</h3>
-                <code>{ds.host}:{ds.port}/{ds.database}</code>
-                <p>User: {ds.username}</p>
+          datasources.map(ds => {
+            const isHubSpot = (ds as any).is_hubspot;
+            const isMySpace = (ds as any).is_myspace;
+            return (
+              <div key={ds.id} className="ds-card">
+                <div className="ds-card-icon" style={
+                  isHubSpot ? { background: '#fff5f1', color: '#ff7a59' } :
+                  isMySpace ? { background: '#ede9fe', color: '#7c3aed' } : {}
+                }>
+                  {isHubSpot ? (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.27-1.974v-.075a2.21 2.21 0 0 0-2.211-2.21h-.075a2.21 2.21 0 0 0-2.21 2.21v.075a2.198 2.198 0 0 0 1.27 1.974V7.93a6.261 6.261 0 0 0-2.973 1.31L4.989 3.108a2.49 2.49 0 1 0-1.193 1.605l7.81 6.082a6.314 6.314 0 0 0 .096 7.117L9.327 20.49a2.05 2.05 0 1 0 1.439 1.439l2.343-2.343a6.328 6.328 0 1 0 5.055-11.656zM17.186 17.66a3.231 3.231 0 1 1 0-6.462 3.231 3.231 0 0 1 0 6.462z"/>
+                    </svg>
+                  ) : <Database size={24} />}
+                </div>
+                <div className="ds-card-info">
+                  <h3>
+                    {ds.name}
+                    {isHubSpot && <span className="ds-badge ds-badge--hs">HubSpot</span>}
+                    {isMySpace && <span className="ds-badge ds-badge--ms">My Space</span>}
+                  </h3>
+                  {isHubSpot
+                    ? <code>HubSpot CRM &middot; auto-synced</code>
+                    : <code>{ds.host}:{ds.port}/{ds.database}</code>}
+                  {!isHubSpot && <p>User: {ds.username}</p>}
+                </div>
+                <div className="ds-card-actions">
+                  {isHubSpot ? (
+                    <button className="btn-edit" onClick={() => setShowHubSpot(true)}>Manage</button>
+                  ) : (
+                    <button className="btn-edit" onClick={() => setEditingDs(ds)}>Edit</button>
+                  )}
+                  {!isMySpace && !isHubSpot && (
+                    <button className="btn-ghost-indigo" style={{ borderColor: '#fecaca', color: '#dc2626' }} onClick={() => handleDelete(ds.id)}>Delete</button>
+                  )}
+                </div>
               </div>
-              <div className="ds-card-actions">
-                <button className="btn-edit" onClick={() => setEditingDs(ds)}>Edit</button>
-                <button className="btn-ghost-indigo" style={{ borderColor: '#fecaca', color: '#dc2626' }} onClick={() => handleDelete(ds.id)}>Delete</button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -154,6 +189,13 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
             </div>
           </div>
         </div>
+      )}
+
+      {showHubSpot && (
+        <HubSpotConnectModal
+          onClose={() => setShowHubSpot(false)}
+          onConnected={onRefresh}
+        />
       )}
     </div>
   );

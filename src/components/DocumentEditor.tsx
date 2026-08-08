@@ -5,14 +5,15 @@ import axios from 'axios';
 import {
   ArrowLeft, Save, ZoomIn, ZoomOut, Type, Image, Square,
   Trash2, Lock, Unlock, Copy, ChevronLeft, ChevronRight,
-  Plus, BarChart2, Loader,
+  Plus, BarChart2, Loader, FileImage,
 } from 'lucide-react';
 import { useDocument } from '../hooks/useDocuments';
 import type {
   Document, CanvasJSON, CanvasElement, TextElement,
-  ImageElement, ShapeElement, ChartElement, DocType,
+  ImageElement, ShapeElement, ChartElement,
 } from '../types/document';
 import { BASE } from './constants';
+import { toast } from './ui';
 import type { DashboardCard } from '../App';
 
 // ── Resolved chart cache (entry_id → card[]) ─────────────────────────────────
@@ -408,22 +409,57 @@ function CanvasPropsPanel({
 // ── Toolbar ────────────────────────────────────────────────────────────────────
 
 function Toolbar({
-  doc, zoom, saving, activePage, totalPages,
-  onZoomIn, onZoomOut, onAddText, onAddShape, onAddImage, onSave,
-  onBack, onPageChange, onAddPage,
+  doc, zoom, saving, savedAt, dirty, activePage, totalPages,
+  onZoomIn, onZoomOut, onAddText, onAddShape, onAddImage,
+  onSave, onExportPNG, onBack, onTitleChange,
+  onPageChange, onAddPage,
 }: {
   doc: Document; zoom: number; saving: boolean;
+  savedAt: number | null; dirty: boolean;
   activePage: number; totalPages: number;
   onZoomIn: () => void; onZoomOut: () => void;
   onAddText: () => void; onAddShape: () => void; onAddImage: () => void;
-  onSave: () => void; onBack: () => void;
+  onSave: () => void; onExportPNG: () => void; onBack: () => void;
+  onTitleChange: (next: string) => void;
   onPageChange: (n: number) => void; onAddPage: () => void;
 }) {
+  const [draftTitle, setDraftTitle] = useState(doc.title);
+
+  // Sync local draft when doc.title changes from outside (e.g. server response)
+  useEffect(() => { setDraftTitle(doc.title); }, [doc.title]);
+
+  const commitTitle = () => {
+    const next = draftTitle.trim() || 'Untitled';
+    if (next !== doc.title) onTitleChange(next);
+  };
+
+  const saveLabel = (() => {
+    if (saving) return 'Saving…';
+    if (dirty) return 'Unsaved changes';
+    if (savedAt) {
+      const sec = Math.round((Date.now() - savedAt) / 1000);
+      if (sec < 5) return 'Saved';
+      if (sec < 60) return `Saved ${sec}s ago`;
+      return `Saved ${Math.floor(sec / 60)}m ago`;
+    }
+    return '';
+  })();
+
   return (
     <div className="doc-toolbar">
       <div className="doc-toolbar-left">
-        <button className="doc-toolbar-back" onClick={onBack}><ArrowLeft size={16} /></button>
-        <span className="doc-toolbar-title">{doc.title}</span>
+        <button className="doc-toolbar-back" onClick={onBack} title="Back to documents">
+          <ArrowLeft size={16} />
+        </button>
+        <input
+          className="doc-toolbar-title-input"
+          value={draftTitle}
+          onChange={e => setDraftTitle(e.target.value)}
+          onBlur={commitTitle}
+          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          aria-label="Document title"
+        />
+        {saveLabel && <span className="doc-toolbar-save-status">{saveLabel}</span>}
       </div>
 
       <div className="doc-toolbar-center">
@@ -439,19 +475,19 @@ function Toolbar({
 
         <div className="doc-toolbar-sep" />
 
-        <button className="doc-toolbar-btn" onClick={onZoomOut}><ZoomOut size={15} /></button>
+        <button className="doc-toolbar-btn" onClick={onZoomOut} title="Zoom out"><ZoomOut size={15} /></button>
         <span className="doc-toolbar-zoom">{Math.round(zoom * 100)}%</span>
-        <button className="doc-toolbar-btn" onClick={onZoomIn}><ZoomIn size={15} /></button>
+        <button className="doc-toolbar-btn" onClick={onZoomIn} title="Zoom in"><ZoomIn size={15} /></button>
 
         {/* Page controls for slide_deck */}
         {doc.doc_type === 'slide_deck' && (
           <>
             <div className="doc-toolbar-sep" />
-            <button className="doc-toolbar-btn" onClick={() => onPageChange(activePage - 1)} disabled={activePage <= 1}>
+            <button className="doc-toolbar-btn" onClick={() => onPageChange(activePage - 1)} disabled={activePage <= 1} title="Previous page">
               <ChevronLeft size={15} />
             </button>
             <span className="doc-toolbar-zoom">{activePage} / {totalPages}</span>
-            <button className="doc-toolbar-btn" onClick={() => onPageChange(activePage + 1)} disabled={activePage >= totalPages}>
+            <button className="doc-toolbar-btn" onClick={() => onPageChange(activePage + 1)} disabled={activePage >= totalPages} title="Next page">
               <ChevronRight size={15} />
             </button>
             <button className="doc-toolbar-btn" title="Add page" onClick={onAddPage}>
@@ -462,7 +498,10 @@ function Toolbar({
       </div>
 
       <div className="doc-toolbar-right">
-        <button className="doc-toolbar-save" onClick={onSave} disabled={saving}>
+        <button className="doc-toolbar-btn" onClick={onExportPNG} title="Export as PNG">
+          <FileImage size={15} />
+        </button>
+        <button className="doc-toolbar-save" onClick={onSave} disabled={saving || !dirty}>
           {saving ? <><Loader size={13} className="spin" /> Saving…</> : <><Save size={13} /> Save</>}
         </button>
       </div>
@@ -478,7 +517,7 @@ interface Props {
 }
 
 export function DocumentEditor({ docId, onBack }: Props) {
-  const { doc, loading, saving, fetch, saveCanvas, savePage, addPage } = useDocument(docId);
+  const { doc, loading, error, saving, fetch, saveCanvas, savePage, saveTitle, addPage } = useDocument(docId);
 
   // Active page (1-indexed). For non-slide_deck, always 1.
   const [activePage, setActivePage] = useState(1);
@@ -492,14 +531,30 @@ export function DocumentEditor({ docId, onBack }: Props) {
   const [drag, setDrag]             = useState<DragState | null>(null);
   const [chartCache, setChartCache] = useState<ChartCache>({});
 
+  // Dirty tracking for autosave + Save button state
+  const [dirty,   setDirty]   = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
   const canvasRef = useRef<HTMLDivElement>(null);
+  // Prevents the first hydration from immediately re-saving the canvas
+  const hydratingRef = useRef(true);
 
   // Load document on mount
   useEffect(() => { fetch(); }, [fetch]);
 
+  // Doc fetch errored — bounce back to the list with a toast so the URL
+  // doesn't keep showing a broken page.
+  useEffect(() => {
+    if (error) {
+      toast.error(error || 'Document not found');
+      onBack();
+    }
+  }, [error, onBack]);
+
   // Sync canvas from doc when doc or activePage changes
   useEffect(() => {
     if (!doc) return;
+    hydratingRef.current = true;
     if (doc.doc_type === 'slide_deck') {
       const page = doc.pages?.find(p => p.page_number === activePage);
       setCanvas(page ? { ...page.canvas_json } : null);
@@ -507,6 +562,9 @@ export function DocumentEditor({ docId, onBack }: Props) {
       setCanvas({ ...doc.canvas_json });
     }
     setSelectedId(null);
+    setDirty(false);
+    // Next paint: hydration done, future changes mark dirty
+    queueMicrotask(() => { hydratingRef.current = false; });
   }, [doc, activePage]);
 
   // Fetch chart data for all chart_ref elements
@@ -525,6 +583,39 @@ export function DocumentEditor({ docId, onBack }: Props) {
       } catch { /* ignore */ }
     });
   }, [canvas]);
+
+  // Mark dirty whenever the canvas changes (post-hydration)
+  useEffect(() => {
+    if (hydratingRef.current) return;
+    if (!canvas) return;
+    setDirty(true);
+  }, [canvas]);
+
+  // Debounced autosave — fires 1.2s after the last edit. Skips during an
+  // in-flight save / drag operation to avoid hammering the API.
+  useEffect(() => {
+    if (!dirty || !canvas || !doc || drag) return;
+    const t = setTimeout(async () => {
+      try {
+        if (doc.doc_type === 'slide_deck') {
+          await savePage(activePage, canvas);
+        } else {
+          await saveCanvas(canvas);
+        }
+        setSavedAt(Date.now());
+        setDirty(false);
+      } catch { /* surfaced by useDocument's error state */ }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [dirty, canvas, doc, drag, activePage, saveCanvas, savePage]);
+
+  // Re-render the "Saved Xs ago" label every 10s without piling on state.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!savedAt) return;
+    const t = setInterval(() => setTick(x => x + 1), 10_000);
+    return () => clearInterval(t);
+  }, [savedAt]);
 
   // ── Drag handling ───────────────────────────────────────────────────────────
 
@@ -565,17 +656,51 @@ export function DocumentEditor({ docId, onBack }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Don't hijack key events when an input is focused
+      const active = document.activeElement;
+      const inField = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || (active as HTMLElement).isContentEditable);
+      if (inField) return;
       if (!selectedId) return;
+
+      // Delete / backspace → remove element
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const active = document.activeElement;
-        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) return;
         setCanvas(prev => prev ? { ...prev, elements: prev.elements.filter(el => el.id !== selectedId) } : prev);
         setSelectedId(null);
+        e.preventDefault();
+        return;
+      }
+
+      // Arrow keys → nudge selected element (Shift = 10x)
+      const arrow = (
+        e.key === 'ArrowUp'    ? { dx: 0,  dy: -1 } :
+        e.key === 'ArrowDown'  ? { dx: 0,  dy:  1 } :
+        e.key === 'ArrowLeft'  ? { dx: -1, dy:  0 } :
+        e.key === 'ArrowRight' ? { dx: 1,  dy:  0 } : null
+      );
+      if (arrow) {
+        const step = e.shiftKey ? 10 : 1;
+        setCanvas(prev => prev ? {
+          ...prev,
+          elements: prev.elements.map(el => el.id === selectedId
+            ? { ...el, x: el.x + arrow.dx * step, y: el.y + arrow.dy * step }
+            : el),
+        } : prev);
+        e.preventDefault();
+        return;
+      }
+
+      // Cmd/Ctrl + S → manual save (route through a ref so we always
+      // invoke the latest closure — handleSave is defined further down)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveRef.current?.();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedId]);
+
+  const saveRef = useRef<(() => void) | null>(null);
 
   // ── Element operations ──────────────────────────────────────────────────────
 
@@ -636,12 +761,60 @@ export function DocumentEditor({ docId, onBack }: Props) {
 
   const handleSave = useCallback(async () => {
     if (!doc || !canvas) return;
-    if (doc.doc_type === 'slide_deck') {
-      await savePage(activePage, canvas);
-    } else {
-      await saveCanvas(canvas);
+    try {
+      if (doc.doc_type === 'slide_deck') {
+        await savePage(activePage, canvas);
+      } else {
+        await saveCanvas(canvas);
+      }
+      setSavedAt(Date.now());
+      setDirty(false);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to save');
     }
   }, [doc, canvas, activePage, saveCanvas, savePage]);
+
+  // Keep saveRef pointed at the latest handler so the keyboard shortcut can call it
+  useEffect(() => { saveRef.current = handleSave; }, [handleSave]);
+
+  const handleTitleChange = useCallback(async (next: string) => {
+    try {
+      await saveTitle(next);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to rename');
+    }
+  }, [saveTitle]);
+
+  // ── Export ──────────────────────────────────────────────────────────────────
+
+  const handleExportPNG = useCallback(async () => {
+    if (!canvas || !canvasRef.current) return;
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      // Render at 1x scale (not zoomed) for a clean export. Briefly reset zoom.
+      const prevZoom = zoom;
+      setZoom(1);
+      // Wait one paint so the canvas reflects the un-zoomed size
+      await new Promise(r => requestAnimationFrame(() => r(null)));
+      const el = canvasRef.current!;
+      const png = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: canvas.background || '#ffffff',
+        width: canvas.width,
+        height: canvas.height,
+        windowWidth: canvas.width,
+        windowHeight: canvas.height,
+      });
+      const link = document.createElement('a');
+      link.download = `${(doc?.title || 'document').replace(/[^a-z0-9-_ ]/gi, '_')}.png`;
+      link.href = png.toDataURL('image/png');
+      link.click();
+      setZoom(prevZoom);
+    } catch (e: any) {
+      toast.error('PNG export failed');
+    }
+  }, [canvas, doc, zoom]);
 
   // ── Add page ────────────────────────────────────────────────────────────────
 
@@ -678,11 +851,14 @@ export function DocumentEditor({ docId, onBack }: Props) {
     <div className="doc-editor-root">
       <Toolbar
         doc={doc} zoom={zoom} saving={saving}
+        savedAt={savedAt} dirty={dirty}
         activePage={activePage} totalPages={totalPages}
         onZoomIn={() => setZoom(z => Math.min(2, z + 0.1))}
         onZoomOut={() => setZoom(z => Math.max(0.1, z - 0.1))}
         onAddText={addText} onAddShape={addShape} onAddImage={addImage}
-        onSave={handleSave} onBack={onBack}
+        onSave={handleSave} onExportPNG={handleExportPNG}
+        onTitleChange={handleTitleChange}
+        onBack={onBack}
         onPageChange={n => setActivePage(clamp(n, 1, totalPages))}
         onAddPage={handleAddPage}
       />

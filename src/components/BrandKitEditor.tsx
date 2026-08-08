@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  Save, RotateCcw, Upload, Palette, Type, Maximize2, Layers,
+  Save, RotateCcw, Upload, Palette, Type, Maximize2,
   Sun, Moon, Monitor, Download, Upload as UploadIcon, ChevronDown,
-  Building2, Paintbrush, BarChart3, Layout, Sparkles, Plus, X, GripVertical, Copy, Check,
+  Building2, Paintbrush, BarChart3, Layout, Sparkles, Plus, X, Copy, Check,
 } from 'lucide-react';
 import type { BrandKit } from '../types/brandKit';
 import {
@@ -14,6 +14,7 @@ import { generatePalette } from '../utils/brandPalette';
 import type { UseBrandKitResult } from '../hooks/useBrandKit';
 import { BASE } from './constants';
 import axios from 'axios';
+import { toast } from './ui';
 
 // ── Colour swatch input ───────────────────────────────────────────────────────
 
@@ -399,7 +400,7 @@ export function BrandKitEditor({
         setDraft(prev => ({ ...prev, ...parsed }));
         setSaved(false);
       } catch {
-        alert('Invalid brand kit JSON file.');
+        toast.error('Invalid brand kit JSON file.');
       }
     };
     reader.readAsText(file);

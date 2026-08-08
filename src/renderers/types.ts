@@ -43,11 +43,18 @@ export interface MatrixConfig {
 }
 
 export interface AnomalyInfo {
-  anomalies: any[];
-  normal_range: [number, number];
-  severity: 'low' | 'medium' | 'high';
-  anomaly_count: number;
-  mean: number;
+  // Legacy fields (older anomaly cards)
+  anomalies?: any[];
+  normal_range?: [number, number];
+  severity?: 'low' | 'medium' | 'high' | 'none';
+  anomaly_count?: number;
+  mean?: number;
+  // B1 — new statistical anomaly fields from anomaly_detection module
+  has_anomalies?: boolean;
+  outliers?: { label: string; value: number; zscore?: number; direction?: string }[];
+  change_points?: { label: string; before_mean: number; after_mean: number; shift_sigma: number; direction: string }[];
+  stdev?: number;
+  summary?: string;
 }
 
 // ── The canonical spec passed from ChartRenderer → adapter ────────────────────

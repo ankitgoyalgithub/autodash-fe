@@ -11,5 +11,8 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    allowedHosts: [
+      "apollo-aside-corpus-finals.trycloudflare.com"
+    ]
   },
 })

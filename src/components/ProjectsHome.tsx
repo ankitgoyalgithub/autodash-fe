@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, memo, useCallback } from 'react';
-import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown, Sparkles, MoreHorizontal, Pencil, Trash2, AlertTriangle, HardDrive } from 'lucide-react';
+import { X, Plus, Database, CheckCircle2, Clock, BarChart2, Search, SlidersHorizontal, ChevronDown, Sparkles, MoreHorizontal, Pencil, Trash2, AlertTriangle, HardDrive, FolderPlus, SearchX } from 'lucide-react';
 import axios from 'axios';
 import type { Datasource, Project } from '../App';
 import { BASE, EMOJIS, PALETTES } from './constants';
 import { DatasourceEditForm } from './DatasourcesManagement';
 import { DesignTemplates } from './DesignTemplates';
+import { ProjectLogoTile, DEFAULT_LOGO_ID, logoColorFor } from './projectLogos';
+import { toast, EmptyState, Button } from './ui';
 
 // ─── Palette metadata for the picker ─────────────────────────────────────────
 
@@ -41,14 +43,19 @@ function DashboardPreview({ paletteId }: { paletteId: string }) {
       </div>
       {/* Mini bar chart */}
       <div className="np-preview-chart">
-        {[55, 80, 45, 95, 65, 75, 50].map((h, i) => (
+        {[55, 75, 45, 85, 65, 75, 50].map((h, i) => (
           <div key={i} className="np-preview-bar"
             style={{ height: `${h}%`, background: i % 2 === 0 ? c0 : c1, opacity: 0.85 + (i % 3) * 0.05 }} />
         ))}
-        {/* Trend line overlay */}
+        {/* Trend line overlay. Points are kept ≥6 units from every viewBox edge
+            so a round-cap stroke can't visually pop out past the rounded chart
+            corners. `vector-effect="non-scaling-stroke"` keeps the line the
+            same pixel-thickness regardless of how the SVG is stretched. */}
         <svg className="np-preview-line" viewBox="0 0 70 40" preserveAspectRatio="none">
-          <polyline points="5,28 15,18 25,22 35,8 45,14 55,10 65,6"
-            fill="none" stroke={c3 || c2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9"/>
+          <polyline points="6,30 16,22 26,25 36,14 46,18 56,13 64,11"
+            fill="none" stroke={c3 || c2} strokeWidth="1.5"
+            strokeLinecap="round" strokeLinejoin="round" opacity="0.9"
+            vectorEffect="non-scaling-stroke" />
         </svg>
       </div>
     </div>
@@ -65,7 +72,7 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
-  const [emoji, setEmoji] = useState('📊');
+  const [emoji, setEmoji] = useState(DEFAULT_LOGO_ID);
   const [paletteId, setPaletteId] = useState('vibrant');
   const [selectedDs, setSelectedDs] = useState<number | null>(null);
   const [addingNew, setAddingNew] = useState(datasources.length === 0);
@@ -137,91 +144,106 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
 
   const handleSaveDs = async (cfg: object) => {
     try { const r = await axios.post(`${BASE}/datasources/`, cfg); setSelectedDs(r.data.id); setSavedDs(r.data.name); setAddingNew(false); }
-    catch (e: any) { alert(e.response?.data?.error || 'Failed to save datasource.'); }
+    catch (e: any) { toast.error(e.response?.data?.error || 'Failed to save datasource.'); }
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="np-modal" onClick={e => e.stopPropagation()}>
+      <div className={`np-modal np-modal--v2 ${step === 1 ? 'np-modal--wide' : ''}`} onClick={e => e.stopPropagation()}>
 
-        {/* ── Colorful hero header ── */}
-        <div className="np-hero" style={{ background: `linear-gradient(135deg, ${accent}22 0%, ${colors[1]}18 50%, ${colors[2]}14 100%)` }}>
-          <div className="np-hero-inner">
-            <div className="np-hero-emoji">{emoji}</div>
-            <div className="np-hero-text">
-              <div className="np-hero-title">{name || 'New Project'}</div>
-              <div className="np-hero-sub">{desc || 'Your next great dashboard'}</div>
-            </div>
+        {/* ── Refined title bar ── */}
+        <div className="np-titlebar">
+          <div className="np-titlebar-text">
+            <div className="np-titlebar-eyebrow">{step === 1 ? 'Step 1 of 2' : 'Step 2 of 2'}</div>
+            <h2 className="np-titlebar-title">{step === 1 ? 'Project details' : 'Connect a data source'}</h2>
           </div>
-          <DashboardPreview paletteId={paletteId} />
-          <button className="np-close" onClick={onClose}><X size={16}/></button>
+          <button className="np-close-v2" onClick={onClose} aria-label="Close"><X size={18}/></button>
         </div>
 
-        {/* ── Step pills ── */}
-        <div className="np-steps">
-          <div className={`np-step ${step >= 1 ? 'active' : ''}`} onClick={() => step > 1 && setStep(1)}>
-            <span style={step >= 1 ? { background: accent } : {}}>1</span>Setup
-          </div>
-          <div className="np-step-line" style={{ background: step >= 2 ? accent + '60' : undefined }} />
-          <div className={`np-step ${step >= 2 ? 'active' : ''}`}>
-            <span style={step >= 2 ? { background: accent } : {}}>2</span>Data Source
-          </div>
+        {/* ── Linear progress bar ── */}
+        <div className="np-progress-track">
+          <div className="np-progress-fill" style={{
+            width: step === 1 ? '50%' : '100%',
+            background: `linear-gradient(90deg, ${accent} 0%, ${colors[1]} 100%)`,
+          }} />
         </div>
 
-        {/* ── Step 1: Setup ── */}
+        {/* ── Step 1: Setup (two-column) ── */}
         {step === 1 && (
-          <div className="np-body">
-            {/* Name & description */}
-            <div className="np-field">
-              <label>Project name</label>
-              <input autoFocus placeholder="e.g. Sales Analytics 2024" value={name} onChange={e => setName(e.target.value)}
-                style={{ '--focus-ring': accent } as React.CSSProperties} className="np-input" />
-            </div>
-            <div className="np-field">
-              <label>Description <span className="opt">optional</span></label>
-              <input placeholder="What are you tracking?" value={desc} onChange={e => setDesc(e.target.value)}
-                className="np-input" />
-            </div>
+          <div className="np-step1">
+            <div className="np-form-col">
+              <div className="np-field">
+                <label>Project name</label>
+                <input autoFocus placeholder="e.g. Q4 Marketing Performance" value={name} onChange={e => setName(e.target.value)}
+                  style={{ '--focus-ring': accent } as React.CSSProperties} className="np-input" />
+              </div>
+              <div className="np-field">
+                <label>Description <span className="opt">Optional</span></label>
+                <input placeholder="What does this track?" value={desc} onChange={e => setDesc(e.target.value)}
+                  className="np-input" />
+              </div>
 
-            {/* Icon picker */}
-            <div className="np-field">
-              <label>Icon</label>
-              <div className="np-emoji-row">
-                {EMOJIS.map(e => (
-                  <button key={e} className={`np-emoji-btn ${emoji === e ? 'sel' : ''}`}
-                    style={emoji === e ? { borderColor: accent, background: accent + '18' } : {}}
-                    onClick={() => setEmoji(e)}>{e}</button>
-                ))}
+              <div className="np-field">
+                <label>Project icon</label>
+                <div className="np-emoji-row">
+                  {EMOJIS.map(e => (
+                    <button key={e} type="button" className={`np-emoji-btn ${emoji === e ? 'sel' : ''}`}
+                      onClick={() => setEmoji(e)}>
+                      <ProjectLogoTile id={e} size={42} selected={emoji === e} accent={accent} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="np-field">
+                <label>Chart palette <Sparkles size={11} style={{ opacity: 0.5, verticalAlign: 'middle', marginLeft: 4 }} /></label>
+                <div className="np-palette-grid">
+                  {PALETTE_META.map(p => (
+                    <button key={p.id}
+                      className={`np-palette-card ${paletteId === p.id ? 'sel' : ''}`}
+                      style={paletteId === p.id ? { borderColor: accent, boxShadow: `0 0 0 3px ${accent}28` } : {}}
+                      onClick={() => setPaletteId(p.id)}>
+                      <div className="np-palette-swatches">
+                        {(PALETTES[p.id as keyof typeof PALETTES] || []).slice(0, 5).map((c, i) => (
+                          <span key={i} style={{ background: c }} />
+                        ))}
+                      </div>
+                      <div className="np-palette-name">{p.label}</div>
+                      <div className="np-palette-desc">{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Color palette picker */}
-            <div className="np-field">
-              <label>Chart palette <Sparkles size={12} style={{ opacity: 0.5, verticalAlign: 'middle', marginLeft: 4 }} /></label>
-              <div className="np-palette-grid">
-                {PALETTE_META.map(p => (
-                  <button key={p.id}
-                    className={`np-palette-card ${paletteId === p.id ? 'sel' : ''}`}
-                    style={paletteId === p.id ? { borderColor: accent, boxShadow: `0 0 0 3px ${accent}28` } : {}}
-                    onClick={() => setPaletteId(p.id)}>
-                    <div className="np-palette-swatches">
-                      {(PALETTES[p.id as keyof typeof PALETTES] || []).slice(0, 5).map((c, i) => (
-                        <span key={i} style={{ background: c }} />
-                      ))}
-                    </div>
-                    <div className="np-palette-name">{p.label}</div>
-                    <div className="np-palette-desc">{p.desc}</div>
-                  </button>
-                ))}
+            {/* Live preview column — soft tinted backdrop so the white
+                card pops without saturating the whole pane. */}
+            <aside className="np-preview-col">
+              {/* Soft accent wash in the corner — adds visual interest
+                  without overwhelming the actual preview content */}
+              <div
+                className="np-preview-col__wash"
+                aria-hidden="true"
+                style={{
+                  background: `radial-gradient(circle at 80% 0%, ${logoColorFor(emoji).bg} 0%, transparent 65%)`,
+                }}
+              />
+              <div className="np-preview-label">Preview</div>
+              <div className="np-preview-card">
+                <div className="np-preview-card-head">
+                  <ProjectLogoTile id={emoji} size={48} accent={accent} selected />
+                  <div className="np-preview-card-text">
+                    <div className="np-preview-card-name">{name || 'New project'}</div>
+                    <div className="np-preview-card-desc">{desc || 'A short description appears here.'}</div>
+                  </div>
+                </div>
+                <DashboardPreview paletteId={paletteId} />
               </div>
-            </div>
-
-            <div className="np-footer">
-              <button className="np-btn-primary" style={{ background: accent }}
-                onClick={() => setStep(2)} disabled={!name.trim()}>
-                Continue →
-              </button>
-            </div>
+              <div className="np-preview-meta">
+                <span className="np-preview-meta-dot" style={{ background: accent }} />
+                <span>{PALETTE_META.find(p => p.id === paletteId)?.label || 'Vibrant'} palette</span>
+              </div>
+            </aside>
           </div>
         )}
 
@@ -351,19 +373,31 @@ export function NewProjectModal({ datasources, onClose, onCreate }: {
               </div>
             )}
 
-            <div className="np-footer">
-              <button className="btn-outline" onClick={() => setStep(1)}>← Back</button>
-              <button className="np-btn-primary" style={{ background: accent }}
-                onClick={() => onCreate({
-                  name, description: desc, emoji, color: accent, palette: paletteId,
-                  datasource_id: selectedDs,
-                  allowed_tables: Array.from(selectedTables),
-                })}>
-                <Sparkles size={14}/> Create Project
-              </button>
-            </div>
           </div>
         )}
+
+        {/* ── Unified sticky footer ── */}
+        <div className="np-footer-bar">
+          {step === 2
+            ? <button className="np-btn-ghost" onClick={() => setStep(1)}>← Back</button>
+            : <button className="np-btn-ghost" onClick={onClose}>Cancel</button>
+          }
+          {step === 1 ? (
+            <button className="np-btn-primary-v2" style={{ background: accent }}
+              onClick={() => setStep(2)} disabled={!name.trim()}>
+              Continue
+            </button>
+          ) : (
+            <button className="np-btn-primary-v2" style={{ background: accent }}
+              onClick={() => onCreate({
+                name, description: desc, emoji, color: accent, palette: paletteId,
+                datasource_id: selectedDs,
+                allowed_tables: Array.from(selectedTables),
+              })}>
+              <Sparkles size={14}/> Create project
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -430,21 +464,25 @@ const ProjectThumbCard = memo(function ProjectThumbCard({ p, onOpen, onEdit, onD
   return (
     <div className="canva-proj-card-wrap">
       <button className="canva-proj-card" onClick={onOpen}>
-        {/* Thumbnail preview */}
+        {/* Thumbnail preview — gradient tinted by the logo's category color */}
         <div
           className="canva-proj-thumb"
-          style={thumb ? {} : { background: `linear-gradient(145deg, ${c}18 0%, ${c}08 100%)` }}
+          style={thumb ? {} : {
+            background: `linear-gradient(145deg, ${logoColorFor(p.emoji).bg} 0%, ${logoColorFor(p.emoji).bgEnd} 100%)`,
+          }}
         >
           {thumb ? (
             <img src={thumb} alt={p.name} className="canva-proj-thumb-svg" draggable={false} />
           ) : (
             <div className="canva-proj-preview">
-              <ThumbMiniLine color={c} />
-              <ThumbMiniBar color={c} />
+              <ThumbMiniLine color={logoColorFor(p.emoji).fg} />
+              <ThumbMiniBar color={logoColorFor(p.emoji).fg} />
             </div>
           )}
-          <div className="canva-proj-thumb-overlay" style={{ background: `linear-gradient(to top, ${c}22 0%, transparent 60%)` }} />
-          <span className="canva-proj-emoji-badge">{p.emoji}</span>
+          <div className="canva-proj-thumb-overlay" style={{ background: `linear-gradient(to top, ${c}1a 0%, transparent 60%)` }} />
+          <span className="canva-proj-emoji-badge">
+            <ProjectLogoTile id={p.emoji} emoji={p.emoji} size={32} />
+          </span>
         </div>
 
         {/* Info area */}
@@ -524,18 +562,19 @@ function EditProjectModal({ project, onClose, onSave }: {
       <div className="edit-proj-modal" onClick={e => e.stopPropagation()}>
         <div className="edit-proj-header">
           <h3>Rename project</h3>
-          <button className="np-close-sm" onClick={onClose}><X size={16}/></button>
+          <button className="np-close-sm" onClick={onClose} aria-label="Close"><X size={16}/></button>
         </div>
         <div className="edit-proj-body">
           <div className="np-field">
             <label>Icon</label>
             <div className="np-emoji-row">
               {EMOJIS.map(e => (
-                <button key={e}
+                <button key={e} type="button"
                   className={`np-emoji-btn ${emoji === e ? 'sel' : ''}`}
-                  style={emoji === e ? { borderColor: project.color, background: project.color + '18' } : {}}
                   onClick={() => setEmoji(e)}
-                >{e}</button>
+                >
+                  <ProjectLogoTile id={e} size={42} selected={emoji === e} accent={project.color} />
+                </button>
               ))}
             </div>
           </div>
@@ -699,14 +738,23 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
             {search ? `Results for "${search}"` : 'Your Projects'}
           </h2>
           {filtered.length === 0 && !search ? (
-            <div className="canva-empty" style={{ padding: '32px 0' }}>
-              <div className="canva-empty-art">📊</div>
-              <h3>No projects yet</h3>
-              <p>Pick a template above or create a blank project to get started.</p>
-              <button className="btn-primary" onClick={onNewProject}><Plus size={15} /> New project</button>
-            </div>
+            <EmptyState
+              icon={<FolderPlus size={26}/>}
+              title="No projects yet"
+              subtitle="Pick a template above or create a blank project to get started."
+              actions={
+                <Button onClick={onNewProject} leading={<Plus size={15}/>}>
+                  New project
+                </Button>
+              }
+            />
           ) : filtered.length === 0 && search ? (
-            <p className="canva-no-results">No projects match your search.</p>
+            <EmptyState
+              compact
+              icon={<SearchX size={22}/>}
+              title="No projects match your search"
+              subtitle={`Nothing matched "${search}". Try a different keyword.`}
+            />
           ) : (
             <div className="canva-designs-grid">
               {!search && (

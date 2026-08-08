@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, LayoutDashboard } from 'lucide-react';
+import { Loader2, AlertCircle, LayoutDashboard, Filter } from 'lucide-react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import { InsightCard } from './InsightCard';
@@ -10,6 +10,30 @@ export function PublicDashboardView() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Cross-filter state: clicking a chart category scopes every card to it.
+  // Purely client-side (no prompt, no LLM) so it works on the public page.
+  const [globalFilters, setGlobalFilters] = useState<Record<string, string | number | null>>({});
+
+  const onDrillDown = (dimension: string, value: string | number) => {
+    setGlobalFilters(prev => ({
+      ...prev,
+      [dimension]: prev[dimension] === value ? null : value,
+    }));
+  };
+
+  const activeFilters = Object.entries(globalFilters).filter(([, v]) => v !== null && v !== undefined);
+
+  // OLAP drill-down on the public page — by card INDEX (the endpoint never takes
+  // client SQL). No LLM at click time; the hierarchy is planned + cached server-side.
+  const fetchPublicDrill = async (cardIndex: number, path: (string | number)[]) => {
+    if (cardIndex < 0) return null;
+    try {
+      const r = await axios.post(`${BASE}/public/${slug}/drill/`, { card_index: cardIndex, path });
+      return r.data;
+    } catch {
+      return null;
+    }
+  };
 
   useEffect(() => {
     const fetchPublic = async () => {
@@ -39,6 +63,26 @@ export function PublicDashboardView() {
           <LayoutDashboard size={15}/> Back to Dashboard
         </button>
       </div>
+
+      {activeFilters.length > 0 && (
+        <div className="global-filter-bar">
+          <div className="gf-label"><Filter size={13}/> Filtered by</div>
+          {activeFilters.map(([k, v]) => (
+            <div key={k} className="gf-group">
+              <span className="gf-col-name">{k.replace(/_/g, ' ')}</span>
+              <div className="gf-chips">
+                <button
+                  className="gf-chip active"
+                  title="Click to clear"
+                  onClick={() => onDrillDown(k, v as string | number)}
+                >{String(v)} ✕</button>
+              </div>
+            </div>
+          ))}
+          <button className="gf-clear" onClick={() => setGlobalFilters({})}>Clear all</button>
+        </div>
+      )}
+
       {(() => {
         const sorted = [...(data.results_data || [])].sort((a: any, b: any) => {
           const aM = a.type === 'metric' || a.size === 'mini' || a.size === 'small' ? 0 : 1;
@@ -51,12 +95,18 @@ export function PublicDashboardView() {
           <>
             {metrics.length > 0 && (
               <div className="metrics-strip">
-                {metrics.map((card: any, i: number) => <InsightCard key={i} card={card} layout="grid" />)}
+                {metrics.map((card: any, i: number) => (
+                  <InsightCard key={i} card={card} layout="grid" globalFilters={globalFilters} onDrillDown={onDrillDown}
+                    drillFetch={(path) => fetchPublicDrill((data.results_data || []).indexOf(card), path)} />
+                ))}
               </div>
             )}
             {charts.length > 0 && (
               <div className="charts-strip">
-                {charts.map((card: any, i: number) => <InsightCard key={`c${i}`} card={card} layout="grid" />)}
+                {charts.map((card: any, i: number) => (
+                  <InsightCard key={`c${i}`} card={card} layout="grid" globalFilters={globalFilters} onDrillDown={onDrillDown}
+                    drillFetch={(path) => fetchPublicDrill((data.results_data || []).indexOf(card), path)} />
+                ))}
               </div>
             )}
           </>

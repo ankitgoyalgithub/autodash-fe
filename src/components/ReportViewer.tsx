@@ -9,10 +9,13 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import axios from 'axios';
 import {
-  Maximize2, Minimize2, Printer, FileText, ChevronLeft,
-  Loader2, AlertCircle,
+  Maximize2, Minimize2, Printer, FileText, FileImage, ChevronLeft, Mail,
 } from 'lucide-react';
+import { ErrorState, Spinner } from './ui';
+import { BASE } from './constants';
+import EmailModal, { type EmailSendArgs } from './EmailModal';
 
 export interface ReportChapter {
   id:          string;
@@ -27,7 +30,7 @@ export interface ReportData {
   title:             string;
   subtitle:          string;
   query:             string;
-  format:            'report' | 'newsletter';
+  format:            'report' | 'newsletter' | 'cartoon' | 'image_infographic';
   style:             string;
   length:            'brief' | 'standard' | 'deep';
   status:            string;
@@ -62,11 +65,13 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
 
-  // Loading / error states
-  if (report.status !== 'ready') {
-    return <ReportLoadingState report={report} />;
-  }
+  // IMPORTANT: every hook in this component MUST run on every render.
+  // The early-return for the loading state below comes AFTER all hooks,
+  // so the hook order is stable when `report.status` flips writing→ready.
+  // (Previously the early-return sat between hooks and triggered React's
+  // "Rendered more hooks than during the previous render" error.)
 
   // Write the HTML into the iframe
   const handleIframeLoad = useCallback(() => {
@@ -108,11 +113,54 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
 
+  // Loading / error states — early return AFTER all hooks so the hook
+  // order stays consistent across renders.
+  if (report.status !== 'ready') {
+    return <ReportLoadingState report={report} />;
+  }
+
   const handlePrint = () => {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
+  };
+
+  // Email the report as a server-rendered PDF (works for every format).
+  const handleEmail = async ({ recipients, subject, message }: EmailSendArgs) => {
+    const r = await axios.post(`${BASE}/reports/${report.id}/email/`, {
+      to: recipients,
+      subject,
+      message,
+    });
+    return { recipients: r.data?.recipients as string[] | undefined };
+  };
+
+  const fmtLabel = report.format === 'newsletter' ? 'Newsletter'
+    : report.format === 'cartoon' ? 'Cartoon'
+    : report.format === 'image_infographic' ? 'Infographic'
+    : 'Report';
+
+  const handleDownloadPNG = async () => {
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const iframe = iframeRef.current;
+      if (!iframe?.contentDocument?.body) return;
+      const canvas = await html2canvas(iframe.contentDocument.body, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        // For image_infographic the body width is 720px; for cartoon it's 880px
+        width: report.format === 'cartoon' ? 880 : 720,
+        windowWidth: report.format === 'cartoon' ? 880 : 720,
+      });
+      const link = document.createElement('a');
+      link.download = `${(report.title || 'infographic').replace(/[^a-z0-9]+/gi, '_').toLowerCase()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      console.error('PNG export failed:', e);
+    }
   };
 
   // Scroll the iframe to a specific chapter anchor
@@ -137,10 +185,21 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
             <FileText size={13} /> {report.title}
           </span>
           <span className={`report-style-badge report-fmt-${report.format}`}>
-            {report.format === 'newsletter' ? 'NEWSLETTER' : 'REPORT'}
+            {report.format === 'newsletter' ? 'NEWSLETTER'
+              : report.format === 'cartoon' ? 'CARTOON'
+              : report.format === 'image_infographic' ? 'INFOGRAPHIC'
+              : 'REPORT'}
           </span>
         </div>
         <div className="report-toolbar-right">
+          {(report.format === 'image_infographic' || report.format === 'cartoon') && (
+            <button className="report-tb-btn report-tb-btn--primary" onClick={handleDownloadPNG} title="Download as PNG">
+              <FileImage size={14} /> <span>Download PNG</span>
+            </button>
+          )}
+          <button className="report-tb-btn report-tb-btn--primary" onClick={() => setShowEmail(true)} title="Email this as a PDF">
+            <Mail size={14} /> <span>Email PDF</span>
+          </button>
           <button className="report-tb-btn" onClick={handlePrint} title="Print or save as PDF">
             <Printer size={14} /> <span>Print / PDF</span>
           </button>
@@ -151,7 +210,7 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
       </div>
 
       {/* Body: TOC sidebar (reports only) + iframe canvas */}
-      <div className={`report-body ${report.format === 'newsletter' ? 'report-body--newsletter' : ''}`}>
+      <div className={`report-body ${report.format === 'newsletter' ? 'report-body--newsletter' : ''} ${report.format === 'cartoon' ? 'report-body--cartoon' : ''} ${report.format === 'image_infographic' ? 'report-body--imginfo' : ''}`}>
         {/* Sticky TOC sidebar — only for long-form reports */}
         {report.format === 'report' && (
           <aside className="report-toc-sidebar">
@@ -184,6 +243,17 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
           />
         </div>
       </div>
+
+      {showEmail && (
+        <EmailModal
+          title={`Email ${fmtLabel.toLowerCase()} as PDF`}
+          subtitle={report.title}
+          defaultSubject={report.title}
+          sendLabel="Send PDF"
+          onClose={() => setShowEmail(false)}
+          onSend={handleEmail}
+        />
+      )}
     </div>
   );
 }
@@ -194,17 +264,19 @@ function ReportLoadingState({ report }: { report: ReportData }) {
   if (report.status === 'error') {
     return (
       <div className="report-loading-state">
-        <AlertCircle size={32} className="report-loading-icon" />
-        <h3>Report generation failed</h3>
-        <p className="report-loading-msg">{report.error || 'An unexpected error occurred.'}</p>
-        <p className="report-loading-hint">Try simplifying your prompt or check that your data has the relevant tables.</p>
+        <ErrorState
+          severity="danger"
+          title="Report generation failed"
+          subtitle={report.error || 'An unexpected error occurred. Try simplifying your prompt or check that your data has the relevant tables.'}
+        />
       </div>
     );
   }
 
+  // Active generation — show progress with status copy.
   return (
     <div className="report-loading-state">
-      <Loader2 size={32} className="report-loading-icon spin" />
+      <div className="report-loading-spinner"><Spinner size="lg" label="Generating report"/></div>
       <h3>{STATUS_MESSAGES[report.status] || 'Generating report...'}</h3>
       <div className="report-progress-track">
         <div className="report-progress-fill" style={{ width: `${report.progress}%` }} />

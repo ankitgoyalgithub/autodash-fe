@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend,
   ResponsiveContainer, LineChart as ReLineChart, Line, PieChart, Pie, Cell,
@@ -27,6 +27,34 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
   const seriesColor = (i: number) => colors[(colorOffset + i) % colors.length];
   const visibleDataKeys = dataKeys.filter(k => !hiddenSeries.has(k));
 
+  // ── Forecast splitter ────────────────────────────────────────────────────
+  // When the forecasting agent has appended is_forecast=true rows, split each
+  // y-series into actual + forecast halves so the future segment renders
+  // dashed. The boundary point is duplicated into both series so the line
+  // visually connects across the transition.
+  const hasForecast = Array.isArray(data) && data.some((r: any) => r?.is_forecast);
+  const forecastSplit = useMemo(() => {
+    if (!hasForecast) return null;
+    const lastActualIdx = (() => {
+      for (let i = data.length - 1; i >= 0; i--) if (!data[i]?.is_forecast) return i;
+      return -1;
+    })();
+    const split = data.map((row: any, idx: number) => {
+      const copy: any = { ...row };
+      const isFc = !!row?.is_forecast;
+      for (const k of dataKeys) {
+        copy[`${k}__actual`]   = isFc ? null : row[k];
+        copy[`${k}__forecast`] = isFc || idx === lastActualIdx ? row[k] : null;
+      }
+      return copy;
+    });
+    return { data: split, lastActualIdx };
+  }, [hasForecast, data, dataKeys]);
+
+  const boundaryLabel = forecastSplit && forecastSplit.lastActualIdx >= 0
+    ? data[forecastSplit.lastActualIdx]?.[xKey]
+    : null;
+
   // Memoized legend renderer — must be stable across renders or Recharts
   // JavascriptAnimate enters an infinite setState loop on every new function ref.
   const legend = useCallback(({ payload }: any) => (
@@ -41,15 +69,32 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
   // ── Line ─────────────────────────────────────────────────────────────────
   if (chart_type === 'line') {
     const xp = getXAxisProps(data, xKey);
+    const renderData = forecastSplit ? forecastSplit.data : data;
     return (
       <ResponsiveContainer debounce={1} width="100%" height={height}>
-        <ReLineChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={handleChartClick}>
+        <ReLineChart data={renderData} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={handleChartClick} style={onDrillDown ? { cursor: 'pointer' } : undefined}>
           <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
           <XAxis dataKey={xKey} tickFormatter={xp.tickFormatter} tick={{ fontSize: 11, fill: tickColor, angle: xp.angle, textAnchor: xp.textAnchor }} axisLine={false} tickLine={false} height={xp.height} interval={xp.interval} />
           <YAxis tickFormatter={(v) => formatAxisTick(v, dataKeys[0])} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={60} />
           <RTooltip content={ChartTooltip} />
           <Legend content={legend} />
-          {visibleDataKeys.map((k, i) => (
+          {forecastSplit && boundaryLabel != null && (
+            <ReferenceLine x={String(boundaryLabel)} stroke="#94a3b8" strokeDasharray="4 4"
+              label={{ value: '▶ Forecast', position: 'insideTopRight', fontSize: 10, fill: '#94a3b8' }}/>
+          )}
+          {visibleDataKeys.map((k, i) => forecastSplit ? (
+            <React.Fragment key={k}>
+              <Line type="monotone" dataKey={`${k}__actual`} stroke={seriesColor(i)} strokeWidth={2.5}
+                dot={data.length > 30 ? false : { r: 3.5, fill: seriesColor(i), strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: seriesColor(i), stroke: '#fff', strokeWidth: 2.5 }}
+                name={k} connectNulls={false}/>
+              <Line type="monotone" dataKey={`${k}__forecast`} stroke={seriesColor(i)} strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={{ r: 3, fill: '#fff', stroke: seriesColor(i), strokeWidth: 2 }}
+                activeDot={{ r: 5.5, fill: seriesColor(i), stroke: '#fff', strokeWidth: 2 }}
+                name={`${k} (forecast)`} legendType="none" connectNulls={false}/>
+            </React.Fragment>
+          ) : (
             <Line key={k} type="monotone" dataKey={k} stroke={seriesColor(i)} strokeWidth={2.5}
               dot={data.length > 30 ? false : { r: 3.5, fill: seriesColor(i), strokeWidth: 0 }}
               activeDot={{ r: 6, fill: seriesColor(i), stroke: '#fff', strokeWidth: 2.5 }}
@@ -105,7 +150,7 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
     const xp = getXAxisProps(data, xKey);
     return (
       <ResponsiveContainer debounce={1} width="100%" height={height}>
-        <AreaChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={handleChartClick}>
+        <AreaChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={handleChartClick} style={onDrillDown ? { cursor: 'pointer' } : undefined}>
           <defs>
             {visibleDataKeys.map((k, i) => (
               <linearGradient key={k} id={`${pfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -136,7 +181,7 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
     const xp = getXAxisProps(data, xKey);
     return (
       <ResponsiveContainer debounce={1} width="100%" height={height}>
-        <BarChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={handleChartClick} barCategoryGap="28%">
+        <BarChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={handleChartClick} style={onDrillDown ? { cursor: 'pointer' } : undefined} barCategoryGap="28%">
           <defs>
             {visibleDataKeys.map((k, i) => (
               <linearGradient key={k} id={`${pfx}-${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -164,7 +209,7 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
     const xp = getXAxisProps(data, xKey);
     return (
       <ResponsiveContainer debounce={1} width="100%" height={height}>
-        <ComposedChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={handleChartClick} barCategoryGap="28%">
+        <ComposedChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: xp.height }} onClick={handleChartClick} style={onDrillDown ? { cursor: 'pointer' } : undefined} barCategoryGap="28%">
           <defs>
             <linearGradient id={pfx} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={seriesColor(0)} stopOpacity={1}/>
@@ -194,7 +239,7 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
     const pfx = `hbg-${index ?? 0}`;
     return (
       <ResponsiveContainer debounce={1} width="100%" height={dynH}>
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 52, left: 4, bottom: 4 }} onClick={handleChartClick} barCategoryGap="22%">
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 52, left: 4, bottom: 4 }} onClick={handleChartClick} style={onDrillDown ? { cursor: 'pointer' } : undefined} barCategoryGap="22%">
           <defs>
             {visibleDataKeys.map((k, i) => (
               <linearGradient key={k} id={`${pfx}-${i}`} x1="0" y1="0" x2="1" y2="0">
@@ -551,7 +596,7 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
   const pfx = `vbg-${index ?? 0}`;
   return (
     <ResponsiveContainer debounce={1} width="100%" height={height + (needsAngle ? 28 : 0)}>
-      <BarChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: extraBottom }} onClick={handleChartClick} barCategoryGap="28%">
+      <BarChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: extraBottom }} onClick={handleChartClick} style={onDrillDown ? { cursor: 'pointer' } : undefined} barCategoryGap="28%">
         <defs>
           {visibleDataKeys.map((k, i) => (
             <linearGradient key={k} id={`${pfx}-${i}`} x1="0" y1="0" x2="0" y2="1">

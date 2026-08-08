@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Database, Sparkles, Search } from 'lucide-react';
+import { X, Database, Sparkles, Search, SearchX } from 'lucide-react';
 import type { Datasource, Project } from '../App';
 import { BASE } from './constants';
+import { EmptyState, Skeleton, Button } from './ui';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ function AgentApplyModal({
                   <div className="apply-tpl-desc">{agent.description}</div>
                 </div>
               </div>
-              <button className="modal-close-btn" onClick={onClose}><X size={15} /></button>
+              <button className="modal-close-btn" onClick={onClose} aria-label="Close"><X size={15} /></button>
             </div>
 
             {/* Body */}
@@ -177,9 +178,13 @@ export function AgentsLibrary({
   const [activeCategory, setActiveCategory] = useState('All');
   const [selectedAgent, setSelectedAgent] = useState<SpecializedAgent | null>(null);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${BASE}/agents/`).then(r => setAgents(r.data)).catch(() => {});
+    axios.get(`${BASE}/agents/`)
+      .then(r => setAgents(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = agents.filter(a => {
@@ -234,16 +239,35 @@ export function AgentsLibrary({
 
       {/* ── Agent Grid ── */}
       <div className="canva-home-content">
-        {filtered.length === 0 ? (
-          <div className="canva-empty">
-            <div className="canva-empty-art">🔍</div>
-            <h3>No agents found</h3>
-            <p>Try a different category or search term.</p>
+        {loading ? (
+          <div className="agents-grid">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <Skeleton height={120} radius={12} />
+                <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <Skeleton height={14} width="65%" />
+                  <Skeleton height={11} width="90%" />
+                  <Skeleton height={11} width="78%" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<SearchX size={26}/>}
+            title="No agents match your filters"
+            subtitle={search
+              ? `No agents matched "${search}". Try a different category or search term.`
+              : 'Try a different category or clear the search.'}
+            actions={(search || activeCategory !== 'All') && (
+              <Button variant="secondary" onClick={() => { setSearch(''); setActiveCategory('All'); }}>
+                Reset filters
+              </Button>
+            )}
+          />
         ) : (
           <>
             {activeCategory === 'All' ? (
-              // Group by category when showing all
               CATEGORIES.filter(c => c !== 'All').map(cat => {
                 const catAgents = filtered.filter(a => a.category === cat);
                 if (catAgents.length === 0) return null;
@@ -251,7 +275,7 @@ export function AgentsLibrary({
                   <div key={cat}>
                     <div className="canva-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {cat}
-                      <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500 }}>{catAgents.length} agents</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)' }}>{catAgents.length} agents</span>
                     </div>
                     <div className="agents-grid">
                       {catAgents.map(agent => (

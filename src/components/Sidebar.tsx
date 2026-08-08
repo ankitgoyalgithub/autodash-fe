@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Plus, ChevronRight, ChevronLeft, Hash } from 'lucide-react';
 import axios from 'axios';
-const logo = '/brand-logo.png';
 import type { View, Project, DashboardThread } from '../App';
 import { BASE } from './constants';
 import { CreditsBadge, CreditsModal } from './CreditsPanel';
+import { ProjectLogoTile } from './projectLogos';
 
 // ── Colorful nav icons ────────────────────────────────────────────────────────
 
@@ -129,12 +129,17 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
 
-      {/* ── Logo ── */}
+      {/* ── Brand mark — same icon + wordmark treatment as the landing
+            page nav (LandingPage.tsx:137), kept in sync so users see one
+            consistent brand identity across pre-login and post-login UI. */}
       <div className="sidebar-logo">
-        {collapsed
-          ? <img src="/app-icon.png" alt="LucentReport" className="logo-img" />
-          : <img src={logo} alt="LucentReport" className="logo-img-wide" />
-        }
+        <img src="/app-icon.png" alt="" className="sidebar-brand-icon" />
+        {!collapsed && (
+          <span className="sidebar-brand-name">
+            <span className="sidebar-brand-name-lucent">Lucent</span>
+            <span className="sidebar-brand-name-report">Report</span>
+          </span>
+        )}
       </div>
 
       {/* ── Create button ── */}
@@ -176,8 +181,8 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
               onClick={() => onSelectProject(activeProject)}
               title={activeProject.name}
             >
-              <span className="proj-emoji-badge" style={{ background: activeProject.color + '20', borderColor: activeProject.color + '35' }}>
-                {activeProject.emoji}
+              <span className="proj-emoji-badge proj-emoji-badge--tile">
+                <ProjectLogoTile id={activeProject.emoji} emoji={activeProject.emoji} size={24} />
               </span>
               <span className="proj-name">{activeProject.name}</span>
             </button>

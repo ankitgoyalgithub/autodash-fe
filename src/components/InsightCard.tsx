@@ -7,7 +7,7 @@ import {
   DollarSign, ShoppingCart, Users, Package, Percent,
   CreditCard, FlaskConical, AlignLeft, ScatterChart as ScatterIcon,
   Download, Maximize2, Minimize2, Pencil, Check, Box, MoreHorizontal, ChevronDown,
-  Table2, RotateCcw, Trash2, Bookmark,
+  Table2, RotateCcw, Trash2, Bookmark, Loader2, CornerLeftUp,
 } from 'lucide-react';
 import type { DashboardCard } from '../App';
 import { COLORS } from './constants';
@@ -30,7 +30,7 @@ export function DataTableDrawer({ title, data, onClose }: { title: string; data:
             <span>{title}</span>
           </div>
           <div className="drawer-meta">{data.length} rows</div>
-          <button className="icon-btn" onClick={onClose}><X size={18}/></button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={18}/></button>
         </div>
         <div className="drawer-body">
           <div className="data-table-wrap">
@@ -89,11 +89,22 @@ function getMetricMeta(title: string): { Icon: any; color: string } {
 }
 
 
-function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, globalFilters, index, onDelete, onSave }: {
+type DrillResult = {
+  drillable?: boolean;
+  rows?: Record<string, any>[] | null;
+  level?: { key: string; label: string } | null;
+  has_deeper?: boolean;
+  measures?: { key: string; label: string }[];
+} | null;
+
+function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, posterTheme, onDrillDown, drillFetch, globalFilters, index, onDelete, onSave }: {
   card: DashboardCard;
   layout?: 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
   onUpdate?: (updates: Partial<DashboardCard>) => void;
   onDrillDown?: (dimension: string, value: string | number) => void;
+  // OLAP drill-down: re-aggregate one level deeper for the given ancestor path.
+  // No-LLM at click time (the hierarchy is planned + cached server-side).
+  drillFetch?: (path: (string | number)[]) => Promise<DrillResult>;
   editMode?: boolean;
   font?: string;
   colors?: string[];
@@ -149,11 +160,20 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           });
           if (dateCols.length > 0) {
             const dateCol = dateCols[0];
-            const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-            data = data.filter(row => {
-              const ts = Date.parse(String(row[dateCol]));
-              return !isNaN(ts) && ts >= cutoff;
-            });
+            // Anchor the window to the most recent date IN THE DATA, not "now".
+            // Anchoring to now empties the chart whenever the dataset is older
+            // than the window (almost always true for static/historical data).
+            const tsList = data
+              .map(row => Date.parse(String(row[dateCol])))
+              .filter(ts => !isNaN(ts));
+            if (tsList.length > 0) {
+              const anchor = Math.max(...tsList);
+              const cutoff = anchor - days * 24 * 60 * 60 * 1000;
+              data = data.filter(row => {
+                const ts = Date.parse(String(row[dateCol]));
+                return !isNaN(ts) && ts >= cutoff;
+              });
+            }
           }
         }
       }
@@ -167,6 +187,70 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
     }
     return data;
   }, [card.data, activeFilter, globalFilters, card.is_analytics]);
+
+  // ── OLAP drill-down / roll-up ──────────────────────────────────────────────
+  // drillPath = the ancestor category values clicked so far. The displayed level
+  // is len(drillPath); [] means the chart's own (top) view.
+  const [drillPath, setDrillPath] = useState<{ label: string; value: string | number }[]>([]);
+  const [drillResult, setDrillResult] = useState<
+    { rows: Record<string, any>[]; xKey: string; dataKeys: string[]; levelLabel: string; hasDeeper: boolean } | null
+  >(null);
+  const [drillLoading, setDrillLoading] = useState(false);
+
+  // Reset drill state when the chart itself changes or a (cross-)filter is
+  // applied — drill levels re-aggregate from the base, independent of filters.
+  useEffect(() => {
+    setDrillPath([]);
+    setDrillResult(null);
+  }, [card.sql, JSON.stringify(globalFilters)]);
+
+  const applyDrill = async (path: { label: string; value: string | number }[]) => {
+    if (!drillFetch) return false;
+    setDrillLoading(true);
+    try {
+      const res = await drillFetch(path.map(p => p.value));
+      if (res && res.drillable && res.rows && res.rows.length && res.level) {
+        const dataKeys = (res.measures && res.measures.length)
+          ? res.measures.map(m => m.key)
+          : Object.keys(res.rows[0]).filter(k => k !== res.level!.key);
+        setDrillPath(path);
+        setDrillResult({
+          rows: res.rows,
+          xKey: res.level.key,
+          dataKeys,
+          levelLabel: res.level.label,
+          hasDeeper: !!res.has_deeper,
+        });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      setDrillLoading(false);
+    }
+  };
+
+  // Click on a chart category: drill one level deeper. Falls back to the
+  // parent's cross-filter when this chart has no deeper level.
+  const handleChartDrill = async (dimension: string, value: string | number) => {
+    if (drillFetch) {
+      const ok = await applyDrill([...drillPath, { label: String(value), value }]);
+      if (ok) return;
+    }
+    // Not drillable (no hierarchy / deepest level) → cross-filter instead.
+    if (drillPath.length === 0) onDrillDown?.(dimension, value);
+  };
+
+  // Roll up to a given breadcrumb depth (0 = back to the chart's own view).
+  const rollTo = async (targetLen: number) => {
+    if (targetLen <= 0) {
+      setDrillPath([]);
+      setDrillResult(null);
+      return;
+    }
+    await applyDrill(drillPath.slice(0, targetLen));
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!editMode || layout !== 'poster') return;
@@ -346,7 +430,16 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
     // ── Empty-chart guard: all numeric values are 0 or null → graceful placeholder ──
     if (resolvedType === 'chart' && card.data?.length && chartType !== 'table' && chartType !== 'timeline') {
       const hasAnyValue = card.data.some(row =>
-        Object.values(row).some(v => typeof v === 'number' && v !== 0)
+        Object.values(row).some(v => {
+          if (typeof v === 'number') return v !== 0;
+          // Numeric values can arrive as formatted strings ("1,234", "$500")
+          // from spreadsheet/CSV sources — treat those as real values too.
+          if (typeof v === 'string') {
+            const n = Number(v.replace(/[,\s$€£¥₹%]/g, ''));
+            return v.trim() !== '' && Number.isFinite(n) && n !== 0;
+          }
+          return false;
+        })
       );
       if (!hasAnyValue) {
         return (
@@ -471,11 +564,14 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
     // widgets generated after the normalize_chart_spec() pass was added).
     // Fall back to the runtime heuristic for older stored data.
     const spec = card.chart_spec;
-    const { xKey, dataKeys } = (spec?.x_key != null && spec.y_keys.length > 0)
-      ? { xKey: spec.x_key, dataKeys: spec.y_keys }
-      : deriveKeys(filteredData);
+    // When drilled in, render the deeper level's rows/keys instead of the card's own.
+    const { xKey, dataKeys } = drillResult
+      ? { xKey: drillResult.xKey, dataKeys: drillResult.dataKeys }
+      : (spec?.x_key != null && spec.y_keys.length > 0)
+        ? { xKey: spec.x_key, dataKeys: spec.y_keys }
+        : deriveKeys(filteredData);
 
-    const displayData = sortByDateLabel(filteredData, xKey);
+    const displayData = sortByDateLabel(drillResult ? drillResult.rows : filteredData, xKey);
     const chartHeight = heightOverride ?? (
       size === 's' ? 120 : size === 'm' ? 220 : size === 'l' ? 280
       : size === 'xl' ? 320 : size === 'xxl' ? 360
@@ -497,7 +593,7 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           gridDash: isPoster ? '0' : '3 3',
           hiddenSeries,
           onToggleSeries: toggleSeries,
-          onDrillDown,
+          onDrillDown: (drillFetch || onDrillDown) ? handleChartDrill : undefined,
           anomaly_info: card.anomaly_info,
           matrix_config: card.matrix_config,
           _ts_config: (card as any)._ts_config,
@@ -549,6 +645,25 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
                 </span>
               )}
             </div>
+            {(drillPath.length > 0 || drillLoading) && (
+              <div className="drill-breadcrumb">
+                <button className="drill-crumb" onClick={() => rollTo(0)} title="Back to the top level">
+                  <CornerLeftUp size={11}/> Overview
+                </button>
+                {drillPath.map((p, i) => (
+                  <span key={i} className="drill-crumb-seg">
+                    <span className="drill-sep">›</span>
+                    <button
+                      className={`drill-crumb ${i === drillPath.length - 1 ? 'current' : ''}`}
+                      onClick={() => rollTo(i + 1)}
+                      title={`Roll up to ${p.label}`}
+                    >{p.label}</button>
+                  </span>
+                ))}
+                {drillResult?.levelLabel && <span className="drill-level-tag">by {drillResult.levelLabel}</span>}
+                {drillLoading && <Loader2 size={11} className="spin"/>}
+              </div>
+            )}
             <div className={`chart-controls ${type === 'metric' ? 'metric-controls' : ''}`}>
 
               {/* ── Chart-type picker (single button + popover) ── */}
@@ -773,6 +888,26 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           </div>
         )
       )}
+      {/* B3 — Root-cause analysis: a collapsible drill-down explanation */}
+      {(type === 'chart') && card.root_cause && card.root_cause.narrative && !isPoster && (
+        <details className="root-cause-block">
+          <summary>
+            <span className="rc-icon">⤵</span>
+            <span className="rc-label">Root cause</span>
+            <span className="rc-confidence">confidence {card.root_cause.confidence}/100</span>
+          </summary>
+          <div className="rc-body">
+            <p className="rc-narrative">{card.root_cause.narrative}</p>
+            {card.root_cause.best_hypothesis?.test_sql && (
+              <details className="rc-evidence">
+                <summary>View evidence</summary>
+                <p className="rc-evidence-claim"><strong>Best-supported:</strong> {card.root_cause.best_hypothesis.text}</p>
+                <pre className="rc-sql">{card.root_cause.best_hypothesis.test_sql}</pre>
+              </details>
+            )}
+          </div>
+        </details>
+      )}
       {!isPoster && type !== 'metric' && chartType !== 'timeline' && card.stats && (() => {
         const s = card.stats;
         const badges: { label: string; className: string }[] = [];
@@ -793,6 +928,29 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
         }
         if (s.outliers && s.outliers.length > 0) {
           badges.push({ label: `⚠ ${s.outliers.length} outlier${s.outliers.length > 1 ? 's' : ''}`, className: 'stat-badge stat-outlier' });
+        }
+        // B2 — comparative framing badges
+        const comp = s.comparative;
+        if (comp?.temporal?.pct_vs_prior !== undefined && comp.temporal.pct_vs_prior !== null) {
+          const v = comp.temporal.pct_vs_prior;
+          const arrow = v > 0 ? '↑' : v < 0 ? '↓' : '→';
+          badges.push({ label: `${arrow}${Math.abs(v).toFixed(1)}% vs prior`, className: 'stat-badge stat-vs-prior' });
+        }
+        if (comp?.segment?.concentration_top_3_pct && comp.segment.concentration_top_3_pct > 75) {
+          badges.push({ label: `Top 3 = ${comp.segment.concentration_top_3_pct.toFixed(0)}%`, className: 'stat-badge stat-concentration' });
+        }
+        // B1 — anomaly severity badge (new format)
+        const ai = card.anomaly_info;
+        if (ai?.severity === 'high') {
+          badges.push({ label: `🚨 anomaly`, className: 'stat-badge stat-anomaly-high' });
+        } else if (ai?.severity === 'medium') {
+          badges.push({ label: `⚠ anomaly`, className: 'stat-badge stat-anomaly-med' });
+        }
+        // B5 — insight quality badge (only show for excellent insights)
+        if (card.quality?.band === 'excellent') {
+          badges.push({ label: `★ ${card.quality.score}`, className: 'stat-badge stat-quality-excellent' });
+        } else if (card.quality?.band === 'good') {
+          badges.push({ label: `★ ${card.quality.score}`, className: 'stat-badge stat-quality-good' });
         }
         if (!badges.length) return null;
         return (

@@ -1,6 +1,6 @@
 /**
- * HubSpotConnectModal — three-step flow:
- *   1. Paste Private App access token
+ * HubSpotConnectModal — OAuth-based connect flow:
+ *   1. Click "Connect with HubSpot" → opens popup → HubSpot OAuth → callback
  *   2. Pick which CRM objects to sync
  *   3. Sync runs, shows progress + results
  *
@@ -8,13 +8,14 @@
  * the user re-sync, change selected objects, or disconnect.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   X, ExternalLink, AlertCircle, CheckCircle2, Loader2,
-  RefreshCw, Trash2, ArrowRight, Database,
+  RefreshCw, Trash2, ArrowRight, Database, Shield,
 } from 'lucide-react';
 import axios from 'axios';
 import { BASE } from './constants';
+import { toast } from './ui';
 
 interface HubSpotObject {
   id: string;
@@ -49,77 +50,121 @@ interface Props {
   onConnected?: () => void;
 }
 
-type Step = 'token' | 'objects' | 'syncing' | 'done' | 'manage';
+type Step = 'auth' | 'objects' | 'syncing' | 'done' | 'manage';
 
 export function HubSpotConnectModal({ onClose, onConnected }: Props) {
-  const [step, setStep] = useState<Step>('token');
+  const [step, setStep] = useState<Step>('auth');
   const [status, setStatus] = useState<HubSpotStatus>({ connected: false });
-  const [token, setToken] = useState('');
-  const [tokenError, setTokenError] = useState('');
-  const [verifying, setVerifying] = useState(false);
+  const [oauthConfigured, setOauthConfigured] = useState<boolean | null>(null);
+  const [authError, setAuthError] = useState('');
+  const [authInProgress, setAuthInProgress] = useState(false);
   const [objects, setObjects] = useState<HubSpotObject[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [syncing, setSyncing] = useState(false);
   const [syncResults, setSyncResults] = useState<Record<string, SyncResult>>({});
 
-  // Load existing connection status on mount
-  useEffect(() => {
-    axios.get(`${BASE}/hubspot/status/`)
-      .then(r => {
-        if (r.data?.connected) {
-          setStatus(r.data);
-          setStep('manage');
-          // Pre-fill selected objects from prior sync
-          setSelected(new Set(r.data.selected_objects || []));
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  // ─── Step 1: Verify + save token ────────────────────────────────────────
-  const handleConnect = async () => {
-    setVerifying(true);
-    setTokenError('');
-    try {
-      const r = await axios.post(`${BASE}/hubspot/connect/`, { access_token: token.trim() });
-      setStatus(r.data);
-      // Fetch available objects
-      await loadObjects();
-      setStep('objects');
-    } catch (e: any) {
-      setTokenError(e.response?.data?.error || 'Could not connect to HubSpot.');
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  const loadObjects = async () => {
+  const loadObjects = useCallback(async () => {
     try {
       const r = await axios.get(`${BASE}/hubspot/objects/`);
       setObjects(r.data.objects || []);
     } catch (e) {
       console.error('Failed to load HubSpot objects:', e);
     }
-  };
+  }, []);
+
+  // Load existing connection status + OAuth config on mount
+  useEffect(() => {
+    axios.get(`${BASE}/hubspot/config/`)
+      .then(r => setOauthConfigured(!!r.data?.oauth_configured))
+      .catch(() => setOauthConfigured(false));
+
+    axios.get(`${BASE}/hubspot/status/`)
+      .then(r => {
+        if (r.data?.connected) {
+          setStatus(r.data);
+          setStep('manage');
+          setSelected(new Set(r.data.selected_objects || []));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // ─── OAuth popup flow ───────────────────────────────────────────────────
+  const handleOAuthConnect = useCallback(() => {
+    setAuthError('');
+    setAuthInProgress(true);
+
+    // Open the backend OAuth start URL in a popup. The backend redirects
+    // to HubSpot, and the callback HTML posts a message back here.
+    const w = 600, h = 720;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top  = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(
+      `${BASE}/hubspot/oauth/start/`,
+      'hubspot-oauth',
+      `width=${w},height=${h},left=${left},top=${top},toolbar=0,menubar=0,scrollbars=1`
+    );
+
+    if (!popup) {
+      setAuthError('Popup blocked. Allow popups for this site and try again.');
+      setAuthInProgress(false);
+      return;
+    }
+
+    // Handler for the postMessage from our callback page
+    const onMessage = async (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type !== 'hubspot-oauth') return;
+      window.removeEventListener('message', onMessage);
+      clearInterval(closedTimer);
+      setAuthInProgress(false);
+      if (e.data.success) {
+        // Refresh status + load objects, advance to step 2
+        try {
+          const r = await axios.get(`${BASE}/hubspot/status/`);
+          setStatus(r.data);
+          await loadObjects();
+          setStep('objects');
+        } catch {
+          setAuthError('Connected but could not load objects. Try again.');
+        }
+      } else {
+        setAuthError(e.data.message || 'OAuth failed.');
+      }
+    };
+    window.addEventListener('message', onMessage);
+
+    // Detect popup closed without success (user cancelled)
+    const closedTimer = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(closedTimer);
+        window.removeEventListener('message', onMessage);
+        setAuthInProgress(false);
+        // Only show "cancelled" if we didn't already get a result
+        setStatus(prev => {
+          if (!prev.connected) {
+            setAuthError(curr => curr || 'OAuth window closed before completion.');
+          }
+          return prev;
+        });
+      }
+    }, 800);
+  }, [loadObjects]);
 
   // ─── Step 2 → 3: Run sync ──────────────────────────────────────────────
   const handleSync = async () => {
     if (selected.size === 0) return;
     setStep('syncing');
-    setSyncing(true);
     try {
       const r = await axios.post(`${BASE}/hubspot/sync/`, {
         objects: Array.from(selected),
-      }, { timeout: 300000 }); // 5 min timeout for large portals
+      }, { timeout: 300000 });
       setSyncResults(r.data.results || {});
       setStatus(r.data.connection || status);
       setStep('done');
       onConnected?.();
     } catch (e: any) {
-      setTokenError(e.response?.data?.error || 'Sync failed. Try again.');
+      setAuthError(e.response?.data?.error || 'Sync failed. Try again.');
       setStep('objects');
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -131,7 +176,7 @@ export function HubSpotConnectModal({ onClose, onConnected }: Props) {
       onConnected?.();
       onClose();
     } catch (e) {
-      alert('Failed to disconnect.');
+      toast.error('Failed to disconnect.');
     }
   };
 
@@ -159,14 +204,14 @@ export function HubSpotConnectModal({ onClose, onConnected }: Props) {
               <p>Sync your CRM data for reporting and analysis</p>
             </div>
           </div>
-          <button className="icon-btn" onClick={onClose}><X size={18}/></button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={18}/></button>
         </div>
 
         {/* ── Stepper ── */}
         {step !== 'manage' && (
           <div className="hs-stepper">
-            <div className={`hs-step ${step === 'token' ? 'active' : ''} ${['objects','syncing','done'].includes(step) ? 'done' : ''}`}>
-              <span>1</span> Authenticate
+            <div className={`hs-step ${step === 'auth' ? 'active' : ''} ${['objects','syncing','done'].includes(step) ? 'done' : ''}`}>
+              <span>1</span> Authorize
             </div>
             <div className="hs-step-line" />
             <div className={`hs-step ${step === 'objects' ? 'active' : ''} ${['syncing','done'].includes(step) ? 'done' : ''}`}>
@@ -189,13 +234,12 @@ export function HubSpotConnectModal({ onClose, onConnected }: Props) {
             />
           )}
 
-          {step === 'token' && (
-            <TokenStep
-              token={token}
-              setToken={setToken}
-              error={tokenError}
-              verifying={verifying}
-              onConnect={handleConnect}
+          {step === 'auth' && (
+            <AuthStep
+              oauthConfigured={oauthConfigured}
+              error={authError}
+              authInProgress={authInProgress}
+              onConnect={handleOAuthConnect}
             />
           )}
 
@@ -205,8 +249,8 @@ export function HubSpotConnectModal({ onClose, onConnected }: Props) {
               selected={selected}
               onToggle={toggleObj}
               onSync={handleSync}
-              onBack={status.connected ? () => setStep('manage') : () => setStep('token')}
-              error={tokenError}
+              onBack={status.connected ? () => setStep('manage') : () => setStep('auth')}
+              error={authError}
             />
           )}
 
@@ -243,47 +287,85 @@ export function HubSpotConnectModal({ onClose, onConnected }: Props) {
   );
 }
 
-// ─── Token entry step ─────────────────────────────────────────────────────────
+// ─── OAuth authorize step ─────────────────────────────────────────────────────
 
-function TokenStep({ token, setToken, error, verifying, onConnect }: {
-  token: string; setToken: (v: string) => void;
-  error: string; verifying: boolean; onConnect: () => void;
+function AuthStep({ oauthConfigured, error, authInProgress, onConnect }: {
+  oauthConfigured: boolean | null;
+  error: string;
+  authInProgress: boolean;
+  onConnect: () => void;
 }) {
-  return (
-    <div className="hs-step-pane">
-      <div className="hs-info-box">
-        <strong>Step 1: Create a Private App in HubSpot</strong>
-        <ol>
-          <li>Go to <strong>Settings → Integrations → Private Apps</strong> in HubSpot</li>
-          <li>Click <strong>Create a private app</strong></li>
-          <li>Under <strong>Scopes → CRM</strong>, enable <em>read</em> permissions for the objects you want to sync (contacts, companies, deals, etc.)</li>
-          <li>Create the app and copy the <strong>access token</strong></li>
-        </ol>
-        <a href="https://developers.hubspot.com/docs/api/private-apps" target="_blank" rel="noreferrer" className="hs-info-link">
-          HubSpot Private Apps documentation <ExternalLink size={11} />
+  if (oauthConfigured === false) {
+    return (
+      <div className="hs-step-pane">
+        <div className="hs-error">
+          <AlertCircle size={14}/>
+          <div>
+            <strong>HubSpot OAuth is not configured on this server.</strong>
+            <p style={{ margin: '6px 0 0', fontSize: 12 }}>
+              Set the <code>HUBSPOT_CLIENT_ID</code> and <code>HUBSPOT_CLIENT_SECRET</code> environment variables on the backend, then restart.
+            </p>
+          </div>
+        </div>
+        <a
+          href="https://developers.hubspot.com/docs/api/working-with-oauth"
+          target="_blank" rel="noreferrer"
+          className="hs-info-link"
+        >
+          HubSpot OAuth documentation <ExternalLink size={11}/>
         </a>
       </div>
+    );
+  }
 
-      <div className="hs-field">
-        <label>Private App Access Token</label>
-        <input
-          type="password"
-          autoFocus
-          placeholder="pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          value={token}
-          onChange={e => setToken(e.target.value)}
-          className="hs-input"
-        />
-        <p className="hs-field-hint">Token is encrypted at rest. We never share it.</p>
+  return (
+    <div className="hs-step-pane">
+      <div className="hs-oauth-hero">
+        <div className="hs-oauth-hero-logo">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="#ff7a59">
+            <path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.27-1.974v-.075a2.21 2.21 0 0 0-2.211-2.21h-.075a2.21 2.21 0 0 0-2.21 2.21v.075a2.198 2.198 0 0 0 1.27 1.974V7.93a6.261 6.261 0 0 0-2.973 1.31L4.989 3.108a2.49 2.49 0 1 0-1.193 1.605l7.81 6.082a6.314 6.314 0 0 0 .096 7.117L9.327 20.49a2.05 2.05 0 1 0 1.439 1.439l2.343-2.343a6.328 6.328 0 1 0 5.055-11.656zM17.186 17.66a3.231 3.231 0 1 1 0-6.462 3.231 3.231 0 0 1 0 6.462z"/>
+          </svg>
+        </div>
+        <h3>Sign in with HubSpot</h3>
+        <p>You'll be redirected to HubSpot to authorize this app. We'll only request <strong>read access</strong> to your CRM objects.</p>
+      </div>
+
+      <div className="hs-trust-list">
+        <div className="hs-trust-item">
+          <Shield size={14} />
+          <div>
+            <strong>OAuth 2.0</strong>
+            <span>Industry-standard secure authorization. We never see your password.</span>
+          </div>
+        </div>
+        <div className="hs-trust-item">
+          <Database size={14} />
+          <div>
+            <strong>Read-only access</strong>
+            <span>Only the CRM scopes you approve. We can't modify or delete anything in HubSpot.</span>
+          </div>
+        </div>
+        <div className="hs-trust-item">
+          <CheckCircle2 size={14} />
+          <div>
+            <strong>Revoke anytime</strong>
+            <span>Disconnect from this screen, or revoke directly in your HubSpot connected apps.</span>
+          </div>
+        </div>
       </div>
 
       {error && (
         <div className="hs-error"><AlertCircle size={14}/> {error}</div>
       )}
 
-      <button className="hs-primary-btn" disabled={!token.trim() || verifying} onClick={onConnect}>
-        {verifying ? <><Loader2 size={14} className="spin"/> Verifying...</> : <>Connect <ArrowRight size={14}/></>}
+      <button className="hs-primary-btn hs-oauth-btn" disabled={authInProgress || oauthConfigured === null} onClick={onConnect}>
+        {authInProgress
+          ? <><Loader2 size={14} className="spin"/> Waiting for HubSpot...</>
+          : oauthConfigured === null
+            ? <><Loader2 size={14} className="spin"/> Loading...</>
+            : <><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.27-1.974v-.075a2.21 2.21 0 0 0-2.211-2.21h-.075a2.21 2.21 0 0 0-2.21 2.21v.075a2.198 2.198 0 0 0 1.27 1.974V7.93a6.261 6.261 0 0 0-2.973 1.31L4.989 3.108a2.49 2.49 0 1 0-1.193 1.605l7.81 6.082a6.314 6.314 0 0 0 .096 7.117L9.327 20.49a2.05 2.05 0 1 0 1.439 1.439l2.343-2.343a6.328 6.328 0 1 0 5.055-11.656z"/></svg> Connect with HubSpot <ArrowRight size={14}/></>}
       </button>
+      <p className="hs-oauth-footnote">Opens in a new window. Allow popups for this site.</p>
     </div>
   );
 }

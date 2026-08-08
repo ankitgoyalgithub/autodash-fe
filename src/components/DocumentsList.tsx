@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react';
-import { FileText, Plus, Trash2, ExternalLink, LayoutTemplate } from 'lucide-react';
+import {
+  Plus, Trash2, ExternalLink, LayoutTemplate, BarChart3,
+  Image as ImageIcon, Presentation, FolderPlus, X, Loader,
+} from 'lucide-react';
 import { useDocuments, createDocument, deleteDocument } from '../hooks/useDocuments';
 import type { Document, DocType } from '../types/document';
 import { DOC_SIZES } from '../types/document';
 import type { Project } from '../App';
+import { EmptyState, Button, SkeletonCard, toast } from './ui';
 
 interface Props {
   projects: Project[];
   onOpen: (doc: Document) => void;
 }
 
-const DOC_TYPE_META: Record<DocType, { label: string; emoji: string; color: string }> = {
-  infographic: { label: 'Infographic', emoji: '📊', color: '#6366f1' },
-  poster:      { label: 'Poster',      emoji: '🖼️',  color: '#0891b2' },
-  slide_deck:  { label: 'Slide Deck',  emoji: '🎞️',  color: '#7c3aed' },
+const DOC_TYPE_META: Record<DocType, { label: string; icon: React.ReactNode; color: string }> = {
+  infographic: { label: 'Infographic', icon: <BarChart3 size={18} />,    color: '#6366f1' },
+  poster:      { label: 'Poster',      icon: <ImageIcon size={18} />,    color: '#0891b2' },
+  slide_deck:  { label: 'Slide Deck',  icon: <Presentation size={18} />, color: '#7c3aed' },
 };
+
 
 function NewDocModal({
   projects,
@@ -36,38 +41,39 @@ function NewDocModal({
     try {
       const doc = await createDocument(projectId, docType, title || `Untitled ${DOC_TYPE_META[docType].label}`);
       onCreate(doc);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to create document');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2 className="modal-title">New Document</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>New document</h2>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Close"><X size={16}/></button>
         </div>
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="modal-body">
 
           {/* Project picker */}
-          <div className="form-group">
-            <label className="form-label">Project</label>
+          <div className="field full">
+            <label>Project</label>
             <select
-              className="form-select"
               value={projectId}
               onChange={e => setProjectId(Number(e.target.value))}
             >
               {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
           </div>
 
           {/* Doc type */}
-          <div className="form-group">
-            <label className="form-label">Document type</label>
-            <div style={{ display: 'flex', gap: 8 }}>
+          <div className="field full">
+            <label>Document type</label>
+            <div className="docs-type-grid">
               {(Object.keys(DOC_TYPE_META) as DocType[]).map(t => {
                 const m = DOC_TYPE_META[t];
                 const s = DOC_SIZES[t];
@@ -75,17 +81,14 @@ function NewDocModal({
                 return (
                   <button
                     key={t}
+                    type="button"
                     onClick={() => setDocType(t)}
-                    style={{
-                      flex: 1, padding: '10px 8px', borderRadius: 10, cursor: 'pointer',
-                      border: active ? `2px solid ${m.color}` : '1px solid #e2e8f0',
-                      background: active ? `${m.color}10` : '#fff',
-                      textAlign: 'center',
-                    }}
+                    className={`docs-type-tile ${active ? 'is-selected' : ''}`}
+                    style={{ '--tile-color': m.color } as React.CSSProperties}
                   >
-                    <div style={{ fontSize: 20 }}>{m.emoji}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: active ? m.color : '#475569', marginTop: 4 }}>{m.label}</div>
-                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{s.width}×{s.height}</div>
+                    <span className="docs-type-tile__icon">{m.icon}</span>
+                    <span className="docs-type-tile__label">{m.label}</span>
+                    <span className="docs-type-tile__dim">{s.width} × {s.height}</span>
                   </button>
                 );
               })}
@@ -93,29 +96,32 @@ function NewDocModal({
           </div>
 
           {/* Title */}
-          <div className="form-group">
-            <label className="form-label">Title</label>
+          <div className="field full">
+            <label>Title</label>
             <input
-              className="form-input"
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder={`Untitled ${DOC_TYPE_META[docType].label}`}
             />
           </div>
 
-          <button
-            className="btn-primary"
-            onClick={handleCreate}
-            disabled={busy || !projectId}
-            style={{ marginTop: 4 }}
-          >
-            {busy ? 'Creating…' : 'Create document'}
-          </button>
+          <div className="modal-footer">
+            <button type="button" className="btn-outline" onClick={onClose}>Cancel</button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleCreate}
+              disabled={busy || !projectId}
+            >
+              {busy ? <><Loader size={13} className="spin"/> Creating…</> : <><Plus size={13}/> Create document</>}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 export function DocumentsList({ projects, onOpen }: Props) {
   const { docs, loading, fetch, setDocs } = useDocuments();
@@ -131,9 +137,20 @@ export function DocumentsList({ projects, onOpen }: Props) {
     try {
       await deleteDocument(doc.id);
       setDocs(prev => prev.filter(d => d.id !== doc.id));
+      toast.success(`Deleted "${doc.title}"`);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Failed to delete');
     } finally {
       setDeleting(null);
     }
+  };
+
+  const handleNewClick = () => {
+    if (projects.length === 0) {
+      toast.error('Create a project first — documents belong to a project.');
+      return;
+    }
+    setShowNew(true);
   };
 
   const filtered = filterType === 'all' ? docs : docs.filter(d => d.doc_type === filterType);
@@ -146,7 +163,12 @@ export function DocumentsList({ projects, onOpen }: Props) {
           <h1 className="docs-list-title">Documents</h1>
           <p className="docs-list-sub">Infographics, posters, and slide decks built from your data</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowNew(true)}>
+        <button
+          className="btn-primary"
+          onClick={handleNewClick}
+          disabled={projects.length === 0}
+          title={projects.length === 0 ? 'Create a project first' : 'New document'}
+        >
           <Plus size={15} /> New document
         </button>
       </div>
@@ -159,22 +181,36 @@ export function DocumentsList({ projects, onOpen }: Props) {
             className={`docs-filter-tab ${filterType === t ? 'active' : ''}`}
             onClick={() => setFilterType(t)}
           >
-            {t === 'all' ? 'All' : `${DOC_TYPE_META[t].emoji} ${DOC_TYPE_META[t].label}`}
+            {t === 'all' ? 'All' : DOC_TYPE_META[t].label}
           </button>
         ))}
       </div>
 
       {/* Grid */}
       {loading ? (
-        <div className="docs-empty"><div className="spinner" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="docs-empty">
-          <LayoutTemplate size={40} color="#cbd5e1" />
-          <p>No documents yet</p>
-          <button className="btn-secondary" onClick={() => setShowNew(true)}>
-            <Plus size={14} /> Create your first document
-          </button>
+        <div className="docs-grid">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i}/>)}
         </div>
+      ) : projects.length === 0 ? (
+        <EmptyState
+          icon={<FolderPlus size={26}/>}
+          title="No projects yet"
+          subtitle="Documents live inside a project. Create your first project to start building infographics, posters, and slide decks."
+          actions={null}
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={<LayoutTemplate size={26}/>}
+          title={filterType === 'all' ? 'No documents yet' : `No ${DOC_TYPE_META[filterType].label.toLowerCase()}s yet`}
+          subtitle={filterType === 'all'
+            ? 'Create an infographic, poster, or slide deck from your data.'
+            : `You haven't created any ${DOC_TYPE_META[filterType].label.toLowerCase()}s in this workspace yet.`}
+          actions={
+            <Button onClick={handleNewClick} leading={<Plus size={14}/>}>
+              {filterType === 'all' ? 'Create your first document' : `New ${DOC_TYPE_META[filterType].label.toLowerCase()}`}
+            </Button>
+          }
+        />
       ) : (
         <div className="docs-grid">
           {filtered.map(doc => {
@@ -188,13 +224,16 @@ export function DocumentsList({ projects, onOpen }: Props) {
                   className="doc-card-thumb"
                   style={{ '--doc-color': meta.color } as React.CSSProperties}
                   onClick={() => onOpen(doc)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter') onOpen(doc); }}
                 >
                   {doc.thumbnail_url ? (
                     <img src={doc.thumbnail_url} alt={doc.title} />
                   ) : (
                     <div className="doc-card-thumb-placeholder">
-                      <span style={{ fontSize: 32 }}>{meta.emoji}</span>
-                      <span style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+                      <span className="doc-card-thumb-icon">{meta.icon}</span>
+                      <span className="doc-card-thumb-dim">
                         {size.width} × {size.height}
                       </span>
                     </div>
@@ -220,6 +259,7 @@ export function DocumentsList({ projects, onOpen }: Props) {
                     className="doc-card-btn"
                     title="Open editor"
                     onClick={() => onOpen(doc)}
+                    aria-label={`Open ${doc.title}`}
                   >
                     <ExternalLink size={14} />
                   </button>
@@ -228,6 +268,7 @@ export function DocumentsList({ projects, onOpen }: Props) {
                     title="Delete"
                     disabled={deleting === doc.id}
                     onClick={() => handleDelete(doc)}
+                    aria-label={`Delete ${doc.title}`}
                   >
                     <Trash2 size={14} />
                   </button>

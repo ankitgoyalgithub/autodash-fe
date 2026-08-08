@@ -32,11 +32,19 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 const logo = '/app-icon.png';
-import type { Project, DashboardCard, HistoryEntry, UploadedFile, DashboardFilter } from '../App';
+import type { Project, DashboardCard, HistoryEntry, UploadedFile, Entity360Payload } from '../App';
+import { Entity360View } from './Entity360View';
 import { BASE, THEMES, FONTS, PALETTES, TEMPLATES } from './constants';
+import { ProjectLogo, ProjectLogoTile } from './projectLogos';
+import { toast } from './ui';
+import { TimeframeChip, DEFAULT_TIMEFRAME } from './TimeframeChip';
+import type { TimeRangeValue } from './TimeframeChip';
+import { ThemeChip, DEFAULT_THEME } from './ThemeChip';
+import type { ThemeId } from './ThemeChip';
 import { getBrandPaletteColors } from '../utils/brandPalette';
 import { InsightCard } from './InsightCard';
 import { ShareProjectModal } from './ShareProjectModal';
+import { ProjectDataModelModal } from './ProjectDataModelModal';
 import ExportModal from './ExportModal';
 import { CreditsWarningBanner } from './CreditsPanel';
 import { RichInfographicViewer } from './RichInfographicViewer';
@@ -59,12 +67,13 @@ interface DraggableCardsGridProps {
   dragEnabled: boolean;
   onUpdate: (card: DashboardCard, u: Partial<DashboardCard>) => void;
   onDrillDown: (card: DashboardCard, dim: string, val: string | number) => void;
+  onDrill?: (card: DashboardCard, path: (string | number)[]) => Promise<any>;
   onReorder: (oldIndex: number, newIndex: number) => void;
   onDelete: (card: DashboardCard) => void;
   onSave: (card: DashboardCard) => void;
 }
 
-function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme, globalFilters, dragEnabled, onUpdate, onDrillDown, onReorder, onDelete, onSave }: DraggableCardsGridProps) {
+function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme, globalFilters, dragEnabled, onUpdate, onDrillDown, onDrill, onReorder, onDelete, onSave }: DraggableCardsGridProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -81,7 +90,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
           <div className="metrics-strip">
             {metricCards.map((card, i) => (
               <ChartErrorBoundary key={i} title={card.title}>
-                <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)}/>
+                <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} drillFetch={onDrill ? (path) => onDrill(card, path) : undefined} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)}/>
               </ChartErrorBoundary>
             ))}
           </div>
@@ -90,7 +99,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
           <div className="charts-strip">
             {chartCards.map((card, i) => (
               <ChartErrorBoundary key={i} title={card.title}>
-                <InsightCard index={metricCards.length + i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)}/>
+                <InsightCard index={metricCards.length + i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} drillFetch={onDrill ? (path) => onDrill(card, path) : undefined} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)}/>
               </ChartErrorBoundary>
             ))}
           </div>
@@ -114,7 +123,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
         <div className="metrics-strip">
           {metricCards.map((card, i) => (
             <ChartErrorBoundary key={i} title={card.title}>
-              <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)} />
+              <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} drillFetch={onDrill ? (path) => onDrill(card, path) : undefined} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)} />
             </ChartErrorBoundary>
           ))}
         </div>
@@ -149,6 +158,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
                   posterTheme={posterTheme}
                   onUpdate={(u) => onUpdate(card, u)}
                   onDrillDown={(dim, val) => onDrillDown(card, dim, val)}
+                  drillFetch={onDrill ? (path) => onDrill(card, path) : undefined}
                   globalFilters={globalFilters}
                   onDelete={() => onDelete(card)}
                   onSave={() => onSave(card)}
@@ -163,11 +173,12 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
 }
 
 // Individual sortable card item — only used inside DraggableCardsGrid
-function SortableGridCard({ id, card, index, layout, editMode, font, colors, posterTheme, onUpdate, onDrillDown, globalFilters, onDelete, onSave }: {
+function SortableGridCard({ id, card, index, layout, editMode, font, colors, posterTheme, onUpdate, onDrillDown, drillFetch, globalFilters, onDelete, onSave }: {
   id: string; card: DashboardCard; index: number; layout: LayoutMode; editMode: boolean;
   font: string; colors: string[]; posterTheme: string;
   onUpdate: (u: Partial<DashboardCard>) => void;
   onDrillDown: (dim: string, val: string | number) => void;
+  drillFetch?: (path: (string | number)[]) => Promise<any>;
   globalFilters: Record<string, string | number | null>;
   onDelete: () => void;
   onSave: () => void;
@@ -199,7 +210,7 @@ function SortableGridCard({ id, card, index, layout, editMode, font, colors, pos
         <InsightCard
           index={index} card={card} layout={layout} editMode={editMode} font={font}
           colors={colors} posterTheme={posterTheme} onUpdate={onUpdate}
-          onDrillDown={onDrillDown} globalFilters={globalFilters}
+          onDrillDown={onDrillDown} drillFetch={drillFetch} globalFilters={globalFilters}
           onDelete={onDelete} onSave={onSave}
         />
       </ChartErrorBoundary>
@@ -1109,7 +1120,7 @@ function InfographicEditor({ entry, projectColor }: { entry: any; projectColor: 
   );
 }
 
-export function Workspace({ project, onBack, initialThreadId, brandPalette, currentUser, onProjectUpdate, onNewThread }: {
+export function Workspace({ project, onBack, initialThreadId, brandPalette, currentUser, onProjectUpdate, onNewThread, datasources }: {
   project: Project;
   onBack: () => void;
   initialThreadId?: number;
@@ -1117,14 +1128,26 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   currentUser?: any;
   onProjectUpdate?: (p: Project) => void;
   onNewThread?: (threadId: number) => void;
+  /** Full datasource list for the Data Sources picker in Project Data Model modal. */
+  datasources?: import('../App').Datasource[];
 }) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<number | null>(initialThreadId || null);
-  const [threadType, setThreadType] = useState<'dashboard' | 'infographic' | 'report' | 'newsletter' | null>(null);
-  const [pendingThreadType, setPendingThreadType] = useState<'dashboard' | 'infographic' | 'report' | 'newsletter' | null>(null);
+  const [threadType, setThreadType] = useState<'dashboard' | 'infographic' | 'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'entity360' | null>(null);
+  const [pendingThreadType, setPendingThreadType] = useState<'dashboard' | 'infographic' | 'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'entity360' | null>(null);
   const [igStyle, setIgStyle] = useState<string>('executive');
+  // Infographic timeframe — defaults to last 90 days so a user can press
+  // Send and get something sensible without touching the chip. Persists
+  // across the thread until they change it.
+  const [igTimeframe, setIgTimeframe] = useState<TimeRangeValue>(DEFAULT_TIMEFRAME);
+  // Infographic visual theme — defaults to 'brand' (uses the user's Brand
+  // Kit colors/fonts when set, otherwise falls back server-side to editorial).
+  const [igTheme, setIgTheme] = useState<ThemeId>(DEFAULT_THEME);
   const [reportLength, setReportLength] = useState<'brief' | 'standard' | 'deep'>('standard');
   const [activeReport, setActiveReport] = useState<ReportData | null>(null);
+  // Entity 360 — holds a disambiguation / not-found / error payload that isn't
+  // persisted as a thread step (the 'ok' result renders from activeEntry).
+  const [entity360Pending, setEntity360Pending] = useState<Entity360Payload | null>(null);
   const [loading, setLoading] = useState(false);
   const [isQueryEmpty, setIsQueryEmpty] = useState(true);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
@@ -1147,6 +1170,18 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const [theme, setTheme] = useState(THEMES[0]);
   const [font, setFont] = useState(FONTS[0]);
   const [palette, setPalette] = useState(project.palette || 'vibrant');
+  // Dashboard density — scales chart card padding + spacing. Persisted per
+  // user across sessions; default 'default' so existing users see no change.
+  type Density = 'compact' | 'default' | 'comfortable';
+  const [density, setDensityState] = useState<Density>(() => {
+    if (typeof window === 'undefined') return 'default';
+    const v = window.localStorage.getItem('workspace-density');
+    return (v === 'compact' || v === 'comfortable' || v === 'default') ? v : 'default';
+  });
+  const setDensity = useCallback((d: Density) => {
+    setDensityState(d);
+    try { window.localStorage.setItem('workspace-density', d); } catch {}
+  }, []);
   const [layoutMode, setLayoutMode] = useState<'dashboard' | 'infographic'>('dashboard');
   const [activeSideTab, setActiveSideTab] = useState<'templates' | 'themes' | 'layouts' | 'library' | null>(null);
   const [libraryInsights, setLibraryInsights] = useState<{ id: number; card_data: any; saved_at: string }[]>([]);
@@ -1158,6 +1193,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [filterLoading, setFilterLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // HITL state
   const [pendingHITL, setPendingHITL] = useState<HITLRequest | null>(null);
   const [hitlResponses, setHitlResponses] = useState<Record<string, any>>({});
@@ -1172,8 +1208,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const posterRef = useRef<HTMLDivElement>(null);
   const dashboardContentRef = useRef<HTMLDivElement>(null);
   const agentBtnRef = useRef<HTMLButtonElement>(null);
-  const [exportingPdf, setExportingPdf] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showDataModel, setShowDataModel] = useState(false);
   const [creditsWarning, setCreditsWarning] = useState<'near_limit' | 'at_limit' | null>(null);
   // Track previous thread so we only clear filters when SWITCHING threads,
   // not when a brand-new thread ID is first assigned (which would wipe filters
@@ -1217,13 +1253,14 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       const r = await axios.get(`${BASE}/threads/${tId}/`);
       const threadHistory = r.data.history;
       setHistory(threadHistory);
+      setEntity360Pending(null);  // clear any stale disambiguation picker
       if (r.data.thread_type) setThreadType(r.data.thread_type);
       if (threadHistory.length > 0) {
         setActiveEntry(threadHistory[threadHistory.length - 1]);
       }
 
-      // For report / newsletter threads, fetch the latest report attached to this thread
-      if (r.data.thread_type === 'report' || r.data.thread_type === 'newsletter') {
+      // For long-form threads (report / newsletter / cartoon / image_infographic), fetch the latest report
+      if (['report', 'newsletter', 'cartoon', 'image_infographic'].includes(r.data.thread_type)) {
         try {
           const reps = await axios.get(`${BASE}/reports/list/?project_id=${project.id}`);
           const matchingReport = (reps.data || []).find((rep: any) => rep.thread_id === tId);
@@ -1307,7 +1344,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         const fd = new FormData(); fd.append('file', f);
         const r = await axios.post(`${BASE}/upload/`, fd);
         setUploads(prev => [...prev, { ...r.data, preview: URL.createObjectURL(f) }]);
-      } catch { alert('Upload failed: ' + f.name); }
+      } catch { toast.error(`Upload failed: ${f.name}`); }
     }
     setUploading(false);
   };
@@ -1424,7 +1461,16 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         project_id: project.id,
         thread_id: currentThreadId,
         style: igStyle,
+        time_range: igTimeframe,
+        theme_id: igTheme,
       });
+      // Pick up the resolved theme — backend may have inferred a different
+      // theme from a prompt like "make it darker" or fallen back to
+      // 'editorial' when the user has no Brand Kit yet. Reflect that
+      // server decision in the chip so the user sees what they've got.
+      if (r.data.theme_id && r.data.theme_id !== igTheme) {
+        setIgTheme(r.data.theme_id as ThemeId);
+      }
 
       const newThreadId = r.data.thread_id;
       if (!currentThreadId && newThreadId) {
@@ -1449,12 +1495,70 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     }
   };
 
+  // ── Entity 360 submit ───────────────────────────────────────────────────
+  const handleEntity360Submit = async (promptOverride?: string, entityRef?: any) => {
+    const promptText = promptOverride ?? (textareaRef.current?.value.trim() || '');
+    if (!promptText && !entityRef) return;
+
+    if (promptText) setOptimisticPrompt(promptText);
+    if (textareaRef.current) { textareaRef.current.value = ''; textareaRef.current.style.height = 'auto'; }
+    setIsQueryEmpty(true);
+    setLoading(true); setError('');
+    setEntity360Pending(null);
+    if (!threadType) setThreadType('entity360');
+
+    try {
+      const r = await axios.post(`${BASE}/entity360/`, {
+        query: promptText,
+        project_id: project.id,
+        thread_id: currentThreadId,
+        entity_ref: entityRef,
+      }, { timeout: 120000 });
+
+      const newThreadId = r.data.thread_id;
+      if (!currentThreadId && newThreadId) {
+        setCurrentThreadId(newThreadId);
+        onNewThread?.(newThreadId);
+      }
+
+      if (r.data.status === 'ok') {
+        // Persisted as a step — render it from thread history (activeEntry).
+        if (newThreadId) await fetchThreadHistory(newThreadId);
+      } else {
+        // disambiguation / not_found / error → render inline (no step saved).
+        setEntity360Pending(r.data as Entity360Payload);
+      }
+
+      if (r.data.credits_warning) setCreditsWarning(r.data.credits_warning);
+      setOptimisticPrompt(null);
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Could not build the 360° view. Please try again.');
+      setOptimisticPrompt(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Re-submit pinned to a specific row chosen from the disambiguation list.
+  const handleEntity360Pick = (pkValue: any) => {
+    if (!entity360Pending) return;
+    handleEntity360Submit('', {
+      table: entity360Pending.entity_table,
+      pk_column: entity360Pending.pk_column,
+      display_column: entity360Pending.display_column,
+      entity_type: entity360Pending.entity_type,
+      pk_value: pkValue,
+    });
+  };
+
   // ── Report / Newsletter submit ──────────────────────────────────────────
-  const handleReportSubmit = async (promptOverride?: string, formatOverride?: 'report' | 'newsletter') => {
+  const handleReportSubmit = async (promptOverride?: string, formatOverride?: 'report' | 'newsletter' | 'cartoon' | 'image_infographic') => {
     const promptText = promptOverride || textareaRef.current?.value.trim() || '';
     if (!promptText) return;
-    const fmt: 'report' | 'newsletter' = formatOverride
-      || (effectiveThreadType === 'newsletter' ? 'newsletter' : 'report');
+    const fmt: 'report' | 'newsletter' | 'cartoon' | 'image_infographic' = formatOverride
+      || (['newsletter', 'cartoon', 'image_infographic'].includes(effectiveThreadType as string)
+        ? (effectiveThreadType as 'newsletter' | 'cartoon' | 'image_infographic')
+        : 'report');
 
     setOptimisticPrompt(promptText);
     if (textareaRef.current) { textareaRef.current.value = ''; textareaRef.current.style.height = 'auto'; }
@@ -1504,7 +1608,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       const publicUrl = window.location.origin + r.data.url;
       prompt("Dashboard deployed successfully! Copy the public link:", publicUrl);
       fetchThreadHistory(currentThreadId!);
-    } catch { alert("Failed to deploy dashboard."); }
+    } catch { toast.error('Failed to deploy dashboard.'); }
   };
 
   const handleUndeploy = async () => {
@@ -1513,7 +1617,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     try {
       await axios.delete(`${BASE}/deploy/?dashboard_id=${activeEntry.id}`);
       fetchThreadHistory(currentThreadId!);
-    } catch { alert("Failed to undeploy."); }
+    } catch { toast.error('Failed to undeploy.'); }
   };
 
   const handleUpdateCard = (card: DashboardCard, updates: Partial<DashboardCard>) => {
@@ -1529,25 +1633,6 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     link.download = `${activeEntry?.query || 'poster'}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
-  };
-
-  const handleExportPDF = async () => {
-    const el = dashboardContentRef.current;
-    if (!el || !activeEntry) return;
-    setExportingPdf(true);
-    try {
-      const { jsPDF } = await import('jspdf');
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width / 2, canvas.height / 2] });
-      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width / 2, canvas.height / 2);
-      const fileName = (activeEntry.query || project.name).replace(/[^a-z0-9_\-\s]/gi, '').trim().replace(/\s+/g, '_') || 'dashboard';
-      pdf.save(`${fileName}.pdf`);
-    } catch (e) {
-      console.error('PDF export failed', e);
-    } finally {
-      setExportingPdf(false);
-    }
   };
 
   const handleAddTextBlock = () => {
@@ -1609,15 +1694,47 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     setCards([...storeCards, { ...card }], 'add from library');
   };
 
-  const handleDrillDown = (card: DashboardCard, dimension: string, value: string | number) => {
-    const drillPrompt = `I want to drill down into "${value}" for the dimension "${dimension}" in the context of the "${card.title}" chart from the previous query "${activeEntry?.query}". Please show me more detailed insights for this specific slice.`;
-    handleSubmit(drillPrompt);
+  const handleDrillDown = (_card: DashboardCard, dimension: string, value: string | number) => {
+    // Fallback when a chart has no drill hierarchy: cross-filter the whole
+    // dashboard to the clicked value (deterministic, no LLM). Toggle to clear.
+    const isActive = globalFilters[dimension] === value;
+    handleFilterChange(dimension, isActive ? null : value);
+  };
+
+  // OLAP drill-down: re-aggregate a chart one level deeper for `path` (the
+  // ancestor values already clicked). No LLM at click time — the hierarchy is
+  // planned + cached server-side. Returns the level rows + metadata, or null.
+  const fetchDrill = async (sql: string, path: (string | number)[]) => {
+    if (!sql) return null;
+    try {
+      const r = await axios.post(`${BASE}/drill/`, {
+        sql,
+        project_id: project.id,
+        thread_id: currentThreadId,
+        path,
+      });
+      return r.data;
+    } catch (e) {
+      console.warn('Drill error:', e);
+      return null;
+    }
   };
 
   const applyFilters = async (filterOverrides: Record<string, string | number | null>) => {
     if (!activeEntry) return;
+    // Include each chart's x-axis column as `date_column` so the backend can
+    // apply the `__timeframe` filter (last-N-days) against the right column.
+    // Without this hint the backend can't tell which column is the date axis
+    // for an arbitrary chart SQL.
     const charts = storeCards
-      .map((c, i) => ({ index: i, sql: c.sql }))
+      .map((c, i) => ({
+        index: i,
+        sql: c.sql,
+        // x_key is only a *hint* — the backend validates it actually holds
+        // dates before using it for the timeframe filter.
+        date_column: c.chart_spec?.x_key || null,
+        is_analytics: c.is_analytics || false,
+      }))
       .filter(c => c.sql);
     if (!charts.length) return;
 
@@ -1630,16 +1747,50 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         filter_overrides: filterOverrides,
       });
       const updatedResults = [...storeCards];
+      let errorCount = 0;
       for (const res of r.data.results || []) {
-        if (!res.error && res.data) {
+        if (res.error) {
+          errorCount++;
+          continue;
+        }
+        if (res.data) {
           updatedResults[res.index] = { ...updatedResults[res.index], data: res.data };
         }
       }
       setCards(updatedResults, 'apply filters');
+      if (errorCount > 0) {
+        // Surface instead of silently keeping stale data on the affected cards.
+        console.warn(`Filter: ${errorCount} chart(s) could not be filtered and kept their previous data.`);
+      }
     } catch (e) {
       console.error('Filter API error:', e);
     } finally {
       setFilterLoading(false);
+    }
+  };
+
+  // Re-run every saved chart's SQL against the live datasource and persist the
+  // fresh rows server-side. No LLM, no credit cost — distinct from the AI
+  // regeneration flow. The backend returns the updated results_data.
+  const handleRefresh = async () => {
+    if (!activeEntry || refreshing) return;
+    setRefreshing(true);
+    try {
+      const r = await axios.post(`${BASE}/history/${activeEntry.id}/refresh/`);
+      const fresh = (r.data.results_data ?? []) as DashboardCard[];
+      setCards(fresh, 'refresh data');
+      setActiveEntry(prev => prev ? {
+        ...prev,
+        results_data: fresh,
+        last_refreshed_at: r.data.last_refreshed_at,
+      } : prev);
+      if (r.data.error_count > 0) {
+        console.warn(`Refresh: ${r.data.error_count} chart(s) could not be refreshed.`);
+      }
+    } catch (e) {
+      console.error('Refresh API error:', e);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -1657,9 +1808,14 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     await applyFilters({});
   };
 
-  const handleTimeframeChange = (days: number | null) => {
+  const handleTimeframeChange = async (days: number | null) => {
     setTimeframeFilter(days);
     setGlobalFilter('__timeframe', days);
+    // Re-fetch chart data so the new timeframe actually takes effect.
+    // Mirrors handleFilterChange — both should round-trip to /api/filter/.
+    const newFilters: Record<string, string | number | null> = { ...globalFilters, __timeframe: days };
+    if (days === null) delete newFilters['__timeframe'];
+    await applyFilters(newFilters);
   };
 
   const handleHITLAnswer = async (questionId: string, answer: any) => {
@@ -1727,6 +1883,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           posterTheme={posterTheme}
           onUpdate={(u) => handleUpdateCard(card, u)}
           onDrillDown={(dim, val) => handleDrillDown(card, dim, val)}
+          drillFetch={(path) => fetchDrill(card.sql, path)}
           globalFilters={globalFilters}
           onDelete={() => handleDeleteCard(card)}
           onSave={() => handleSaveToLibrary(card)}
@@ -1736,7 +1893,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   };
 
   return (
-    <div className={`workspace ${theme.id === 'canva' ? 'theme-canva' : ''}`}>
+    <div className={`workspace ${theme.id === 'canva' ? 'theme-canva' : ''}`} data-density={density}>
 
       <div className="workspace-sidebar glass">
         <button className={activeSideTab === 'templates' ? 'active' : ''} onClick={() => setActiveSideTab(s => s === 'templates' ? null : 'templates')} title="Templates"><LayoutTemplate size={20}/><small>Design</small></button>
@@ -1929,7 +2086,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         <div className="chat-header">
           <button className="back-link" onClick={onBack}><ArrowLeft size={14}/> Back</button>
           <div className="chat-header-project">
-            <span className="chat-proj-emoji">{project.emoji}</span>
+            <span className="chat-proj-emoji">
+              <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={32} accent={project.color} selected />
+            </span>
             <div>
               <strong>{project.name}</strong>
             </div>
@@ -1940,7 +2099,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           {history.length === 0 && !loading && effectiveThreadType === null && (
             <div className="thread-type-picker">
               <div className="ttp-header">
-                <div className="ttp-project-badge" style={{ background: project.color + '18' }}>{project.emoji}</div>
+                <div className="ttp-project-badge">
+                  <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={48} accent={project.color} selected />
+                </div>
                 <p className="ttp-title">What would you like to create?</p>
                 <p className="ttp-sub">Choose a format for this conversation. You can't switch after you start.</p>
               </div>
@@ -1973,16 +2134,42 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                     <span>Sharp, conversational issue with a hook, 3-5 short sections, and a clear point of view. Email-friendly format.</span>
                   </div>
                 </button>
+                <button className="ttp-option" onClick={() => setPendingThreadType('cartoon')}>
+                  <div className="ttp-option-icon">🎭</div>
+                  <div className="ttp-option-body">
+                    <strong>Cartoon Story</strong>
+                    <span>4-8 panel comic-style narrative that explains a finding through scenes, characters, and short captions.</span>
+                  </div>
+                </button>
+                <button className="ttp-option" onClick={() => setPendingThreadType('image_infographic')}>
+                  <div className="ttp-option-icon">🖼️</div>
+                  <div className="ttp-option-body">
+                    <strong>Single-Image Infographic</strong>
+                    <span>Tall narrow shareable graphic, downloadable as one PNG. Pinterest/social-style stat blocks stacked vertically.</span>
+                  </div>
+                </button>
+                <button className="ttp-option" onClick={() => setPendingThreadType('entity360')}>
+                  <div className="ttp-option-icon">🧭</div>
+                  <div className="ttp-option-body">
+                    <strong>Entity 360° View</strong>
+                    <span>A complete profile of one record — its attributes, KPIs, every related table, and an activity timeline. Name the entity, e.g. "customer Acme Corp".</span>
+                  </div>
+                </button>
               </div>
             </div>
           )}
           {history.length === 0 && !loading && effectiveThreadType !== null && (
             <div className="chat-empty">
-              <div className="chat-empty-icon" style={{ background: project.color + '18' }}>{project.emoji}</div>
+              <div className="chat-empty-icon">
+                <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={72} accent={project.color} selected />
+              </div>
               <p>
                 {effectiveThreadType === 'infographic' ? 'Describe the infographic you want to generate.'
                   : effectiveThreadType === 'report' ? 'What would you like a report on? Be specific about the question or topic.'
                   : effectiveThreadType === 'newsletter' ? 'What should this newsletter issue cover? A specific topic or question works best.'
+                  : effectiveThreadType === 'cartoon' ? 'What story should the cartoon tell? A finding, a problem, or a turnaround works best.'
+                  : effectiveThreadType === 'image_infographic' ? 'What stats or comparisons should the infographic highlight?'
+                  : effectiveThreadType === 'entity360' ? 'Name the entity to profile — e.g. "a 360 view of customer Acme Corp" or "everything about order 10248".'
                   : 'How can I help you today?'}
               </p>
 
@@ -2019,7 +2206,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               )}
 
               {/* Length picker for report & newsletter */}
-              {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') && (
+              {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') && (
                 <div className="ig-style-picker">
                   <div className="ig-style-picker-label">Length</div>
                   <div className="report-length-row">
@@ -2051,7 +2238,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           {history.map(entry => (
             <div key={entry.id} className="convo-block">
               <div className="user-msg">
-                <div className="user-avatar" style={{ background: project.color }}>{project.emoji}</div>
+                <div className="user-avatar" style={{ background: project.color, color: '#fff' }}>
+                  <ProjectLogo id={project.emoji} emoji={project.emoji} size={18} color="#fff" />
+                </div>
                 <div className="user-bubble">
                   <p>{entry.query}</p>
                 </div>
@@ -2072,9 +2261,10 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                       <div>
                         <div className="ai-chart-count">
                           {(() => {
-                            // Pick the badge label based on what kind of artifact this entry produced
-                            if (effectiveThreadType === 'newsletter') return 'Newsletter ready';
-                            if (effectiveThreadType === 'report')     return 'Report ready';
+                            if (effectiveThreadType === 'newsletter')        return 'Newsletter ready';
+                            if (effectiveThreadType === 'report')             return 'Report ready';
+                            if (effectiveThreadType === 'cartoon')            return 'Cartoon story ready';
+                            if (effectiveThreadType === 'image_infographic')  return 'Infographic ready';
                             if (entry.infographic_html || entry.infographic_data) return 'Infographic ready';
                             const n = entry.results_data?.length || 0;
                             return `${n} chart${n !== 1 ? 's' : ''} ready`;
@@ -2109,7 +2299,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           {optimisticPrompt && (
             <div className="convo-block">
               <div className="user-msg">
-                <div className="user-avatar" style={{ background: project.color }}>{project.emoji}</div>
+                <div className="user-avatar" style={{ background: project.color, color: '#fff' }}>
+                  <ProjectLogo id={project.emoji} emoji={project.emoji} size={18} color="#fff" />
+                </div>
                 <div className="user-bubble"><p>{optimisticPrompt}</p></div>
               </div>
               <div className="thinking">
@@ -2118,6 +2310,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   {effectiveThreadType === 'infographic' ? 'Generating infographic from your data…'
                     : effectiveThreadType === 'report' ? 'Researching and writing your report (60-90s)…'
                     : effectiveThreadType === 'newsletter' ? 'Drafting your newsletter issue…'
+                    : effectiveThreadType === 'cartoon' ? 'Storyboarding your cartoon panels…'
+                    : effectiveThreadType === 'image_infographic' ? 'Composing your single-image infographic…'
+                    : effectiveThreadType === 'entity360' ? 'Resolving the entity and assembling its 360° profile…'
                     : 'AI is analyzing your data and building charts…'}
                 </span>
               </div>
@@ -2162,6 +2357,25 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           )}
 
           <div className="composer-box" style={{ position: 'relative' }}>
+            {/* Infographic-only Format row — sits ABOVE the textarea so the
+                chips always have full width and don't clip in the 380px
+                chat panel. Explicit "Format" label so users see these as
+                visual / styling controls and not random metadata. */}
+            {effectiveThreadType === 'infographic' && (
+              <div className="composer-options-row">
+                <span className="composer-options-label">Format</span>
+                <ThemeChip
+                  value={igTheme}
+                  onChange={setIgTheme}
+                  disabled={loading}
+                />
+                <TimeframeChip
+                  value={igTimeframe}
+                  onChange={setIgTimeframe}
+                  disabled={loading}
+                />
+              </div>
+            )}
             <textarea
               ref={textareaRef}
               className="comp-textarea"
@@ -2176,7 +2390,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   if (effectiveThreadType === 'infographic') handleInfographicSubmit();
-                  else if (effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') handleReportSubmit();
+                  else if (effectiveThreadType === 'entity360') handleEntity360Submit();
+                  else if (effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') handleReportSubmit();
                   else handleSubmit();
                 }
               }}
@@ -2210,13 +2425,16 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   />
                 )}
               </div>
-              <button className="comp-send" style={{ background: project.color }} onClick={() => {
-                if (effectiveThreadType === 'infographic') handleInfographicSubmit();
-                else if (effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') handleReportSubmit();
-                else handleSubmit();
-              }} disabled={loading || (isQueryEmpty && !uploads.length)}>
-                {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
-              </button>
+              <div className="composer-actions-right">
+                <button className="comp-send" style={{ background: project.color }} onClick={() => {
+                  if (effectiveThreadType === 'infographic') handleInfographicSubmit();
+                  else if (effectiveThreadType === 'entity360') handleEntity360Submit();
+                  else if (effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') handleReportSubmit();
+                  else handleSubmit();
+                }} disabled={loading || (isQueryEmpty && !uploads.length)}>
+                  {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
+                </button>
+              </div>
             </div>
           </div>
           <p className="comp-hint">Enter to send · Shift+Enter for new line</p>
@@ -2235,6 +2453,11 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 </div>
                 <div className="dp-meta">
                   <span>{new Date(activeEntry.created_at).toLocaleTimeString()}</span>
+                  {activeEntry.last_refreshed_at && (
+                    <span className="dp-refreshed" title={`Data last refreshed ${new Date(activeEntry.last_refreshed_at).toLocaleString()}`}>
+                      <RefreshCw size={10}/> Refreshed {new Date(activeEntry.last_refreshed_at).toLocaleTimeString()}
+                    </span>
+                  )}
                   {activeEntry.infographic_html
                     ? <span className="dp-badge dp-badge--infographic">🎨 Infographic</span>
                     : <span className="dp-badge">{storeCards.length || 0} insights</span>
@@ -2252,9 +2475,16 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   </div>
                 )}
                 {effectiveThreadType !== 'infographic' && (
+                  <div className="density-picker" role="group" aria-label="Card density">
+                    <button className={density === 'compact'     ? 'active' : ''} onClick={() => setDensity('compact')}     title="Compact density">S</button>
+                    <button className={density === 'default'     ? 'active' : ''} onClick={() => setDensity('default')}     title="Default density">M</button>
+                    <button className={density === 'comfortable' ? 'active' : ''} onClick={() => setDensity('comfortable')} title="Comfortable density">L</button>
+                  </div>
+                )}
+                {effectiveThreadType !== 'infographic' && (
                   <button
                     className={`dp-icon-btn ${dragEnabled ? 'dp-icon-btn--active' : ''}`}
-                    onClick={() => setDragEnabled(v => !v)}
+                    onClick={() => setDragEnabled(!dragEnabled)}
                     title={dragEnabled ? 'Disable drag to reorder' : 'Enable drag to reorder charts'}
                   >
                     <Move size={14}/>
@@ -2270,18 +2500,18 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 </button>
                 <button
                   className="dp-icon-btn"
-                  onClick={() => handleSubmit('refresh all charts with latest data')}
-                  disabled={loading}
-                  title="Refresh all charts with latest data"
+                  onClick={handleRefresh}
+                  disabled={refreshing || !activeEntry}
+                  title="Refresh data — re-run every chart against the latest data (no AI, no credits)"
                 >
-                  <RefreshCw size={14} className={loading ? 'spin' : ''}/>
+                  <RefreshCw size={14} className={refreshing ? 'spin' : ''}/>
                 </button>
                 {/* Undo / redo */}
-                <button className="dp-icon-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+                <button className="dp-icon-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
                 </button>
-                <button className="dp-icon-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 14 5-5-5-5"/><path d="M19 9H8.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+                <button className="dp-icon-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" aria-label="Redo">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M19 9H8.5a5.5 5.5 0 0 0 0 11H13"/></svg>
                 </button>
                 {(storeCards.length ?? 0) > 0 && (
                   <>
@@ -2306,6 +2536,13 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 ) : (
                   <button className="deploy-btn" onClick={handleDeploy}><Zap size={14}/> Deploy</button>
                 )}
+                <button
+                  className="dp-share-btn"
+                  onClick={() => setShowDataModel(true)}
+                  title="Edit the project data model — pin tables, define a glossary, declare canonical metrics"
+                >
+                  <Filter size={13}/>
+                </button>
                 <button
                   className="dp-share-btn"
                   onClick={() => setShowShare(true)}
@@ -2440,6 +2677,23 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   )}
                 </div>
               ))}
+              {/* Active cross-filters from chart drill-downs (dimensions not in the
+                  backend's suggested filter list) — shown so they're visible + clearable. */}
+              {Object.entries(globalFilters)
+                .filter(([k, v]) => k !== '__timeframe' && v !== null && v !== undefined
+                  && !dashboardFilters.some(f => f.column === k))
+                .map(([k, v]) => (
+                  <div key={k} className="gf-group">
+                    <span className="gf-col-name">{k.replace(/_/g, ' ')}</span>
+                    <div className="gf-chips">
+                      <button
+                        className="gf-chip active"
+                        title="Click to clear this drill-down filter"
+                        onClick={() => handleFilterChange(k, null)}
+                      >{String(v)} ✕</button>
+                    </div>
+                  </div>
+                ))}
               {(timeframeFilter !== null || Object.entries(globalFilters).some(([k, v]) => k !== '__timeframe' && v !== null)) && (
                 <button className="gf-clear" onClick={handleClearAllFilters}>
                   Clear all
@@ -2448,35 +2702,63 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
             </div>
           )}
 
-          {activeEntry && activeEntry.infographic_data && (
+          {/* Entity 360° view — pending (disambiguation/error) takes precedence, else the saved step */}
+          {effectiveThreadType === 'entity360' && (
+            entity360Pending
+              ? <Entity360View payload={entity360Pending} colors={activeColors} onDisambiguate={handleEntity360Pick} />
+              : (activeEntry?.infographic_data
+                  ? <Entity360View payload={activeEntry.infographic_data as unknown as Entity360Payload} colors={activeColors} />
+                  : null)
+          )}
+
+          {activeEntry && activeEntry.infographic_data && effectiveThreadType !== 'entity360' && (
             activeEntry.infographic_html
               ? <RichInfographicViewer
                   html={activeEntry.infographic_html}
                   title={activeEntry.query}
+                  stepId={activeEntry.id}
+                  currentTheme={igTheme as any}
+                  onRestyled={(newHtml, newTheme) => {
+                    // Push the restyled HTML through both `history` and
+                    // `activeEntry` so the viewer immediately reflects the
+                    // change and a tab refresh keeps the same look.
+                    setHistory(prev => prev.map(h => h.id === activeEntry.id ? { ...h, infographic_html: newHtml } : h));
+                    setActiveEntry(prev => prev && prev.id === activeEntry.id ? { ...prev, infographic_html: newHtml } : prev);
+                    setIgTheme(newTheme as any);
+                  }}
                 />
               : <InfographicEditor entry={activeEntry} projectColor={project.color} />
           )}
 
           {/* Report / Newsletter viewer */}
-          {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') && activeReport && (
+          {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') && activeReport && (
             <ReportViewer report={activeReport} />
           )}
 
           {/* Loading message while report/newsletter is being generated */}
-          {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter') && !activeReport && loading && (
+          {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') && !activeReport && loading && (
             <div className="report-loading-state">
               <Loader2 size={32} className="report-loading-icon spin" />
-              <h3>{effectiveThreadType === 'newsletter' ? 'Drafting your newsletter issue...' : 'Researching and writing your report...'}</h3>
+              <h3>
+                {effectiveThreadType === 'newsletter' ? 'Drafting your newsletter issue...'
+                  : effectiveThreadType === 'cartoon' ? 'Storyboarding your cartoon panels...'
+                  : effectiveThreadType === 'image_infographic' ? 'Composing your single-image infographic...'
+                  : 'Researching and writing your report...'}
+              </h3>
               <p className="report-loading-hint">
                 {effectiveThreadType === 'newsletter'
                   ? 'Newsletters take 30-60 seconds. We are pulling data, writing the hook, and drafting each section.'
+                  : effectiveThreadType === 'cartoon'
+                  ? 'Cartoons take 30-60 seconds. We are planning the story arc, fetching data, and rendering panels.'
+                  : effectiveThreadType === 'image_infographic'
+                  ? 'Single-image infographics take 30-60 seconds. We are assembling stat blocks into a vertical canvas.'
                   : 'Reports take 60-90 seconds. We are planning the outline, fetching data, writing each section, and assembling the document.'}
                 {' '}Please don't close this tab.
               </p>
             </div>
           )}
 
-          {activeEntry && !activeEntry.infographic_data && effectiveThreadType !== 'report' && effectiveThreadType !== 'newsletter' && (
+          {activeEntry && !activeEntry.infographic_data && effectiveThreadType !== 'report' && effectiveThreadType !== 'newsletter' && effectiveThreadType !== 'cartoon' && effectiveThreadType !== 'image_infographic' && (
             <div key={activeEntry.id} className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''}`}>
               {theme.id === 'canva' ? (
                 <div className="canvas-container">
@@ -2541,6 +2823,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                       dragEnabled={dragEnabled}
                       onUpdate={handleUpdateCard}
                       onDrillDown={(card, dim, val) => handleDrillDown(card, dim, val)}
+                      onDrill={(card, path) => fetchDrill(card.sql, path)}
                       onReorder={handleReorder}
                       onDelete={handleDeleteCard}
                       onSave={handleSaveToLibrary}
@@ -2559,6 +2842,16 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           currentUser={currentUser}
           onClose={() => setShowShare(false)}
           onProjectUpdate={p => { onProjectUpdate?.(p); }}
+        />
+      )}
+
+      {showDataModel && (
+        <ProjectDataModelModal
+          projectId={project.id}
+          projectName={project.name}
+          datasourceId={project.datasource?.id ?? null}
+          availableDatasources={datasources}
+          onClose={() => setShowDataModel(false)}
         />
       )}
 

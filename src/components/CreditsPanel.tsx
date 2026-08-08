@@ -5,10 +5,10 @@
 
 import { useState } from 'react';
 import {
-  Coins, X, ChevronRight, AlertTriangle, Zap, TrendingUp,
-  Clock, BarChart2, Sparkles, FileText, Gift, CreditCard, RefreshCw,
+  Coins, X, AlertTriangle, Zap,
+  Clock, BarChart2, Sparkles, Gift, CreditCard, RefreshCw,
 } from 'lucide-react';
-import { useCredits, useCreditTransactions, type CreditBalance } from '../hooks/useCredits';
+import { useCredits, useCreditTransactions } from '../hooks/useCredits';
 
 // ── Tx type icons / labels ───────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ export function CreditsWarningBanner({ warning, onDismiss }: {
           ? 'You have reached your free credit limit. Contact admin for more credits.'
           : 'You are running low on credits. Consider managing your usage.'}
       </span>
-      <button className="credits-warning-close" onClick={onDismiss}><X size={12} /></button>
+      <button className="credits-warning-close" onClick={onDismiss} aria-label="Dismiss warning"><X size={12} /></button>
     </div>
   );
 }
@@ -79,7 +79,7 @@ export function CreditsWarningBanner({ warning, onDismiss }: {
 // ── Full credits modal with balance + transaction history ────────────────────
 
 export function CreditsModal({ onClose }: { onClose: () => void }) {
-  const { balance, refresh } = useCredits();
+  const { balance } = useCredits();
   const [page, setPage] = useState(1);
   const { transactions, total, loading: txLoading } = useCreditTransactions(page);
 
@@ -97,7 +97,7 @@ export function CreditsModal({ onClose }: { onClose: () => void }) {
             <Coins size={18} />
             <span>Credit Usage</span>
           </div>
-          <button className="icon-btn" onClick={onClose}><X size={18} /></button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
 
         {/* Balance card */}

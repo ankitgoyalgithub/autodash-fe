@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { BASE } from './constants';
+import { toast, PageLoader } from './ui';
 
 interface MSColumn { name: string; pg_type: string; display_name: string; }
 interface MSTable {
@@ -111,7 +112,7 @@ function TableViewer({ table, onClose, onDelete, onUseAsDatasource }: {
         ...prev,
         rows: prev.rows.map(r => r._ms_id === editCell.rowId ? { ...r, [editCell.col]: editCell.val } : r)
       } : prev);
-    } catch (e: any) { alert(e.response?.data?.error || 'Save failed'); }
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Save failed'); }
     finally { setSavingCell(false); setEditCell(null); }
   };
 
@@ -121,7 +122,7 @@ function TableViewer({ table, onClose, onDelete, onUseAsDatasource }: {
     try {
       await axios.delete(`${BASE}/myspace/${table.id}/rows/${rowId}/`);
       setData(prev => prev ? { ...prev, rows: prev.rows.filter(r => r._ms_id !== rowId), total: prev.total - 1 } : prev);
-    } catch (e: any) { alert(e.response?.data?.error || 'Delete failed'); }
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Delete failed'); }
     finally { setDeletingRow(null); }
   };
 
@@ -255,7 +256,7 @@ function DataPreviewPanel({ table, onClose, onOpenFull }: {
             <button className="ms-btn ms-btn--use" onClick={onOpenFull}>
               <Table2 size={13} /> Open full view
             </button>
-            <button className="ms-icon-btn" onClick={onClose} title="Close"><X size={15}/></button>
+            <button className="ms-icon-btn" onClick={onClose} title="Close" aria-label="Close"><X size={15}/></button>
           </div>
         </div>
 
@@ -408,7 +409,7 @@ export function MySpace({ onNavigateToProjects }: { onNavigateToProjects?: () =>
       await axios.delete(`${BASE}/myspace/${table.id}/`);
       setTables(prev => prev.filter(t => t.id !== table.id));
       if (activeTable?.id === table.id) setActiveTable(null);
-    } catch (e: any) { alert(e.response?.data?.error || 'Delete failed'); }
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Delete failed'); }
   };
 
   const handleRename = async (table: MSTable, name: string) => {
@@ -416,7 +417,7 @@ export function MySpace({ onNavigateToProjects }: { onNavigateToProjects?: () =>
       await axios.patch(`${BASE}/myspace/${table.id}/`, { name });
       setTables(prev => prev.map(t => t.id === table.id ? { ...t, name } : t));
       if (activeTable?.id === table.id) setActiveTable(prev => prev ? { ...prev, name } : prev);
-    } catch (e: any) { alert(e.response?.data?.error || 'Rename failed'); }
+    } catch (e: any) { toast.error(e.response?.data?.error || 'Rename failed'); }
   };
 
   const handleUseAsDatasource = async () => {
@@ -478,7 +479,7 @@ export function MySpace({ onNavigateToProjects }: { onNavigateToProjects?: () =>
 
       {/* Tables */}
       {loading ? (
-        <div className="ms-loading-full"><Loader2 size={24} className="spin"/></div>
+        <PageLoader label="Loading your tables…" />
       ) : tables.length > 0 ? (
         <div className="ms-tables-section">
           <div className="ms-section-header">

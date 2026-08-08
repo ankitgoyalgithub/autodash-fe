@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Clock, BarChart2, ImageIcon, ChevronRight } from 'lucide-react';
+import { Clock, BarChart2, ImageIcon, ChevronRight, LayoutDashboard } from 'lucide-react';
 import axios from 'axios';
 import type { Project, HistoryEntry } from '../App';
 import { BASE } from './constants';
+import { ProjectLogoTile } from './projectLogos';
+import { EmptyState, Skeleton } from './ui';
 
 export function DashboardsList({ projects, onOpenEntry }: {
   projects: Project[];
@@ -42,20 +44,39 @@ export function DashboardsList({ projects, onOpenEntry }: {
           <label htmlFor="filter-proj">Filter:</label>
           <select id="filter-proj" value={filterProject} onChange={e => setFilterProject(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}>
             <option value="all">All projects</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.emoji} {p.name}</option>)}
+            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
       </div>
 
       {loading ? (
-        <div className="loading-state"><Loader2 size={24} className="spin"/><p>Loading dashboards...</p></div>
+        <div className="dashboard-list">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="dashboard-entry" style={{ cursor: 'default', display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+              <Skeleton size={36} radius={10} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <Skeleton width="48%" height={12} />
+                <Skeleton width="78%" height={14} />
+                <Skeleton width="32%" height={10} />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="empty"><div className="empty-art">📈</div><h3>No dashboards yet</h3><p>Start a project and generate your first dashboard.</p></div>
+        <EmptyState
+          icon={<LayoutDashboard size={26}/>}
+          title="No dashboards yet"
+          subtitle={filterProject === 'all'
+            ? 'Start a project and generate your first dashboard. The results will appear here.'
+            : 'No dashboards in this project yet. Run a query to create the first one.'}
+        />
       ) : (
         <div className="dashboard-list">
           {filtered.map(entry => (
             <button key={entry.id} className="dashboard-entry" onClick={() => onOpenEntry(entry.project, entry)}>
-              <div className="entry-emoji" style={{ background: entry.project.color + '18' }}>{entry.project.emoji}</div>
+              <div className="entry-emoji">
+                <ProjectLogoTile id={entry.project.emoji} emoji={entry.project.emoji} size={36} />
+              </div>
               <div className="entry-body">
                 <div className="entry-top">
                   <div className="entry-meta-tag" style={{ color: entry.project.color, background: entry.project.color + '18' }}>{entry.project.name}</div>

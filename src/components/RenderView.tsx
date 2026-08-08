@@ -130,7 +130,7 @@ export default function RenderView() {
           }}>
             {panelCards.map((card, ci) => (
               <div
-                key={card.id || `${pi}-${ci}`}
+                key={`${pi}-${ci}`}
                 style={{
                   background: '#f8fafc',
                   borderRadius: 12,

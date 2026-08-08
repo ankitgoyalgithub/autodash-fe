@@ -8,22 +8,31 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  ZoomIn, ZoomOut, Maximize2, Minimize2, Download, Printer,
-  FileImage, ChevronLeft,
+  ZoomIn, ZoomOut, Maximize2, Minimize2, Printer,
+  FileImage, ChevronLeft, Palette,
 } from 'lucide-react';
+import { InfographicFormatPanel } from './InfographicFormatPanel';
 
 interface RichInfographicViewerProps {
   html: string;
   title?: string;
   onBack?: () => void;
+  /** Step ID — required for the Format panel to call the restyle endpoint. */
+  stepId?: number;
+  /** Current theme ID, used as the Format panel's starting selection. */
+  currentTheme?: 'brand' | 'editorial' | 'executive' | 'vivid' | 'mono';
+  /** Called when the restyle API returns new HTML — the parent should update
+   *  the persisted history entry so a thread reload shows the new look. */
+  onRestyled?: (newHtml: string, newTheme: string) => void;
 }
 
 const ZOOM_LEVELS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5];
 
-export function RichInfographicViewer({ html, title, onBack }: RichInfographicViewerProps) {
+export function RichInfographicViewer({ html, title, onBack, stepId, currentTheme, onRestyled }: RichInfographicViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [zoomIdx, setZoomIdx] = useState(3); // start at 0.8
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [formatOpen, setFormatOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const zoom = ZOOM_LEVELS[zoomIdx];
@@ -127,6 +136,15 @@ export function RichInfographicViewer({ html, title, onBack }: RichInfographicVi
         </div>
 
         <div className="rich-ig-toolbar-right">
+          {stepId != null && (
+            <button
+              className={`rich-ig-btn ${formatOpen ? 'rich-ig-btn--active' : ''}`}
+              onClick={() => setFormatOpen(o => !o)}
+              title="Format — change theme, colors, fonts"
+            >
+              <Palette size={14} /> <span>Format</span>
+            </button>
+          )}
           <button className="rich-ig-btn" onClick={handleExportPNG} title="Export as PNG">
             <FileImage size={14} /> <span>PNG</span>
           </button>
@@ -139,20 +157,32 @@ export function RichInfographicViewer({ html, title, onBack }: RichInfographicVi
         </div>
       </div>
 
-      {/* Canvas area */}
-      <div className="rich-ig-canvas">
-        <div
-          className="rich-ig-frame-wrap"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-        >
-          <iframe
-            ref={iframeRef}
-            className="rich-ig-iframe"
-            title="Infographic"
-            sandbox="allow-same-origin allow-popups allow-modals allow-scripts"
-            onLoad={handleIframeLoad}
-          />
+      {/* Canvas area + optional Format drawer side-by-side */}
+      <div className="rich-ig-body">
+        <div className="rich-ig-canvas">
+          <div
+            className="rich-ig-frame-wrap"
+            style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+          >
+            <iframe
+              ref={iframeRef}
+              className="rich-ig-iframe"
+              title="Infographic"
+              sandbox="allow-same-origin allow-popups allow-modals allow-scripts"
+              onLoad={handleIframeLoad}
+            />
+          </div>
         </div>
+
+        {stepId != null && (
+          <InfographicFormatPanel
+            open={formatOpen}
+            stepId={stepId}
+            currentTheme={currentTheme}
+            onClose={() => setFormatOpen(false)}
+            onApplied={(newHtml, newTheme) => onRestyled?.(newHtml, newTheme)}
+          />
+        )}
       </div>
     </div>
   );

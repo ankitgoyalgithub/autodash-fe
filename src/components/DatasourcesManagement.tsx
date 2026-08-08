@@ -1,19 +1,36 @@
 import { useState } from 'react';
-import { Database, Plus, X, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2, Zap } from 'lucide-react';
+import { Database, Plus, X, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2, Zap, DatabaseZap, Filter } from 'lucide-react';
 import axios from 'axios';
 import type { Datasource } from '../App';
 import { BASE } from './constants';
 import { HubSpotConnectModal } from './HubSpotConnectModal';
+import { DatasourceCurationModal } from './DatasourceCurationModal';
+import { toast, EmptyState, Button } from './ui';
+
+// Per-engine defaults — single source of truth for the kind picker and the
+// port/username placeholders so adding a new engine is one new row.
+type DSKind = 'postgresql' | 'mssql' | 'clickhouse';
+const DS_KIND_META: Record<DSKind, {
+  label: string; emoji: string; defaultPort: string; userPlaceholder: string;
+}> = {
+  postgresql: { label: 'PostgreSQL', emoji: '🐘', defaultPort: '5432', userPlaceholder: 'postgres' },
+  mssql:      { label: 'SQL Server', emoji: '🪟', defaultPort: '1433', userPlaceholder: 'sa' },
+  clickhouse: { label: 'ClickHouse', emoji: '⚡', defaultPort: '8123', userPlaceholder: 'default' },
+};
+const DS_KIND_ORDER: DSKind[] = ['postgresql', 'mssql', 'clickhouse'];
+const DS_DEFAULT_PORTS = new Set(Object.values(DS_KIND_META).map(m => m.defaultPort));
 
 export function DatasourceEditForm({ initialData, onSave, testing, testResult, onTest }: {
-  initialData: Datasource | { id: number; name: string; host: string; port: number; database: string; username: string; };
+  initialData: Datasource | { id: number; name: string; kind?: DSKind; host: string; port: number; database: string; username: string; };
   onSave: (d: object) => void;
   testing: boolean;
   testResult: { ok: boolean; msg: string } | null;
   onTest: (cfg: object) => void;
 }) {
+  const initialKind = ((initialData as any).kind || 'postgresql') as DSKind;
   const [form, setForm] = useState({
     name: initialData.name,
+    kind: initialKind,
     host: initialData.host,
     port: String(initialData.port),
     database: initialData.database,
@@ -22,17 +39,50 @@ export function DatasourceEditForm({ initialData, onSave, testing, testResult, o
   });
   const [showPw, setShowPw] = useState(false);
   const u = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const setKind = (kind: DSKind) => setForm(f => {
+    // Bump the port to the new engine's default IF the current port is ANY
+    // other engine's default — otherwise leave the user's custom value alone.
+    const nextDefault = DS_KIND_META[kind].defaultPort;
+    const wasSomeDefault = DS_DEFAULT_PORTS.has(f.port) && f.port !== nextDefault;
+    return { ...f, kind, port: wasSomeDefault ? nextDefault : f.port };
+  });
+
+  const kindMeta = DS_KIND_META[form.kind];
 
   return (
     <div className="ds-form">
       <div className="form-row"><div className="field full"><label>Connection Name</label><input placeholder="e.g. Production DB" value={form.name} onChange={u('name')} /></div></div>
+
+      <div className="form-row">
+        <div className="field full">
+          <label>Database Type</label>
+          <div className="ds-kind-row">
+            {DS_KIND_ORDER.map(k => {
+              const m = DS_KIND_META[k];
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  className={`ds-kind-card ${form.kind === k ? 'sel' : ''}`}
+                  onClick={() => setKind(k)}
+                >
+                  <span className="ds-kind-emoji">{m.emoji}</span>
+                  <strong>{m.label}</strong>
+                  <small>Default port {m.defaultPort}</small>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       <div className="form-row">
         <div className="field"><label>Host</label><input placeholder="127.0.0.1" value={form.host} onChange={u('host')} /></div>
-        <div className="field sm"><label>Port</label><input placeholder="5432" value={form.port} onChange={u('port')} /></div>
+        <div className="field sm"><label>Port</label><input placeholder={kindMeta.defaultPort} value={form.port} onChange={u('port')} /></div>
       </div>
       <div className="form-row">
-        <div className="field"><label>Database</label><input placeholder="my_database" value={form.database} onChange={u('database')} /></div>
-        <div className="field"><label>Username</label><input placeholder="postgres" value={form.username} onChange={u('username')} /></div>
+        <div className="field"><label>Database</label><input placeholder={form.kind === 'clickhouse' ? 'default' : 'my_database'} value={form.database} onChange={u('database')} /></div>
+        <div className="field"><label>Username</label><input placeholder={kindMeta.userPlaceholder} value={form.username} onChange={u('username')} /></div>
       </div>
       <div className="form-row">
         <div className="field full pw-field">
@@ -62,6 +112,7 @@ export function DatasourceEditForm({ initialData, onSave, testing, testResult, o
 
 export function DatasourcesManagement({ datasources, onRefresh }: { datasources: Datasource[]; onRefresh: () => void }) {
   const [editingDs, setEditingDs] = useState<Datasource | null>(null);
+  const [curatingDs, setCuratingDs] = useState<Datasource | null>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [showHubSpot, setShowHubSpot] = useState(false);
@@ -72,7 +123,7 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
       await axios.delete(`${BASE}/datasources/${id}/`);
       onRefresh();
     } catch (e: any) {
-      alert(e.response?.data?.error || 'Failed to delete datasource.');
+      toast.error(e.response?.data?.error || 'Failed to delete datasource.');
     }
   };
 
@@ -97,7 +148,7 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
       setTestResult(null);
       onRefresh();
     } catch (e: any) {
-      alert(e.response?.data?.error || 'Failed to save datasource.');
+      toast.error(e.response?.data?.error || 'Failed to save datasource.');
     }
   };
 
@@ -123,11 +174,19 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
 
       <div className="ds-grid">
         {datasources.length === 0 ? (
-          <div className="empty">
-            <div className="empty-art">🔌</div>
-            <h3>No data sources yet</h3>
-            <p>Connect your first database to start building dashboards.</p>
-          </div>
+          <EmptyState
+            icon={<DatabaseZap size={26}/>}
+            title="No data sources yet"
+            subtitle="Connect your first database to start building dashboards from live data."
+            actions={
+              <Button
+                onClick={() => setEditingDs({ id: 0, name: '', host: '127.0.0.1', port: 5432, database: '', username: '' } as Datasource)}
+                leading={<Plus size={14}/>}
+              >
+                Connect a database
+              </Button>
+            }
+          />
         ) : (
           datasources.map(ds => {
             const isHubSpot = (ds as any).is_hubspot;
@@ -159,7 +218,19 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
                   {isHubSpot ? (
                     <button className="btn-edit" onClick={() => setShowHubSpot(true)}>Manage</button>
                   ) : (
-                    <button className="btn-edit" onClick={() => setEditingDs(ds)}>Edit</button>
+                    <>
+                      <button className="btn-edit" onClick={() => setEditingDs(ds)}>Edit</button>
+                      {!isMySpace && (
+                        <button
+                          className="btn-edit"
+                          onClick={() => setCuratingDs(ds)}
+                          title="Mark junk tables to ignore + describe useful ones. Improves planner accuracy on large schemas."
+                        >
+                          <Filter size={13} style={{ marginRight: 4, verticalAlign: '-2px' }}/>
+                          Curate
+                        </button>
+                      )}
+                    </>
                   )}
                   {!isMySpace && !isHubSpot && (
                     <button className="btn-ghost-indigo" style={{ borderColor: '#fecaca', color: '#dc2626' }} onClick={() => handleDelete(ds.id)}>Delete</button>
@@ -195,6 +266,14 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
         <HubSpotConnectModal
           onClose={() => setShowHubSpot(false)}
           onConnected={onRefresh}
+        />
+      )}
+
+      {curatingDs && (
+        <DatasourceCurationModal
+          datasourceId={curatingDs.id}
+          datasourceName={curatingDs.name}
+          onClose={() => setCuratingDs(null)}
         />
       )}
     </div>

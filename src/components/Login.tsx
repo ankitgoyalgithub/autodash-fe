@@ -374,76 +374,83 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 40px;
-          background: #f9fafb;
+          padding: var(--space-9);
+          background: var(--bg-canvas);
           position: relative;
           overflow-y: auto;
+          font-family: var(--font-ui);
         }
 
         .login-card {
           width: 100%;
           max-width: 420px;
-          padding: 40px 48px;
-          border-radius: 24px;
-          background: white;
-          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
-          border: 1px solid #eaecf0;
+          padding: var(--space-8) var(--space-9);
+          border-radius: 16px;
+          background: var(--bg-surface);
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+                      0 12px 32px -16px rgba(15, 23, 42, 0.10);
+          border: 1px solid var(--border-subtle);
         }
 
         .login-logo {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          margin-bottom: 20px;
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          margin-bottom: var(--space-4);
         }
 
         .login-header h2 {
-          font-size: 1.75rem;
-          font-weight: 800;
-          color: #101828;
-          letter-spacing: -0.5px;
-          margin-bottom: 6px;
+          font-size: var(--text-2xl);
+          font-weight: var(--weight-semibold);
+          color: var(--text-primary);
+          letter-spacing: var(--tracking-tight);
+          margin-bottom: 4px;
+          line-height: var(--leading-2xl);
         }
 
         .login-header p {
-          font-size: 0.95rem;
-          color: #667085;
+          font-size: var(--text-base);
+          color: var(--text-tertiary);
           margin-bottom: 0;
+          line-height: var(--leading-base);
         }
 
         /* Mode toggle tabs */
         .auth-tabs {
           display: flex;
           gap: 0;
-          background: #f4f4f5;
-          border-radius: 10px;
+          background: var(--bg-inset);
+          border-radius: 8px;
           padding: 3px;
-          margin: 20px 0 24px;
+          margin: var(--space-5) 0 var(--space-5);
         }
 
         .auth-tab {
           flex: 1;
-          padding: 8px 0;
-          border-radius: 8px;
+          padding: 7px 0;
+          border-radius: 6px;
           border: none;
           background: transparent;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #6b7280;
+          font-size: var(--text-base);
+          font-weight: var(--weight-medium);
+          color: var(--text-tertiary);
           cursor: pointer;
-          transition: all 0.15s;
+          transition: background var(--duration-fast) var(--ease-out),
+                      color var(--duration-fast) var(--ease-out),
+                      box-shadow var(--duration-fast) var(--ease-out);
         }
 
         .auth-tab.active {
-          background: white;
-          color: #101828;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+          background: var(--bg-surface);
+          color: var(--text-primary);
+          font-weight: var(--weight-semibold);
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
         }
 
         .auth-form {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: var(--space-3);
         }
 
         .auth-field {
@@ -453,9 +460,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
         }
 
         .auth-field label {
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: #344054;
+          font-size: var(--text-sm);
+          font-weight: var(--weight-medium);
+          color: var(--text-secondary);
         }
 
         .input-wrap {
@@ -466,46 +473,49 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
 
         .input-icon {
           position: absolute;
-          left: 14px;
-          color: #98a2b3;
+          left: 13px;
+          color: var(--text-muted);
         }
 
         .input-wrap input {
           width: 100%;
-          padding: 11px 14px 11px 42px;
-          border-radius: 12px;
-          border: 1px solid #d0d5dd;
-          font-size: 0.95rem;
-          color: #101828;
+          padding: 9px 13px 9px 40px;
+          border-radius: 8px;
+          border: 1px solid var(--border-default);
+          font-size: var(--text-base);
+          color: var(--text-primary);
           outline: none;
-          transition: all 0.2s;
-          background: #fafafa;
+          background: var(--bg-surface);
+          font-family: var(--font-ui);
+          transition: border-color var(--duration-fast) var(--ease-out),
+                      box-shadow var(--duration-fast) var(--ease-out);
         }
 
+        .input-wrap input:hover:not(:focus) { border-color: var(--border-strong); }
         .input-wrap input:focus {
-          border-color: #6366f1;
-          box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-          background: #fff;
+          border-color: var(--accent-default);
+          box-shadow: var(--ring-default);
         }
+        .input-wrap input::placeholder { color: var(--text-muted); }
 
         .auth-error {
           padding: 10px 12px;
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          color: #dc2626;
-          border-radius: 10px;
-          font-size: 0.83rem;
-          font-weight: 500;
+          background: var(--color-danger-subtle);
+          border: 1px solid var(--color-danger-default);
+          color: var(--color-danger-fg);
+          border-radius: 8px;
+          font-size: var(--text-sm);
+          font-weight: var(--weight-medium);
         }
 
         .auth-requirements {
           margin: 0;
           padding: 10px 10px 10px 26px;
-          background: #fffbeb;
-          border: 1px solid #fde68a;
-          border-radius: 10px;
-          font-size: 0.8rem;
-          color: #92400e;
+          background: var(--color-warning-subtle);
+          border: 1px solid var(--color-warning-default);
+          border-radius: 8px;
+          font-size: var(--text-sm);
+          color: var(--color-warning-fg);
           display: flex;
           flex-direction: column;
           gap: 3px;
@@ -515,43 +525,47 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
-          padding: 13px;
-          background: #101828;
-          color: white;
+          gap: 8px;
+          padding: 10px;
+          background: var(--text-primary);
+          color: var(--bg-surface);
           border: none;
-          border-radius: 12px;
-          font-size: 1rem;
-          font-weight: 700;
+          border-radius: 8px;
+          font-size: var(--text-base);
+          font-weight: var(--weight-semibold);
+          letter-spacing: var(--tracking-tight);
           cursor: pointer;
-          transition: all 0.2s;
-          margin-top: 4px;
+          margin-top: var(--space-2);
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.06);
+          transition: background var(--duration-fast) var(--ease-out),
+                      box-shadow var(--duration-fast) var(--ease-out),
+                      transform var(--duration-fast) var(--ease-out);
         }
 
         .login-submit:hover:not(:disabled) {
-          background: #1d2939;
-          transform: translateY(-2px);
-          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+          background: var(--gray-800);
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.10);
         }
 
         .login-submit:disabled {
-          opacity: 0.7;
+          opacity: 0.55;
           cursor: not-allowed;
         }
 
         .login-footer {
-          margin-top: 24px;
+          margin-top: var(--space-5);
           text-align: center;
         }
 
         .login-footer p {
-          font-size: 0.85rem;
-          color: #667085;
+          font-size: var(--text-sm);
+          color: var(--text-tertiary);
         }
 
         .login-footer span {
-          color: #6366f1;
-          font-weight: 600;
+          color: var(--accent-default);
+          font-weight: var(--weight-semibold);
           cursor: pointer;
         }
 

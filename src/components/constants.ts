@@ -1,6 +1,6 @@
 // Always use a relative path — Vite proxies /api → Django in dev.
 // In production we hit the backend directly to bypass Netlify's 26s proxy timeout.
-export const BASE = import.meta.env.PROD ? 'https://13.201.72.131.sslip.io/api' : '/api';
+export const BASE = import.meta.env.PROD ? 'https://34.123.64.50.sslip.io/api' : '/api';
 
 export const PALETTES: Record<string, string[]> = {
   // Maximally distinct first — cool/warm alternating so multi-series charts never clash

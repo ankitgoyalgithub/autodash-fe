@@ -1,0 +1,104 @@
+/* EmailModal.css — styles specific to the reusable email-as-PDF dialog.
+   Reuses the global .modal / .modal-head / .modal-body / .modal-footer / .field
+   system; only the bits unique to this dialog live here. */
+
+.email-modal {
+  width: 460px;
+}
+
+.email-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary, #94a3b8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+.email-modal-close:hover {
+  color: var(--text-primary, #1e293b);
+  background: var(--bg-subtle, #f1f5f9);
+}
+
+.email-modal-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #64748b);
+}
+
+.email-modal-textarea {
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-default, #ddd8f0);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: var(--text-base, 0.9rem);
+  color: var(--text-primary, #1e293b);
+  font-family: var(--font-ui, inherit);
+  outline: none;
+  resize: vertical;
+  min-height: 64px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.email-modal-textarea:focus {
+  border-color: var(--accent-default, #7c3aed);
+  box-shadow: var(--ring-default, 0 0 0 3px rgba(124, 58, 237, 0.1));
+}
+
+.email-field-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+}
+.email-field-hint.error {
+  color: #dc2626;
+}
+.email-send-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-radius: 8px;
+}
+
+/* ── Success state ── */
+.email-modal-result {
+  align-items: center;
+  text-align: center;
+}
+.email-result-icon.success {
+  color: #16a34a;
+  margin-bottom: 4px;
+}
+.email-modal-result h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+}
+.email-result-sub {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #64748b);
+}
+.email-recipient-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.email-chip {
+  background: var(--bg-subtle, #f1f5f9);
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #475569);
+}
+
+.email-modal .modal-footer {
+  margin-top: 8px;
+  width: 100%;
+}

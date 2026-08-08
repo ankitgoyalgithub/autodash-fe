@@ -1,0 +1,236 @@
+/*
+ * Design tokens — Phase 0 foundation.
+ *
+ * Layered ABOVE the existing :root in App.css. We don't redefine --gray-*
+ * or --theme-* because too many call sites depend on them; instead we add
+ * SEMANTIC tokens that compose them, so future surfaces can stay
+ * theme-agnostic ("--bg-surface" instead of "#ffffff" or "var(--gray-25)").
+ *
+ * Naming rules:
+ *   - Spacing   → --space-N            (4pt grid)
+ *   - Type      → --text-{size}, --leading-{size}
+ *   - Surface   → --bg-{role}, --border-{role}
+ *   - Text      → --text-{role}
+ *   - Feedback  → --color-{semantic}-{tone}     (subtle/default/strong/fg)
+ *   - Motion    → --duration-{speed}, --ease-{shape}
+ *   - Ring      → --ring-{role}
+ *
+ * All new components should reach for these. Legacy --gray-* etc. remain
+ * supported during the migration phases.
+ */
+
+:root {
+  /* ── Spacing scale (4-pt grid) ───────────────────────────────────────── */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  28px;
+  --space-8:  32px;
+  --space-9:  40px;
+  --space-10: 48px;
+  --space-11: 56px;
+  --space-12: 64px;
+
+  /* ── Type scale ──────────────────────────────────────────────────────── */
+  --text-xs:   11px;   --leading-xs:  16px;
+  --text-sm:   12.5px; --leading-sm:  18px;
+  --text-base: 14px;   --leading-base: 21px;
+  --text-md:   15px;   --leading-md:  22px;
+  --text-lg:   17px;   --leading-lg:  24px;
+  --text-xl:   20px;   --leading-xl:  28px;
+  --text-2xl:  24px;   --leading-2xl: 32px;
+  --text-3xl:  30px;   --leading-3xl: 38px;
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --tracking-tight:  -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+
+  --font-ui:        'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-editorial: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
+  --font-mono:      'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ── Semantic surfaces ───────────────────────────────────────────────── */
+  --bg-canvas:   var(--gray-50);   /* the app background */
+  --bg-surface:  #ffffff;          /* card / modal body */
+  --bg-elevated: #ffffff;          /* dialog floating above surface */
+  --bg-inset:    var(--gray-50);   /* nested area inside a surface */
+  --bg-subtle:   var(--gray-100);  /* hover backgrounds, disabled fills */
+
+  --border-subtle:  rgba(15, 23, 42, 0.06);
+  --border-default: var(--gray-200);
+  --border-strong:  var(--gray-300);
+
+  /* ── Text roles ─────────────────────────────────────────────────────── */
+  --text-primary:    var(--gray-900);  /* h1-h3, primary content */
+  --text-secondary:  var(--gray-700);  /* body */
+  --text-tertiary:   var(--gray-500);  /* metadata, captions */
+  --text-muted:      var(--gray-400);  /* placeholder, disabled */
+  --text-inverse:    #ffffff;
+
+  /* ── Semantic feedback colors ────────────────────────────────────────── */
+  --color-success-subtle:  #ecfdf5;
+  --color-success-default: #10b981;
+  --color-success-strong:  #047857;
+  --color-success-fg:      #064e3b;
+
+  --color-warning-subtle:  #fffbeb;
+  --color-warning-default: #f59e0b;
+  --color-warning-strong:  #b45309;
+  --color-warning-fg:      #78350f;
+
+  --color-danger-subtle:   #fef2f2;
+  --color-danger-default:  #ef4444;
+  --color-danger-strong:   #b91c1c;
+  --color-danger-fg:       #7f1d1d;
+
+  --color-info-subtle:     #eff6ff;
+  --color-info-default:    #3b82f6;
+  --color-info-strong:     #1d4ed8;
+  --color-info-fg:         #1e3a8a;
+
+  /* ── Accent (drives primary CTA, focus rings, brand) ────────────────── */
+  /* Defaults to indigo; runtime brand-kit overrides --brand-primary which
+     this tracks, so user-themed instances feel native immediately. */
+  --accent-subtle:  #eef2ff;
+  --accent-default: var(--brand-primary, #6366f1);
+  --accent-strong:  #4338ca;
+  --accent-fg:      #ffffff;
+
+  /* ── Focus ring ──────────────────────────────────────────────────────── */
+  --ring-default: 0 0 0 3px rgba(99, 102, 241, 0.18);
+  --ring-danger:  0 0 0 3px rgba(239, 68, 68, 0.18);
+  --ring-success: 0 0 0 3px rgba(16, 185, 129, 0.18);
+
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --duration-instant: 0ms;
+  --duration-fast:    120ms;
+  --duration-normal:  180ms;
+  --duration-slow:    320ms;
+
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.5, -0.1, 0.3, 1.5);
+
+  /* ── Z-index scale ───────────────────────────────────────────────────── */
+  --z-sticky:   100;
+  --z-dropdown: 200;
+  --z-overlay:  900;
+  --z-modal:    1000;
+  --z-toast:    1100;
+  --z-tooltip:  1200;
+}
+
+/* ── Dark theme — semantic tokens flip; component CSS stays put ───────── */
+.theme-dark-pro,
+.theme-midnight,
+.theme-corporate,
+.theme-canva.dark {
+  --bg-canvas:   #0b1020;
+  --bg-surface:  #111827;
+  --bg-elevated: #1f2937;
+  --bg-inset:    #0b1020;
+  --bg-subtle:   #1e293b;
+
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong:  rgba(255, 255, 255, 0.16);
+
+  --text-primary:   #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary:  #94a3b8;
+  --text-muted:     #64748b;
+
+  --color-success-subtle: rgba(16, 185, 129, 0.10);
+  --color-warning-subtle: rgba(245, 158, 11, 0.10);
+  --color-danger-subtle:  rgba(239, 68, 68, 0.12);
+  --color-info-subtle:    rgba(59, 130, 246, 0.10);
+
+  --accent-subtle: rgba(99, 102, 241, 0.16);
+  --ring-default:  0 0 0 3px rgba(129, 140, 248, 0.28);
+}
+
+/* Respect users who want less motion */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast:   0ms;
+    --duration-normal: 0ms;
+    --duration-slow:   0ms;
+  }
+}
+
+/* ── Utility classes consumed by primitives ───────────────────────────── */
+
+/* Visually hidden but available to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
+
+/* Skip link — invisible until keyboard-focused. The first interactive
+   element on every page should be a link to #main so keyboard / SR users
+   can bypass the global nav. */
+.skip-link {
+  position: absolute;
+  top: -100px; left: var(--space-4);
+  z-index: var(--z-tooltip);
+  padding: 10px 14px;
+  background: var(--text-primary);
+  color: var(--text-inverse);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: top var(--duration-fast) var(--ease-out);
+}
+.skip-link:focus {
+  top: var(--space-4);
+  outline: 2px solid var(--accent-default);
+  outline-offset: 2px;
+}
+
+/* Focus-visible base — every interactive primitive opts into this */
+.ui-focus-ring:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-default);
+}
+
+/* ── Global keyboard-focus fallback ──────────────────────────────────────
+   Catch-all for interactive elements that don't ALREADY have a focus
+   style. `:where()` keeps specificity at 0 so any component-level
+   `:focus` or `:focus-visible` rule wins. Keyboard users get a visible
+   ring everywhere; mouse-focus is ignored because `:focus-visible`
+   only fires on keyboard navigation in modern browsers.
+
+   Why `outline` instead of `box-shadow` here: shadow gets clipped by
+   `overflow: hidden` (common on cards / modals). Outline doesn't.
+   Component-specific rules using box-shadow still work for tighter rings. */
+:where(button, [role="button"], a, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--accent-default);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Reduced-motion override for the whole app ────────────────────────────
+   We already null durations in :root; this catches legacy `animation`/
+   `transition` rules with hardcoded timings so they degrade gracefully. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

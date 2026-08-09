@@ -605,8 +605,10 @@ export default function App() {
           <Route path="/view/:slug" element={<PublicDashboardView />} />
           {/* Headless render route — visited by Playwright during export, no auth chrome */}
           <Route path="/render/:token" element={<RenderView />} />
-          <Route path="/" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} user={user} onUserUpdate={setUser} />} />
           <Route path="/login" element={!isLoggedIn ? <Login onLogin={handleLogin} base={BASE} /> : <Navigate to="/" replace />} />
+          {/* Splat so MainAppContent's descendant <Routes> (deep links like
+              /projects/:id/threads/:id) keep matching. Static routes above win
+              by specificity; "/" falls through here too. */}
           <Route path="*" element={!isLoggedIn ? <LandingPage /> : <MainAppContent onLogout={handleLogout} user={user} onUserUpdate={setUser} />} />
         </Routes>
       </BrowserRouter>

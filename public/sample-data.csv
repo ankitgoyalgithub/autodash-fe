@@ -1,241 +1,241 @@
-order_month,region,category,channel,units_sold,revenue,new_customers
-2025-01,North America,Electronics,Wholesale,378,74595.71,37
-2025-01,North America,Apparel,Online,214,11442.61,32
-2025-01,North America,Home & Garden,Online,137,9885.46,11
-2025-01,North America,Sports,Online,154,9109.37,14
-2025-01,North America,Beauty,Wholesale,121,4538.79,14
-2025-01,Europe,Electronics,Retail,395,69124.04,57
-2025-01,Europe,Apparel,Wholesale,149,7472.63,14
-2025-01,Europe,Home & Garden,Retail,87,6655.63,9
-2025-01,Europe,Sports,Retail,126,8460.27,17
-2025-01,Europe,Beauty,Wholesale,74,3002.0,6
-2025-01,Asia Pacific,Electronics,Retail,452,87508.56,67
-2025-01,Asia Pacific,Apparel,Wholesale,153,7408.06,20
-2025-01,Asia Pacific,Home & Garden,Retail,141,11623.25,21
-2025-01,Asia Pacific,Sports,Retail,125,8173.68,13
-2025-01,Asia Pacific,Beauty,Retail,94,3669.26,12
-2025-01,Latin America,Electronics,Wholesale,237,45816.27,22
-2025-01,Latin America,Apparel,Wholesale,87,4496.68,8
-2025-01,Latin America,Home & Garden,Wholesale,71,5289.56,7
-2025-01,Latin America,Sports,Online,68,4026.19,7
-2025-01,Latin America,Beauty,Retail,46,1863.55,5
-2025-02,North America,Electronics,Wholesale,433,84316.07,48
-2025-02,North America,Apparel,Wholesale,201,10058.8,20
-2025-02,North America,Home & Garden,Wholesale,141,11432.67,16
-2025-02,North America,Sports,Wholesale,154,9413.38,24
-2025-02,North America,Beauty,Wholesale,116,4588.4,17
-2025-02,Europe,Electronics,Online,386,76767.38,43
-2025-02,Europe,Apparel,Online,153,8078.06,17
-2025-02,Europe,Home & Garden,Retail,129,10642.83,10
-2025-02,Europe,Sports,Wholesale,106,7201.66,14
-2025-02,Europe,Beauty,Wholesale,86,3160.03,7
-2025-02,Asia Pacific,Electronics,Online,493,99302.98,49
-2025-02,Asia Pacific,Apparel,Wholesale,202,10516.91,17
-2025-02,Asia Pacific,Home & Garden,Wholesale,114,9089.69,14
-2025-02,Asia Pacific,Sports,Online,136,8232.66,21
-2025-02,Asia Pacific,Beauty,Wholesale,121,4670.79,14
-2025-02,Latin America,Electronics,Online,274,55214.6,40
-2025-02,Latin America,Apparel,Retail,91,4535.81,11
-2025-02,Latin America,Home & Garden,Online,57,4436.03,4
-2025-02,Latin America,Sports,Wholesale,89,5357.33,10
-2025-02,Latin America,Beauty,Wholesale,50,1908.41,6
-2025-03,North America,Electronics,Online,572,113118.76,77
-2025-03,North America,Apparel,Wholesale,197,11055.57,26
-2025-03,North America,Home & Garden,Retail,168,13002.28,16
-2025-03,North America,Sports,Online,156,10125.07,15
-2025-03,North America,Beauty,Online,98,3847.84,8
-2025-03,Europe,Electronics,Online,445,89415.15,38
-2025-03,Europe,Apparel,Online,152,7885.55,18
-2025-03,Europe,Home & Garden,Wholesale,133,10491.92,15
-2025-03,Europe,Sports,Retail,148,9002.81,12
-2025-03,Europe,Beauty,Retail,90,3371.36,13
-2025-03,Asia Pacific,Electronics,Online,466,95398.88,40
-2025-03,Asia Pacific,Apparel,Retail,208,11336.19,18
-2025-03,Asia Pacific,Home & Garden,Online,113,8741.53,12
-2025-03,Asia Pacific,Sports,Retail,147,9971.71,12
-2025-03,Asia Pacific,Beauty,Wholesale,91,3542.18,11
-2025-03,Latin America,Electronics,Online,289,58655.89,42
-2025-03,Latin America,Apparel,Online,102,5288.18,15
-2025-03,Latin America,Home & Garden,Online,62,4450.79,6
-2025-03,Latin America,Sports,Retail,76,5017.0,10
-2025-03,Latin America,Beauty,Wholesale,64,2426.81,6
-2025-04,North America,Electronics,Online,603,116021.47,74
-2025-04,North America,Apparel,Wholesale,205,9892.72,24
-2025-04,North America,Home & Garden,Wholesale,130,10887.57,11
-2025-04,North America,Sports,Online,144,8578.93,21
-2025-04,North America,Beauty,Retail,107,4319.91,10
-2025-04,Europe,Electronics,Wholesale,325,57620.0,43
-2025-04,Europe,Apparel,Wholesale,176,9788.55,16
-2025-04,Europe,Home & Garden,Wholesale,109,8183.16,9
-2025-04,Europe,Sports,Wholesale,126,7826.82,17
-2025-04,Europe,Beauty,Online,80,3098.93,10
-2025-04,Asia Pacific,Electronics,Online,376,68161.24,38
-2025-04,Asia Pacific,Apparel,Retail,228,12575.46,24
-2025-04,Asia Pacific,Home & Garden,Online,131,10288.66,13
-2025-04,Asia Pacific,Sports,Wholesale,157,10317.87,19
-2025-04,Asia Pacific,Beauty,Wholesale,95,3828.41,9
-2025-04,Latin America,Electronics,Online,278,49908.12,28
-2025-04,Latin America,Apparel,Online,120,5944.07,15
-2025-04,Latin America,Home & Garden,Retail,75,5617.05,11
-2025-04,Latin America,Sports,Online,73,4614.87,7
-2025-04,Latin America,Beauty,Online,59,2109.57,9
-2025-05,North America,Electronics,Online,579,110919.66,66
-2025-05,North America,Apparel,Online,195,10862.05,26
-2025-05,North America,Home & Garden,Online,159,13065.94,20
-2025-05,North America,Sports,Online,176,10438.27,19
-2025-05,North America,Beauty,Online,153,5544.3,15
-2025-05,Europe,Electronics,Online,391,75001.8,58
-2025-05,Europe,Apparel,Wholesale,199,11052.93,19
-2025-05,Europe,Home & Garden,Online,146,11954.25,21
-2025-05,Europe,Sports,Online,124,8475.0,17
-2025-05,Europe,Beauty,Retail,116,4664.77,16
-2025-05,Asia Pacific,Electronics,Retail,407,79820.37,45
-2025-05,Asia Pacific,Apparel,Online,236,11726.99,34
-2025-05,Asia Pacific,Home & Garden,Retail,131,10742.04,19
-2025-05,Asia Pacific,Sports,Online,131,7972.35,13
-2025-05,Asia Pacific,Beauty,Online,140,5131.99,18
-2025-05,Latin America,Electronics,Retail,283,56726.59,30
-2025-05,Latin America,Apparel,Online,97,5423.63,9
-2025-05,Latin America,Home & Garden,Retail,63,4989.93,6
-2025-05,Latin America,Sports,Retail,88,6068.35,7
-2025-05,Latin America,Beauty,Wholesale,57,2008.1,6
-2025-06,North America,Electronics,Wholesale,642,122730.46,88
-2025-06,North America,Apparel,Wholesale,262,12963.59,29
-2025-06,North America,Home & Garden,Wholesale,190,15112.03,25
-2025-06,North America,Sports,Online,205,12700.84,21
-2025-06,North America,Beauty,Retail,127,4978.28,15
-2025-06,Europe,Electronics,Online,417,84812.4,55
-2025-06,Europe,Apparel,Online,197,9917.75,24
-2025-06,Europe,Home & Garden,Online,117,8702.82,16
-2025-06,Europe,Sports,Wholesale,157,9991.71,18
-2025-06,Europe,Beauty,Online,108,4296.88,16
-2025-06,Asia Pacific,Electronics,Wholesale,425,75385.56,51
-2025-06,Asia Pacific,Apparel,Wholesale,224,10890.2,34
-2025-06,Asia Pacific,Home & Garden,Online,155,11557.34,14
-2025-06,Asia Pacific,Sports,Online,137,9446.9,17
-2025-06,Asia Pacific,Beauty,Online,120,4841.73,15
-2025-06,Latin America,Electronics,Wholesale,295,55999.57,29
-2025-06,Latin America,Apparel,Wholesale,129,7129.43,19
-2025-06,Latin America,Home & Garden,Online,90,6704.2,12
-2025-06,Latin America,Sports,Wholesale,95,5642.45,9
-2025-06,Latin America,Beauty,Online,67,2668.79,8
-2025-07,North America,Electronics,Wholesale,590,120171.91,89
-2025-07,North America,Apparel,Wholesale,280,15473.25,31
-2025-07,North America,Home & Garden,Wholesale,165,12168.14,24
-2025-07,North America,Sports,Retail,176,10808.47,23
-2025-07,North America,Beauty,Wholesale,141,5134.46,16
-2025-07,Europe,Electronics,Wholesale,408,74688.54,43
-2025-07,Europe,Apparel,Wholesale,162,7953.38,17
-2025-07,Europe,Home & Garden,Online,143,10376.31,16
-2025-07,Europe,Sports,Wholesale,151,8987.16,22
-2025-07,Europe,Beauty,Retail,129,4967.95,17
-2025-07,Asia Pacific,Electronics,Wholesale,483,84514.97,52
-2025-07,Asia Pacific,Apparel,Retail,253,14110.45,28
-2025-07,Asia Pacific,Home & Garden,Wholesale,164,13405.75,24
-2025-07,Asia Pacific,Sports,Retail,155,9818.16,12
-2025-07,Asia Pacific,Beauty,Retail,135,5374.72,18
-2025-07,Latin America,Electronics,Retail,332,67931.83,40
-2025-07,Latin America,Apparel,Retail,129,6882.94,11
-2025-07,Latin America,Home & Garden,Retail,72,5581.58,6
-2025-07,Latin America,Sports,Retail,91,5781.79,9
-2025-07,Latin America,Beauty,Retail,64,2607.57,7
-2025-08,North America,Electronics,Online,582,114985.94,48
-2025-08,North America,Apparel,Retail,229,11086.1,35
-2025-08,North America,Home & Garden,Online,192,16053.34,18
-2025-08,North America,Sports,Online,212,13000.41,24
-2025-08,North America,Beauty,Online,151,5479.07,20
-2025-08,Europe,Electronics,Retail,401,77497.39,56
-2025-08,Europe,Apparel,Online,225,11070.57,23
-2025-08,Europe,Home & Garden,Wholesale,111,8397.51,14
-2025-08,Europe,Sports,Retail,152,10062.67,13
-2025-08,Europe,Beauty,Wholesale,131,4773.18,17
-2025-08,Asia Pacific,Electronics,Retail,1377,265833.31,123
-2025-08,Asia Pacific,Apparel,Wholesale,256,12986.56,29
-2025-08,Asia Pacific,Home & Garden,Retail,129,10299.53,10
-2025-08,Asia Pacific,Sports,Retail,204,12231.99,32
-2025-08,Asia Pacific,Beauty,Wholesale,152,5738.79,14
-2025-08,Latin America,Electronics,Online,322,65736.43,32
-2025-08,Latin America,Apparel,Wholesale,143,7394.21,20
-2025-08,Latin America,Home & Garden,Wholesale,79,6508.76,11
-2025-08,Latin America,Sports,Online,92,5841.65,12
-2025-08,Latin America,Beauty,Wholesale,76,2832.08,6
-2025-09,North America,Electronics,Retail,531,96242.92,76
-2025-09,North America,Apparel,Retail,243,12830.4,36
-2025-09,North America,Home & Garden,Wholesale,145,12120.81,12
-2025-09,North America,Sports,Wholesale,201,12977.57,19
-2025-09,North America,Beauty,Retail,161,6109.02,23
-2025-09,Europe,Electronics,Online,439,82134.18,43
-2025-09,Europe,Apparel,Wholesale,216,11183.95,26
-2025-09,Europe,Home & Garden,Retail,170,13366.9,18
-2025-09,Europe,Sports,Retail,149,9156.7,13
-2025-09,Europe,Beauty,Online,110,4342.44,17
-2025-09,Asia Pacific,Electronics,Wholesale,475,86154.59,56
-2025-09,Asia Pacific,Apparel,Wholesale,246,13324.57,31
-2025-09,Asia Pacific,Home & Garden,Online,182,13733.2,19
-2025-09,Asia Pacific,Sports,Retail,150,9652.43,15
-2025-09,Asia Pacific,Beauty,Online,138,5409.64,12
-2025-09,Latin America,Electronics,Retail,256,44844.25,26
-2025-09,Latin America,Apparel,Retail,130,6418.61,10
-2025-09,Latin America,Home & Garden,Retail,76,5515.74,9
-2025-09,Latin America,Sports,Wholesale,110,6537.19,10
-2025-09,Latin America,Beauty,Wholesale,89,3157.53,8
-2025-10,North America,Electronics,Wholesale,696,134489.51,99
-2025-10,North America,Apparel,Online,305,15556.45,46
-2025-10,North America,Home & Garden,Retail,213,17916.62,22
-2025-10,North America,Sports,Wholesale,178,12230.65,15
-2025-10,North America,Beauty,Online,165,6033.89,14
-2025-10,Europe,Electronics,Online,430,76145.25,34
-2025-10,Europe,Apparel,Retail,232,12005.92,19
-2025-10,Europe,Home & Garden,Retail,158,12724.26,18
-2025-10,Europe,Sports,Wholesale,151,9299.94,21
-2025-10,Europe,Beauty,Wholesale,131,5323.41,14
-2025-10,Asia Pacific,Electronics,Wholesale,500,89664.64,50
-2025-10,Asia Pacific,Apparel,Online,203,9991.76,21
-2025-10,Asia Pacific,Home & Garden,Wholesale,188,15652.22,21
-2025-10,Asia Pacific,Sports,Retail,207,13671.37,32
-2025-10,Asia Pacific,Beauty,Wholesale,142,5342.26,18
-2025-10,Latin America,Electronics,Retail,344,66444.6,28
-2025-10,Latin America,Apparel,Online,163,8931.61,20
-2025-10,Latin America,Home & Garden,Online,112,8976.81,11
-2025-10,Latin America,Sports,Online,119,7220.2,14
-2025-10,Latin America,Beauty,Retail,91,3281.77,11
-2025-11,North America,Electronics,Wholesale,731,149313.53,85
-2025-11,North America,Apparel,Retail,265,14155.11,39
-2025-11,North America,Home & Garden,Retail,186,14497.48,24
-2025-11,North America,Sports,Retail,251,16192.76,29
-2025-11,North America,Beauty,Retail,146,5207.06,20
-2025-11,Europe,Electronics,Wholesale,576,100704.96,86
-2025-11,Europe,Apparel,Retail,215,10621.15,23
-2025-11,Europe,Home & Garden,Retail,159,12917.9,15
-2025-11,Europe,Sports,Wholesale,149,9212.58,22
-2025-11,Europe,Beauty,Retail,108,4414.69,13
-2025-11,Asia Pacific,Electronics,Online,628,115706.99,50
-2025-11,Asia Pacific,Apparel,Retail,212,11892.26,32
-2025-11,Asia Pacific,Home & Garden,Retail,202,16128.37,18
-2025-11,Asia Pacific,Sports,Wholesale,182,12030.82,20
-2025-11,Asia Pacific,Beauty,Retail,172,6268.0,21
-2025-11,Latin America,Electronics,Retail,284,54817.99,39
-2025-11,Latin America,Apparel,Online,162,8122.42,23
-2025-11,Latin America,Home & Garden,Retail,90,7343.16,9
-2025-11,Latin America,Sports,Online,101,6255.66,12
-2025-11,Latin America,Beauty,Wholesale,80,2869.08,9
-2025-12,North America,Electronics,Retail,624,123546.59,68
-2025-12,North America,Apparel,Retail,336,18816.02,33
-2025-12,North America,Home & Garden,Retail,177,14414.67,14
-2025-12,North America,Sports,Wholesale,227,15489.01,25
-2025-12,North America,Beauty,Wholesale,187,7278.84,17
-2025-12,Europe,Electronics,Online,447,91253.6,47
-2025-12,Europe,Apparel,Online,264,13596.88,32
-2025-12,Europe,Home & Garden,Retail,125,9194.88,18
-2025-12,Europe,Sports,Online,150,10032.42,15
-2025-12,Europe,Beauty,Wholesale,141,5486.45,20
-2025-12,Asia Pacific,Electronics,Wholesale,683,127278.61,71
-2025-12,Asia Pacific,Apparel,Wholesale,302,15673.72,37
-2025-12,Asia Pacific,Home & Garden,Wholesale,146,11626.99,22
-2025-12,Asia Pacific,Sports,Online,225,14247.87,19
-2025-12,Asia Pacific,Beauty,Wholesale,161,5726.94,15
-2025-12,Latin America,Electronics,Retail,388,68364.87,55
-2025-12,Latin America,Apparel,Retail,138,7096.42,13
-2025-12,Latin America,Home & Garden,Retail,102,8328.37,9
-2025-12,Latin America,Sports,Online,120,7535.67,16
-2025-12,Latin America,Beauty,Retail,97,3475.53,11
+order_date,region,category,channel,units_sold,revenue,new_customers
+2025-01-01,North America,Electronics,Wholesale,378,74595.71,37
+2025-01-01,North America,Apparel,Online,214,11442.61,32
+2025-01-01,North America,Home & Garden,Online,137,9885.46,11
+2025-01-01,North America,Sports,Online,154,9109.37,14
+2025-01-01,North America,Beauty,Wholesale,121,4538.79,14
+2025-01-01,Europe,Electronics,Retail,395,69124.04,57
+2025-01-01,Europe,Apparel,Wholesale,149,7472.63,14
+2025-01-01,Europe,Home & Garden,Retail,87,6655.63,9
+2025-01-01,Europe,Sports,Retail,126,8460.27,17
+2025-01-01,Europe,Beauty,Wholesale,74,3002.0,6
+2025-01-01,Asia Pacific,Electronics,Retail,452,87508.56,67
+2025-01-01,Asia Pacific,Apparel,Wholesale,153,7408.06,20
+2025-01-01,Asia Pacific,Home & Garden,Retail,141,11623.25,21
+2025-01-01,Asia Pacific,Sports,Retail,125,8173.68,13
+2025-01-01,Asia Pacific,Beauty,Retail,94,3669.26,12
+2025-01-01,Latin America,Electronics,Wholesale,237,45816.27,22
+2025-01-01,Latin America,Apparel,Wholesale,87,4496.68,8
+2025-01-01,Latin America,Home & Garden,Wholesale,71,5289.56,7
+2025-01-01,Latin America,Sports,Online,68,4026.19,7
+2025-01-01,Latin America,Beauty,Retail,46,1863.55,5
+2025-02-01,North America,Electronics,Wholesale,433,84316.07,48
+2025-02-01,North America,Apparel,Wholesale,201,10058.8,20
+2025-02-01,North America,Home & Garden,Wholesale,141,11432.67,16
+2025-02-01,North America,Sports,Wholesale,154,9413.38,24
+2025-02-01,North America,Beauty,Wholesale,116,4588.4,17
+2025-02-01,Europe,Electronics,Online,386,76767.38,43
+2025-02-01,Europe,Apparel,Online,153,8078.06,17
+2025-02-01,Europe,Home & Garden,Retail,129,10642.83,10
+2025-02-01,Europe,Sports,Wholesale,106,7201.66,14
+2025-02-01,Europe,Beauty,Wholesale,86,3160.03,7
+2025-02-01,Asia Pacific,Electronics,Online,493,99302.98,49
+2025-02-01,Asia Pacific,Apparel,Wholesale,202,10516.91,17
+2025-02-01,Asia Pacific,Home & Garden,Wholesale,114,9089.69,14
+2025-02-01,Asia Pacific,Sports,Online,136,8232.66,21
+2025-02-01,Asia Pacific,Beauty,Wholesale,121,4670.79,14
+2025-02-01,Latin America,Electronics,Online,274,55214.6,40
+2025-02-01,Latin America,Apparel,Retail,91,4535.81,11
+2025-02-01,Latin America,Home & Garden,Online,57,4436.03,4
+2025-02-01,Latin America,Sports,Wholesale,89,5357.33,10
+2025-02-01,Latin America,Beauty,Wholesale,50,1908.41,6
+2025-03-01,North America,Electronics,Online,572,113118.76,77
+2025-03-01,North America,Apparel,Wholesale,197,11055.57,26
+2025-03-01,North America,Home & Garden,Retail,168,13002.28,16
+2025-03-01,North America,Sports,Online,156,10125.07,15
+2025-03-01,North America,Beauty,Online,98,3847.84,8
+2025-03-01,Europe,Electronics,Online,445,89415.15,38
+2025-03-01,Europe,Apparel,Online,152,7885.55,18
+2025-03-01,Europe,Home & Garden,Wholesale,133,10491.92,15
+2025-03-01,Europe,Sports,Retail,148,9002.81,12
+2025-03-01,Europe,Beauty,Retail,90,3371.36,13
+2025-03-01,Asia Pacific,Electronics,Online,466,95398.88,40
+2025-03-01,Asia Pacific,Apparel,Retail,208,11336.19,18
+2025-03-01,Asia Pacific,Home & Garden,Online,113,8741.53,12
+2025-03-01,Asia Pacific,Sports,Retail,147,9971.71,12
+2025-03-01,Asia Pacific,Beauty,Wholesale,91,3542.18,11
+2025-03-01,Latin America,Electronics,Online,289,58655.89,42
+2025-03-01,Latin America,Apparel,Online,102,5288.18,15
+2025-03-01,Latin America,Home & Garden,Online,62,4450.79,6
+2025-03-01,Latin America,Sports,Retail,76,5017.0,10
+2025-03-01,Latin America,Beauty,Wholesale,64,2426.81,6
+2025-04-01,North America,Electronics,Online,603,116021.47,74
+2025-04-01,North America,Apparel,Wholesale,205,9892.72,24
+2025-04-01,North America,Home & Garden,Wholesale,130,10887.57,11
+2025-04-01,North America,Sports,Online,144,8578.93,21
+2025-04-01,North America,Beauty,Retail,107,4319.91,10
+2025-04-01,Europe,Electronics,Wholesale,325,57620.0,43
+2025-04-01,Europe,Apparel,Wholesale,176,9788.55,16
+2025-04-01,Europe,Home & Garden,Wholesale,109,8183.16,9
+2025-04-01,Europe,Sports,Wholesale,126,7826.82,17
+2025-04-01,Europe,Beauty,Online,80,3098.93,10
+2025-04-01,Asia Pacific,Electronics,Online,376,68161.24,38
+2025-04-01,Asia Pacific,Apparel,Retail,228,12575.46,24
+2025-04-01,Asia Pacific,Home & Garden,Online,131,10288.66,13
+2025-04-01,Asia Pacific,Sports,Wholesale,157,10317.87,19
+2025-04-01,Asia Pacific,Beauty,Wholesale,95,3828.41,9
+2025-04-01,Latin America,Electronics,Online,278,49908.12,28
+2025-04-01,Latin America,Apparel,Online,120,5944.07,15
+2025-04-01,Latin America,Home & Garden,Retail,75,5617.05,11
+2025-04-01,Latin America,Sports,Online,73,4614.87,7
+2025-04-01,Latin America,Beauty,Online,59,2109.57,9
+2025-05-01,North America,Electronics,Online,579,110919.66,66
+2025-05-01,North America,Apparel,Online,195,10862.05,26
+2025-05-01,North America,Home & Garden,Online,159,13065.94,20
+2025-05-01,North America,Sports,Online,176,10438.27,19
+2025-05-01,North America,Beauty,Online,153,5544.3,15
+2025-05-01,Europe,Electronics,Online,391,75001.8,58
+2025-05-01,Europe,Apparel,Wholesale,199,11052.93,19
+2025-05-01,Europe,Home & Garden,Online,146,11954.25,21
+2025-05-01,Europe,Sports,Online,124,8475.0,17
+2025-05-01,Europe,Beauty,Retail,116,4664.77,16
+2025-05-01,Asia Pacific,Electronics,Retail,407,79820.37,45
+2025-05-01,Asia Pacific,Apparel,Online,236,11726.99,34
+2025-05-01,Asia Pacific,Home & Garden,Retail,131,10742.04,19
+2025-05-01,Asia Pacific,Sports,Online,131,7972.35,13
+2025-05-01,Asia Pacific,Beauty,Online,140,5131.99,18
+2025-05-01,Latin America,Electronics,Retail,283,56726.59,30
+2025-05-01,Latin America,Apparel,Online,97,5423.63,9
+2025-05-01,Latin America,Home & Garden,Retail,63,4989.93,6
+2025-05-01,Latin America,Sports,Retail,88,6068.35,7
+2025-05-01,Latin America,Beauty,Wholesale,57,2008.1,6
+2025-06-01,North America,Electronics,Wholesale,642,122730.46,88
+2025-06-01,North America,Apparel,Wholesale,262,12963.59,29
+2025-06-01,North America,Home & Garden,Wholesale,190,15112.03,25
+2025-06-01,North America,Sports,Online,205,12700.84,21
+2025-06-01,North America,Beauty,Retail,127,4978.28,15
+2025-06-01,Europe,Electronics,Online,417,84812.4,55
+2025-06-01,Europe,Apparel,Online,197,9917.75,24
+2025-06-01,Europe,Home & Garden,Online,117,8702.82,16
+2025-06-01,Europe,Sports,Wholesale,157,9991.71,18
+2025-06-01,Europe,Beauty,Online,108,4296.88,16
+2025-06-01,Asia Pacific,Electronics,Wholesale,425,75385.56,51
+2025-06-01,Asia Pacific,Apparel,Wholesale,224,10890.2,34
+2025-06-01,Asia Pacific,Home & Garden,Online,155,11557.34,14
+2025-06-01,Asia Pacific,Sports,Online,137,9446.9,17
+2025-06-01,Asia Pacific,Beauty,Online,120,4841.73,15
+2025-06-01,Latin America,Electronics,Wholesale,295,55999.57,29
+2025-06-01,Latin America,Apparel,Wholesale,129,7129.43,19
+2025-06-01,Latin America,Home & Garden,Online,90,6704.2,12
+2025-06-01,Latin America,Sports,Wholesale,95,5642.45,9
+2025-06-01,Latin America,Beauty,Online,67,2668.79,8
+2025-07-01,North America,Electronics,Wholesale,590,120171.91,89
+2025-07-01,North America,Apparel,Wholesale,280,15473.25,31
+2025-07-01,North America,Home & Garden,Wholesale,165,12168.14,24
+2025-07-01,North America,Sports,Retail,176,10808.47,23
+2025-07-01,North America,Beauty,Wholesale,141,5134.46,16
+2025-07-01,Europe,Electronics,Wholesale,408,74688.54,43
+2025-07-01,Europe,Apparel,Wholesale,162,7953.38,17
+2025-07-01,Europe,Home & Garden,Online,143,10376.31,16
+2025-07-01,Europe,Sports,Wholesale,151,8987.16,22
+2025-07-01,Europe,Beauty,Retail,129,4967.95,17
+2025-07-01,Asia Pacific,Electronics,Wholesale,483,84514.97,52
+2025-07-01,Asia Pacific,Apparel,Retail,253,14110.45,28
+2025-07-01,Asia Pacific,Home & Garden,Wholesale,164,13405.75,24
+2025-07-01,Asia Pacific,Sports,Retail,155,9818.16,12
+2025-07-01,Asia Pacific,Beauty,Retail,135,5374.72,18
+2025-07-01,Latin America,Electronics,Retail,332,67931.83,40
+2025-07-01,Latin America,Apparel,Retail,129,6882.94,11
+2025-07-01,Latin America,Home & Garden,Retail,72,5581.58,6
+2025-07-01,Latin America,Sports,Retail,91,5781.79,9
+2025-07-01,Latin America,Beauty,Retail,64,2607.57,7
+2025-08-01,North America,Electronics,Online,582,114985.94,48
+2025-08-01,North America,Apparel,Retail,229,11086.1,35
+2025-08-01,North America,Home & Garden,Online,192,16053.34,18
+2025-08-01,North America,Sports,Online,212,13000.41,24
+2025-08-01,North America,Beauty,Online,151,5479.07,20
+2025-08-01,Europe,Electronics,Retail,401,77497.39,56
+2025-08-01,Europe,Apparel,Online,225,11070.57,23
+2025-08-01,Europe,Home & Garden,Wholesale,111,8397.51,14
+2025-08-01,Europe,Sports,Retail,152,10062.67,13
+2025-08-01,Europe,Beauty,Wholesale,131,4773.18,17
+2025-08-01,Asia Pacific,Electronics,Retail,1377,265833.31,123
+2025-08-01,Asia Pacific,Apparel,Wholesale,256,12986.56,29
+2025-08-01,Asia Pacific,Home & Garden,Retail,129,10299.53,10
+2025-08-01,Asia Pacific,Sports,Retail,204,12231.99,32
+2025-08-01,Asia Pacific,Beauty,Wholesale,152,5738.79,14
+2025-08-01,Latin America,Electronics,Online,322,65736.43,32
+2025-08-01,Latin America,Apparel,Wholesale,143,7394.21,20
+2025-08-01,Latin America,Home & Garden,Wholesale,79,6508.76,11
+2025-08-01,Latin America,Sports,Online,92,5841.65,12
+2025-08-01,Latin America,Beauty,Wholesale,76,2832.08,6
+2025-09-01,North America,Electronics,Retail,531,96242.92,76
+2025-09-01,North America,Apparel,Retail,243,12830.4,36
+2025-09-01,North America,Home & Garden,Wholesale,145,12120.81,12
+2025-09-01,North America,Sports,Wholesale,201,12977.57,19
+2025-09-01,North America,Beauty,Retail,161,6109.02,23
+2025-09-01,Europe,Electronics,Online,439,82134.18,43
+2025-09-01,Europe,Apparel,Wholesale,216,11183.95,26
+2025-09-01,Europe,Home & Garden,Retail,170,13366.9,18
+2025-09-01,Europe,Sports,Retail,149,9156.7,13
+2025-09-01,Europe,Beauty,Online,110,4342.44,17
+2025-09-01,Asia Pacific,Electronics,Wholesale,475,86154.59,56
+2025-09-01,Asia Pacific,Apparel,Wholesale,246,13324.57,31
+2025-09-01,Asia Pacific,Home & Garden,Online,182,13733.2,19
+2025-09-01,Asia Pacific,Sports,Retail,150,9652.43,15
+2025-09-01,Asia Pacific,Beauty,Online,138,5409.64,12
+2025-09-01,Latin America,Electronics,Retail,256,44844.25,26
+2025-09-01,Latin America,Apparel,Retail,130,6418.61,10
+2025-09-01,Latin America,Home & Garden,Retail,76,5515.74,9
+2025-09-01,Latin America,Sports,Wholesale,110,6537.19,10
+2025-09-01,Latin America,Beauty,Wholesale,89,3157.53,8
+2025-10-01,North America,Electronics,Wholesale,696,134489.51,99
+2025-10-01,North America,Apparel,Online,305,15556.45,46
+2025-10-01,North America,Home & Garden,Retail,213,17916.62,22
+2025-10-01,North America,Sports,Wholesale,178,12230.65,15
+2025-10-01,North America,Beauty,Online,165,6033.89,14
+2025-10-01,Europe,Electronics,Online,430,76145.25,34
+2025-10-01,Europe,Apparel,Retail,232,12005.92,19
+2025-10-01,Europe,Home & Garden,Retail,158,12724.26,18
+2025-10-01,Europe,Sports,Wholesale,151,9299.94,21
+2025-10-01,Europe,Beauty,Wholesale,131,5323.41,14
+2025-10-01,Asia Pacific,Electronics,Wholesale,500,89664.64,50
+2025-10-01,Asia Pacific,Apparel,Online,203,9991.76,21
+2025-10-01,Asia Pacific,Home & Garden,Wholesale,188,15652.22,21
+2025-10-01,Asia Pacific,Sports,Retail,207,13671.37,32
+2025-10-01,Asia Pacific,Beauty,Wholesale,142,5342.26,18
+2025-10-01,Latin America,Electronics,Retail,344,66444.6,28
+2025-10-01,Latin America,Apparel,Online,163,8931.61,20
+2025-10-01,Latin America,Home & Garden,Online,112,8976.81,11
+2025-10-01,Latin America,Sports,Online,119,7220.2,14
+2025-10-01,Latin America,Beauty,Retail,91,3281.77,11
+2025-11-01,North America,Electronics,Wholesale,731,149313.53,85
+2025-11-01,North America,Apparel,Retail,265,14155.11,39
+2025-11-01,North America,Home & Garden,Retail,186,14497.48,24
+2025-11-01,North America,Sports,Retail,251,16192.76,29
+2025-11-01,North America,Beauty,Retail,146,5207.06,20
+2025-11-01,Europe,Electronics,Wholesale,576,100704.96,86
+2025-11-01,Europe,Apparel,Retail,215,10621.15,23
+2025-11-01,Europe,Home & Garden,Retail,159,12917.9,15
+2025-11-01,Europe,Sports,Wholesale,149,9212.58,22
+2025-11-01,Europe,Beauty,Retail,108,4414.69,13
+2025-11-01,Asia Pacific,Electronics,Online,628,115706.99,50
+2025-11-01,Asia Pacific,Apparel,Retail,212,11892.26,32
+2025-11-01,Asia Pacific,Home & Garden,Retail,202,16128.37,18
+2025-11-01,Asia Pacific,Sports,Wholesale,182,12030.82,20
+2025-11-01,Asia Pacific,Beauty,Retail,172,6268.0,21
+2025-11-01,Latin America,Electronics,Retail,284,54817.99,39
+2025-11-01,Latin America,Apparel,Online,162,8122.42,23
+2025-11-01,Latin America,Home & Garden,Retail,90,7343.16,9
+2025-11-01,Latin America,Sports,Online,101,6255.66,12
+2025-11-01,Latin America,Beauty,Wholesale,80,2869.08,9
+2025-12-01,North America,Electronics,Retail,624,123546.59,68
+2025-12-01,North America,Apparel,Retail,336,18816.02,33
+2025-12-01,North America,Home & Garden,Retail,177,14414.67,14
+2025-12-01,North America,Sports,Wholesale,227,15489.01,25
+2025-12-01,North America,Beauty,Wholesale,187,7278.84,17
+2025-12-01,Europe,Electronics,Online,447,91253.6,47
+2025-12-01,Europe,Apparel,Online,264,13596.88,32
+2025-12-01,Europe,Home & Garden,Retail,125,9194.88,18
+2025-12-01,Europe,Sports,Online,150,10032.42,15
+2025-12-01,Europe,Beauty,Wholesale,141,5486.45,20
+2025-12-01,Asia Pacific,Electronics,Wholesale,683,127278.61,71
+2025-12-01,Asia Pacific,Apparel,Wholesale,302,15673.72,37
+2025-12-01,Asia Pacific,Home & Garden,Wholesale,146,11626.99,22
+2025-12-01,Asia Pacific,Sports,Online,225,14247.87,19
+2025-12-01,Asia Pacific,Beauty,Wholesale,161,5726.94,15
+2025-12-01,Latin America,Electronics,Retail,388,68364.87,55
+2025-12-01,Latin America,Apparel,Retail,138,7096.42,13
+2025-12-01,Latin America,Home & Garden,Retail,102,8328.37,9
+2025-12-01,Latin America,Sports,Online,120,7535.67,16
+2025-12-01,Latin America,Beauty,Retail,97,3475.53,11

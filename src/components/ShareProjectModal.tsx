@@ -19,7 +19,7 @@ import {
 import axios from 'axios';
 import { BASE } from './constants';
 import type { Project, ProjectMember } from '../App';
-import { Modal, Button, Field, Input, Tag, toast } from './ui';
+import { Modal, Button, Field, Input, Tag, toast, confirmDialog } from './ui';
 
 const ROLE_META = {
   admin:  { label: 'Admin',  icon: Crown,  color: '#7c3aed', desc: 'Full access, can invite members' },
@@ -150,7 +150,11 @@ export function ShareProjectModal({
   };
 
   const handleRemove = async (memberId: number) => {
-    if (!confirm('Remove this member from the project?')) return;
+    if (!(await confirmDialog({
+      title: 'Remove member?',
+      message: 'They will lose access to this project.',
+      confirmLabel: 'Remove', danger: true,
+    }))) return;
     try {
       await axios.delete(`${BASE}/projects/${project.id}/members/${memberId}/`);
       setMembers(prev => prev.filter(m => m.id !== memberId));

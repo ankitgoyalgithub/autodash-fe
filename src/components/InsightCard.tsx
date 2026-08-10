@@ -908,6 +908,68 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           </div>
         </details>
       )}
+      {/* Forecast summary — the forecasting agent's one-line narrative + method,
+          previously computed and stored but never shown. */}
+      {type === 'chart' && card.forecast_meta?.narrative && !isPoster && (
+        <div className="forecast-note">
+          <span className="forecast-note-icon">📈</span>
+          <span className="forecast-note-text">{card.forecast_meta.narrative}</span>
+          <span className="forecast-note-meta">
+            {card.forecast_meta.method} · {card.forecast_meta.confidence}% confidence
+          </span>
+        </div>
+      )}
+
+      {/* Change points — structural shifts the anomaly engine detected. */}
+      {type === 'chart' && card.anomaly_info?.change_points && card.anomaly_info.change_points.length > 0 && !isPoster && (
+        <details className="analytics-extra">
+          <summary>
+            <span className="ax-icon">⇅</span>
+            <span className="ax-label">Change points</span>
+            <span className="ax-count">{card.anomaly_info.change_points.length}</span>
+          </summary>
+          <ul className="ax-changepoints">
+            {card.anomaly_info.change_points.map((cp, i) => {
+              const up = cp.direction === 'up' || cp.after_mean >= cp.before_mean;
+              return (
+                <li key={i}>
+                  <span className="ax-cp-label">{cp.label}</span>
+                  <span className={`ax-cp-shift ${up ? 'up' : 'down'}`}>
+                    {up ? '↑' : '↓'} {formatCompact(cp.before_mean)} → {formatCompact(cp.after_mean)}
+                    <span className="ax-cp-sigma">({cp.shift_sigma.toFixed(1)}σ)</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
+
+      {/* Advanced analytics tool outputs (cohort / funnel / pareto / …) — the
+          ToolOutput contract was populated by the backend but rendered nowhere. */}
+      {type === 'chart' && card.tool_outputs && card.tool_outputs.filter(t => t.ok).length > 0 && !isPoster && (
+        <details className="analytics-extra">
+          <summary>
+            <span className="ax-icon">🧪</span>
+            <span className="ax-label">Advanced analytics</span>
+            <span className="ax-count">{card.tool_outputs.filter(t => t.ok).length}</span>
+          </summary>
+          <div className="ax-tools">
+            {card.tool_outputs.filter(t => t.ok).map((t, i) => (
+              <div key={i} className="ax-tool">
+                <div className="ax-tool-name">{t.tool_name.replace(/_/g, ' ')}</div>
+                {t.summary && <p className="ax-tool-summary">{t.summary}</p>}
+                {t.insights && t.insights.length > 0 && (
+                  <ul className="ax-tool-insights">
+                    {t.insights.slice(0, 4).map((ins, j) => <li key={j}>{ins}</li>)}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
       {!isPoster && type !== 'metric' && chartType !== 'timeline' && card.stats && (() => {
         const s = card.stats;
         const badges: { label: string; className: string }[] = [];

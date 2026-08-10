@@ -5,7 +5,7 @@ import type { Datasource } from '../App';
 import { BASE } from './constants';
 import { HubSpotConnectModal } from './HubSpotConnectModal';
 import { DatasourceCurationModal } from './DatasourceCurationModal';
-import { toast, EmptyState, Button } from './ui';
+import { toast, EmptyState, Button, confirmDialog } from './ui';
 
 // Per-engine defaults — single source of truth for the kind picker and the
 // port/username placeholders so adding a new engine is one new row.
@@ -118,7 +118,11 @@ export function DatasourcesManagement({ datasources, onRefresh }: { datasources:
   const [showHubSpot, setShowHubSpot] = useState(false);
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this datasource? (This may affect associated projects)')) return;
+    if (!(await confirmDialog({
+      title: 'Delete datasource?',
+      message: 'Projects using this connection will no longer be able to query it.',
+      confirmLabel: 'Delete', danger: true,
+    }))) return;
     try {
       await axios.delete(`${BASE}/datasources/${id}/`);
       onRefresh();

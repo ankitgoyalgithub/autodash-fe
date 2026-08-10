@@ -13,7 +13,7 @@ import type {
   ImageElement, ShapeElement, ChartElement,
 } from '../types/document';
 import { BASE } from './constants';
-import { toast } from './ui';
+import { toast, confirmDialog } from './ui';
 import type { DashboardCard } from '../App';
 
 // ── Resolved chart cache (entry_id → card[]) ─────────────────────────────────
@@ -749,12 +749,34 @@ export function DocumentEditor({ docId, onBack }: Props) {
   }, []);
 
   const addImage = useCallback(() => {
-    const url = prompt('Image URL:');
-    if (!url) return;
-    const id = `el_${Date.now()}`;
-    const el: ImageElement = { id, type: 'image', x: 100, y: 100, w: 300, h: 200, url };
-    setCanvas(prev => prev ? { ...prev, elements: [...prev.elements, el] } : prev);
-    setSelectedId(id);
+    // Pick a local file and upload it (same /upload/ endpoint the composer uses),
+    // instead of asking for a URL the user rarely has.
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const tid = toast.loading('Uploading image…');
+      try {
+        const fd = new FormData(); fd.append('file', file);
+        const r = await axios.post(`${BASE}/upload/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        const raw = r.data.url as string;
+        // Media is served from the API origin; make relative paths absolute so
+        // the image renders on the Netlify-hosted canvas.
+        const origin = BASE.replace(/\/api\/?$/, '');
+        const url = /^https?:\/\//.test(raw) ? raw : `${origin}${raw.startsWith('/') ? '' : '/'}${raw}`;
+        const id = `el_${Date.now()}`;
+        const el: ImageElement = { id, type: 'image', x: 100, y: 100, w: 300, h: 200, url };
+        setCanvas(prev => prev ? { ...prev, elements: [...prev.elements, el] } : prev);
+        setSelectedId(id);
+        toast.dismiss(tid); toast.success('Image added');
+      } catch (e: any) {
+        toast.dismiss(tid);
+        toast.error(e?.response?.data?.error || 'Image upload failed');
+      }
+    };
+    input.click();
   }, []);
 
   // ── Save ────────────────────────────────────────────────────────────────────

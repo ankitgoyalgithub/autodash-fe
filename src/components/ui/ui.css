@@ -524,3 +524,45 @@
   cursor: pointer;
 }
 .ui-doc-chrome__zoom-label:hover { background: var(--bg-subtle); }
+
+/* ── Confirm dialog (imperative confirmDialog) ─────────────────────────── */
+.ui-confirm { padding: 0; }
+.ui-confirm__body {
+  display: flex;
+  gap: 14px;
+  padding: 22px 24px 8px;
+}
+.ui-confirm__icon {
+  flex: 0 0 auto;
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--danger-subtle, #fef2f2);
+  color: var(--danger, #dc2626);
+}
+.ui-confirm__text { min-width: 0; }
+.ui-confirm__title {
+  margin: 2px 0 6px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--text-strong, #111827);
+}
+.ui-confirm__message {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted, #6b7280);
+}
+
+/* ── Deploy share modal ────────────────────────────────────────────────── */
+.deploy-share-row { display: flex; gap: 8px; align-items: stretch; }
+.deploy-share-input {
+  flex: 1; min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--bg-subtle, #f9fafb);
+  color: var(--text, #111827);
+}
+.deploy-share-input:focus { outline: 2px solid var(--accent, #6366f1); outline-offset: 1px; }

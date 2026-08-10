@@ -7,19 +7,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Primary SEO -->
-    <title>LucentReport — AI Dashboard Builder | Natural Language Analytics for Any Data Source</title>
-    <meta name="description" content="Connect any database or cloud source, ask in plain English, and LucentReport's AI generates complete dashboards with charts, forecasts, and analytics in seconds. Finance AI Agents, PDF/PPTX export, 15+ chart types. Free to explore." />
-    <meta name="keywords" content="AI dashboard builder, multi-database analytics, natural language SQL, text to SQL, automated dashboard generation, AI business intelligence, no-code analytics, data visualization tool, finance AI agents, month-end close automation, reconciliation dashboard, variance analysis, LucentReport, Snowflake analytics, BigQuery dashboard, MySQL analytics" />
+    <title>LucentReport — AI Dashboard Builder | Plain-English Analytics</title>
+    <meta name="description" content="Connect any database, ask in plain English, and LucentReport's AI builds complete dashboards — charts, forecasts, and insights in seconds. Free to start." />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#0c1445" />
-    <link rel="canonical" href="https://lucentreport.app/" />
+    <link rel="canonical" href="https://lucentreport.com/" />
 
     <!-- Open Graph / LinkedIn / Slack previews -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://lucentreport.app/" />
+    <meta property="og:url" content="https://lucentreport.com/" />
     <meta property="og:title" content="LucentReport — AI Dashboard Builder for Any Data Source" />
     <meta property="og:description" content="Connect any database or cloud source, ask in plain English, and LucentReport's AI builds complete dashboards with charts, forecasts, and analytics in seconds. Finance AI Agents, PDF/PPTX export. No SQL needed." />
-    <meta property="og:image" content="https://lucentreport.app/og-image.png" />
+    <meta property="og:image" content="https://lucentreport.com/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="LucentReport AI dashboard showing revenue charts and KPI cards" />
@@ -30,7 +29,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="LucentReport — AI Dashboard Builder for Any Data Source" />
     <meta name="twitter:description" content="Turn data from any source into beautiful AI-powered dashboards in seconds. Finance AI Agents, 15+ chart types, PDF/PPTX export. Plain English queries. No SQL needed." />
-    <meta name="twitter:image" content="https://lucentreport.app/og-image.png" />
+    <meta name="twitter:image" content="https://lucentreport.com/og-image.png" />
     <meta name="twitter:image:alt" content="LucentReport AI dashboard" />
 
     <!-- Structured Data: SoftwareApplication -->
@@ -43,7 +42,7 @@
       "applicationCategory": "BusinessApplication",
       "applicationSubCategory": "Data Visualization",
       "operatingSystem": "Web",
-      "url": "https://lucentreport.app",
+      "url": "https://lucentreport.com",
       "description": "AI-powered multi-database dashboard builder that converts plain English questions into charts, forecasts, and executive reports from any data source — using a multi-agent AI pipeline with Finance AI Agents and PDF/PPTX export.",
       "offers": {
         "@type": "Offer",
@@ -67,7 +66,7 @@
         "Read-only SQL execution for data security",
         "httpOnly cookie authentication to prevent XSS token theft"
       ],
-      "screenshot": "https://lucentreport.app/og-image.png"
+      "screenshot": "https://lucentreport.com/og-image.png"
     }
     </script>
 
@@ -77,17 +76,24 @@
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "LucentReport",
-      "url": "https://lucentreport.app",
-      "description": "AI-powered multi-database dashboard builder with Finance AI Agents and PDF/PPTX export",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://lucentreport.app/login",
-        "query-input": "required name=search_term_string"
-      }
+      "url": "https://lucentreport.com",
+      "description": "AI-powered multi-database dashboard builder with Finance AI Agents and PDF/PPTX export"
     }
     </script>
 
-    <!-- Structured Data: FAQPage -->
+    <!-- Structured Data: Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "LucentReport",
+      "url": "https://lucentreport.com",
+      "logo": "https://lucentreport.com/app-icon.png",
+      "description": "LucentReport builds AI-powered dashboards, reports, and finance analytics from plain-English questions over any database or cloud data source."
+    }
+    </script>
+
+    <!-- Structured Data: FAQPage — must stay in sync with FAQ_ITEMS in src/components/LandingPage.tsx -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -95,66 +101,58 @@
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "What data sources does LucentReport support?",
+          "name": "Do I need to know SQL or BI tools?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "LucentReport connects to PostgreSQL, MySQL, Snowflake, Google BigQuery, Amazon S3 (via Athena), Salesforce, Google Drive (Sheets and CSV), Redshift, Supabase, Amazon RDS, and more."
+            "text": "No. You describe what you want in plain English — \"Show monthly revenue by product category\" — and LucentReport's multi-agent AI plans the query, writes the SQL, runs it on your live data, picks the right charts, and writes the insights. No SQL, no drag-and-drop, no DAX."
           }
         },
         {
           "@type": "Question",
-          "name": "Do I need to write SQL to use LucentReport?",
+          "name": "Which data sources can I connect?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. LucentReport's multi-agent AI automatically converts plain English questions into optimized SQL queries. Just describe what you want to see — LucentReport handles the SQL, chart selection, and insight generation."
+            "text": "A wide range: PostgreSQL, MySQL, SQL Server, Snowflake, Google BigQuery, Amazon Redshift, Amazon S3 (via Athena), Salesforce, HubSpot, Google Sheets, Supabase, and more. If your data lives somewhere, LucentReport can usually reach it."
           }
         },
         {
           "@type": "Question",
-          "name": "How does LucentReport protect my database credentials and data?",
+          "name": "Is my data safe?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Your database credentials stay on your own server. All SQL queries run in strict read-only mode against your database, and no data is stored externally by LucentReport. Auth tokens use httpOnly cookies to prevent XSS-based theft."
+            "text": "Yes. Your database credentials stay encrypted on your own server and are never sent to us. Every query runs in strict read-only mode — LucentReport can never modify, delete, or write to your database. Auth uses httpOnly cookies so tokens can't be stolen by scripts."
           }
         },
         {
           "@type": "Question",
-          "name": "What chart types does LucentReport generate automatically?",
+          "name": "What can it actually build?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "LucentReport supports 15+ chart types: bar, line, area, pie/donut, stacked bar, combo, horizontal bar, scatter, data table (via Recharts), plus advanced D3 visualizations including treemap, sunburst, Sankey diagram, bump chart, and force graph."
+            "text": "Complete, styled dashboards with 15+ chart types, plus a full analytics layer (forecasts, anomaly detection, priority matrices, Pareto analysis, correlation heatmaps). It also generates narrative reports, poster-style infographics, and single-entity 360° profiles — all from your data."
           }
         },
         {
           "@type": "Question",
-          "name": "Can I export LucentReport dashboards to PowerPoint or PDF?",
+          "name": "Can I export or share what I build?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. The built-in export pipeline uses a headless browser to render pixel-perfect screenshots of your dashboard and package them as a PPTX PowerPoint deck, PDF report, or high-resolution PNG poster."
+            "text": "Absolutely. Export any dashboard to PowerPoint, PDF, or a high-resolution PNG poster with one click — pixel-perfect and board-ready. Or publish a live public link that stakeholders can open without an account."
           }
         },
         {
           "@type": "Question",
-          "name": "Does LucentReport support finance and accounting workflows?",
+          "name": "Does it handle finance and accounting work?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. LucentReport includes 7 Finance Specialist AI Agents: Reconciliation, Month-End Close, Variance Analysis, Financial Statement Close, Actuals Reporting, Exception Identification, and Close Process Monitoring. Each agent has pre-built domain expertise, required output cards, and SQL patterns."
+            "text": "Yes — seven Finance AI Agents come pre-loaded with domain expertise: Reconciliation, Month-End Close, Variance Analysis, Financial Statement Close, Actuals Reporting, Exception Identification, and Close Process Monitoring. Each already knows the outputs, patterns, and escalation logic for its workflow."
           }
         },
         {
           "@type": "Question",
-          "name": "Can I share LucentReport dashboards publicly?",
+          "name": "How is this different from Power BI or Tableau?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Any dashboard can be deployed as a live public URL with one click — no LucentReport account required to view. Perfect for sharing with stakeholders, investors, or clients."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How is LucentReport different from Power BI or Tableau?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "LucentReport uses multi-agent AI to generate a complete, styled dashboard from a single plain English sentence in under 10 seconds. Unlike Power BI or Tableau, there is no drag-and-drop configuration, no data modeling, no DAX formulas, and no manual chart building required."
+            "text": "Those tools ask you to build the report. LucentReport builds it for you — a complete, branded dashboard from one sentence in seconds. No data modeling, no formulas, no dashboard design work. You ask the question; the AI does the rest."
           }
         }
       ]

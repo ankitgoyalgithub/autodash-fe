@@ -89,7 +89,7 @@ function BrandKitIcon() {
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
-export function Sidebar({ view, setView, projects: _projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle, onLogout, onProfile }: {
+export function Sidebar({ view, setView, projects: _projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle, onLogout, onProfile, user }: {
   view: View;
   setView: (v: View) => void;
   projects: Project[];
@@ -103,10 +103,13 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
   onToggle: () => void;
   onLogout: () => void;
   onProfile: () => void;
+  user?: { username?: string; email?: string } | null;
 }) {
   const [threads, setThreads] = useState<DashboardThread[]>([]);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
-  const username = JSON.parse(localStorage.getItem('autodash_user') || '{}').username || 'U';
+  // Identity comes from the authenticated user object (via /me/), not localStorage —
+  // auth moved to an httpOnly cookie and nothing writes `autodash_user` anymore.
+  const username = user?.username || 'User';
 
   useEffect(() => {
     if (activeProject) {

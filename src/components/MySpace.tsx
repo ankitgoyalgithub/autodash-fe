@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { BASE } from './constants';
-import { toast, PageLoader } from './ui';
+import { toast, PageLoader, confirmDialog } from './ui';
 
 interface MSColumn { name: string; pg_type: string; display_name: string; }
 interface MSTable {
@@ -117,7 +117,9 @@ function TableViewer({ table, onClose, onDelete, onUseAsDatasource }: {
   };
 
   const handleDeleteRow = async (rowId: number) => {
-    if (!confirm('Delete this row?')) return;
+    if (!(await confirmDialog({
+      title: 'Delete row?', confirmLabel: 'Delete', danger: true,
+    }))) return;
     setDeletingRow(rowId);
     try {
       await axios.delete(`${BASE}/myspace/${table.id}/rows/${rowId}/`);
@@ -404,7 +406,11 @@ export function MySpace({ onNavigateToProjects }: { onNavigateToProjects?: () =>
   };
 
   const handleDelete = async (table: MSTable) => {
-    if (!confirm(`Delete table "${table.name}" and all its data? This cannot be undone.`)) return;
+    if (!(await confirmDialog({
+      title: 'Delete table?',
+      message: <>This permanently deletes <strong>{table.name}</strong> and all its data.</>,
+      confirmLabel: 'Delete', danger: true,
+    }))) return;
     try {
       await axios.delete(`${BASE}/myspace/${table.id}/`);
       setTables(prev => prev.filter(t => t.id !== table.id));

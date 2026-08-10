@@ -674,13 +674,59 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
   const [search, setSearch] = useState('');
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [sortBy, setSortBy] = useState<'recent' | 'name' | 'charts'>('recent');
+  const [seeding, setSeeding] = useState(false);
 
-  const filtered = projects.filter(p =>
+  // One-click onboarding: load a bundled sample CSV into the user's private
+  // workspace, spin up a project on it, and open it — so a brand-new user can
+  // try the product without connecting a database first.
+  const handleTrySampleData = async () => {
+    setSeeding(true);
+    const tid = toast.loading('Setting up your sample project…');
+    try {
+      const csv = await fetch('/sample-data.csv').then(r => {
+        if (!r.ok) throw new Error('sample data unavailable');
+        return r.blob();
+      });
+      const form = new FormData();
+      form.append('file', new File([csv], 'sample_sales.csv', { type: 'text/csv' }));
+      await axios.post(`${BASE}/myspace/upload/`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const ds = await axios.get(`${BASE}/myspace/datasource/`);
+      const proj = await axios.post(`${BASE}/projects/`, {
+        name: 'Sample sales analysis',
+        description: 'A demo project built from sample e-commerce data.',
+        emoji: 'trend-line',
+        palette: 'vibrant',
+        datasource_id: ds.data.id,
+      });
+      toast.dismiss(tid);
+      toast.success('Sample project ready — ask it anything!');
+      onOpen(proj.data);
+    } catch (e: any) {
+      toast.dismiss(tid);
+      toast.error(e?.response?.data?.error || 'Could not set up sample data');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const searched = projects.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     (p.description || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const recents = [...filtered].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 4);
+  const SORT_LABELS: Record<typeof sortBy, string> = {
+    recent: 'Recently modified',
+    name:   'Name (A–Z)',
+    charts: 'Most charts',
+  };
+  const filtered = [...searched].sort((a, b) => {
+    if (sortBy === 'name')   return a.name.localeCompare(b.name);
+    if (sortBy === 'charts') return (b.chart_count || 0) - (a.chart_count || 0);
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+  });
+
+  const recents = [...searched].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 4);
 
   return (
     <div className="canva-home">
@@ -701,11 +747,20 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
         </div>
 
         <div className="canva-filter-row">
-          {['Type', 'Category', 'Owner', 'Date modified'].map(f => (
-            <button key={f} className="canva-filter-chip">
-              {f} <ChevronDown size={12} />
-            </button>
-          ))}
+          <label className="canva-sort">
+            <span className="canva-sort-label">Sort</span>
+            <select
+              className="canva-sort-select"
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as typeof sortBy)}
+              aria-label="Sort projects"
+            >
+              {(Object.keys(SORT_LABELS) as (typeof sortBy)[]).map(k => (
+                <option key={k} value={k}>{SORT_LABELS[k]}</option>
+              ))}
+            </select>
+            <ChevronDown size={13} className="canva-sort-chevron" />
+          </label>
           <div style={{ flex: 1 }} />
           <button className="btn-primary canva-new-btn" onClick={onNewProject}>
             <Plus size={14} /> New project
@@ -741,11 +796,16 @@ export function ProjectsHome({ projects, onOpen, onNewProject, datasources, onAp
             <EmptyState
               icon={<FolderPlus size={26}/>}
               title="No projects yet"
-              subtitle="Pick a template above or create a blank project to get started."
+              subtitle="New here? Try it instantly with sample data — or connect your own and create a project."
               actions={
-                <Button onClick={onNewProject} leading={<Plus size={15}/>}>
-                  New project
-                </Button>
+                <>
+                  <Button onClick={handleTrySampleData} loading={seeding} leading={<Sparkles size={15}/>}>
+                    Try with sample data
+                  </Button>
+                  <Button variant="secondary" onClick={onNewProject} leading={<Plus size={15}/>}>
+                    New project
+                  </Button>
+                </>
               }
             />
           ) : filtered.length === 0 && search ? (

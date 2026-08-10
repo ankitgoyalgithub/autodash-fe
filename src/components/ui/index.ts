@@ -34,4 +34,6 @@ export { Spinner, PageLoader } from './Spinner';
 export { DocumentChrome } from './DocumentChrome';
 
 export { toast, Toaster } from './toast';
+export { confirmDialog, ConfirmHost } from './confirm';
+export type { ConfirmOptions } from './confirm';
 export type { ToastOptions } from './toast';

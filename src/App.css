@@ -867,6 +867,29 @@ button { cursor: pointer; }
   border-color: var(--border-strong);
   color: var(--text-primary);
 }
+.canva-sort {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 14px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+}
+.canva-sort:hover { border-color: var(--border-strong); }
+.canva-sort-label { font-weight: var(--weight-medium); color: var(--text-tertiary); }
+.canva-sort-select {
+  appearance: none; -webkit-appearance: none;
+  border: none; background: transparent;
+  font: inherit; color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  padding-right: 16px;
+  cursor: pointer;
+}
+.canva-sort-select:focus { outline: none; }
+.canva-sort-chevron { position: absolute; right: 10px; pointer-events: none; color: var(--text-tertiary); }
 
 .canva-new-btn { border-radius: 100px !important; white-space: nowrap; }
 
@@ -11984,3 +12007,60 @@ input[type="password"]:focus, textarea:focus {
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
+
+/* ── "Change format" escape in the pre-send empty state ────────────────── */
+.chat-change-format {
+  align-self: center;
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-bottom: 14px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.chat-change-format:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+/* ── Surfaced analytics: forecast note, change points, tool outputs ────── */
+.forecast-note {
+  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  margin: 8px 0 2px; padding: 7px 10px;
+  background: color-mix(in srgb, var(--accent, #6366f1) 7%, transparent);
+  border-radius: 8px;
+  font-size: 0.8rem; line-height: 1.4;
+}
+.forecast-note-icon { flex: 0 0 auto; }
+.forecast-note-text { color: var(--text-primary); }
+.forecast-note-meta { color: var(--text-tertiary); font-size: 0.72rem; margin-left: auto; white-space: nowrap; text-transform: capitalize; }
+
+.analytics-extra { margin: 8px 0 2px; }
+.analytics-extra > summary {
+  display: flex; align-items: center; gap: 7px;
+  cursor: pointer; list-style: none;
+  font-size: 0.78rem; font-weight: var(--weight-medium); color: var(--text-secondary);
+  padding: 5px 2px;
+}
+.analytics-extra > summary::-webkit-details-marker { display: none; }
+.analytics-extra > summary:hover { color: var(--text-primary); }
+.ax-icon { font-size: 0.85rem; }
+.ax-count {
+  display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 8px; background: var(--bg-muted, #eef2ff); color: var(--text-secondary);
+  font-size: 0.68rem; font-weight: 600;
+}
+.ax-changepoints { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ax-changepoints li { display: flex; justify-content: space-between; gap: 10px; font-size: 0.76rem; }
+.ax-cp-label { color: var(--text-secondary); }
+.ax-cp-shift { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ax-cp-shift.up { color: var(--success, #16a34a); }
+.ax-cp-shift.down { color: var(--danger, #dc2626); }
+.ax-cp-sigma { color: var(--text-tertiary); margin-left: 4px; }
+.ax-tools { display: flex; flex-direction: column; gap: 8px; padding: 2px 0 6px; }
+.ax-tool { border-left: 2px solid var(--accent, #6366f1); padding-left: 10px; }
+.ax-tool-name { font-size: 0.76rem; font-weight: 600; text-transform: capitalize; color: var(--text-primary); }
+.ax-tool-summary { margin: 2px 0 4px; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.45; }
+.ax-tool-insights { margin: 0; padding-left: 16px; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.5; }

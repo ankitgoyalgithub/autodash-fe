@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { BASE } from './constants';
-import { toast } from './ui';
+import { toast, confirmDialog } from './ui';
 
 interface HubSpotObject {
   id: string;
@@ -170,7 +170,11 @@ export function HubSpotConnectModal({ onClose, onConnected }: Props) {
 
   // ─── Disconnect ─────────────────────────────────────────────────────────
   const handleDisconnect = async () => {
-    if (!confirm('Disconnect HubSpot? Your synced data will remain available unless you also remove the datasource.')) return;
+    if (!(await confirmDialog({
+      title: 'Disconnect HubSpot?',
+      message: 'Your already-synced data stays available unless you also remove the datasource.',
+      confirmLabel: 'Disconnect', danger: true,
+    }))) return;
     try {
       await axios.delete(`${BASE}/hubspot/disconnect/?purge=true`);
       onConnected?.();

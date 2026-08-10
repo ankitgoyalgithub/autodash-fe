@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Mail, User, Loader2, Sparkles, ChevronRight, LayoutDashboard } from 'lucide-react';
+import { useSeo } from '../hooks/useSeo';
 const logo = '/app-icon.png';
 
 interface LoginProps {
@@ -8,7 +9,17 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
+  // Login has no search value — keep it out of the index and off the homepage's canonical.
+  useSeo({
+    title: 'Sign in — LucentReport',
+    description: 'Sign in to LucentReport to build AI-powered dashboards and reports from your data.',
+    robots: 'noindex, nofollow',
+    canonicalPath: '/login',
+  });
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
 
   // Login fields
   const [username, setUsername] = useState('');
@@ -83,6 +94,33 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
     setMode(m);
     setError('');
     setRequirements([]);
+  };
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await fetch(`${base}/password-reset/request/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      // Endpoint always returns 200 (no account enumeration); show the same
+      // confirmation regardless.
+      setForgotSent(true);
+    } catch {
+      setError('Failed to connect to the server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openForgot = () => {
+    setShowForgot(true);
+    setForgotSent(false);
+    setForgotEmail(username.includes('@') ? username : '');
+    setError('');
   };
 
   return (
@@ -165,6 +203,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
                     required
                   />
                 </div>
+              </div>
+              <div className="auth-forgot-row">
+                <button type="button" className="auth-forgot-link" onClick={openForgot}>Forgot password?</button>
               </div>
               {error && <div className="auth-error">{error}</div>}
               <button type="submit" className="login-submit" disabled={loading}>
@@ -250,7 +291,69 @@ const Login: React.FC<LoginProps> = ({ onLogin, base }) => {
         </div>
       </div>
 
+      {showForgot && (
+        <div className="forgot-overlay" onClick={() => setShowForgot(false)}>
+          <div className="forgot-card" onClick={e => e.stopPropagation()}>
+            {forgotSent ? (
+              <>
+                <h3>Check your email</h3>
+                <p>If an account exists for <strong>{forgotEmail}</strong>, we've sent a link to reset your password. It expires in a few hours.</p>
+                <button className="login-submit" onClick={() => setShowForgot(false)}>Back to sign in</button>
+              </>
+            ) : (
+              <form onSubmit={handleForgot}>
+                <h3>Reset your password</h3>
+                <p>Enter the email on your account and we'll send you a reset link.</p>
+                <div className="auth-field">
+                  <label>Email</label>
+                  <div className="input-wrap">
+                    <Mail size={18} className="input-icon" />
+                    <input type="email" placeholder="you@company.com" value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)} required autoFocus />
+                  </div>
+                </div>
+                {error && <div className="auth-error">{error}</div>}
+                <div className="forgot-actions">
+                  <button type="button" className="forgot-cancel" onClick={() => setShowForgot(false)}>Cancel</button>
+                  <button type="submit" className="login-submit" disabled={loading}>
+                    {loading ? <><Loader2 size={18} className="spin" /><span>Sending…</span></> : <span>Send reset link</span>}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       <style>{`
+        .auth-forgot-row { display: flex; justify-content: flex-end; margin-top: -2px; }
+        .auth-forgot-link {
+          background: none; border: none; padding: 0; cursor: pointer;
+          font-size: var(--text-sm); color: var(--accent-default); font-weight: var(--weight-medium);
+        }
+        .auth-forgot-link:hover { text-decoration: underline; }
+        .forgot-overlay {
+          position: fixed; inset: 0; z-index: 1000;
+          background: rgba(15, 23, 42, 0.45);
+          display: grid; place-items: center; padding: 20px;
+        }
+        .forgot-card {
+          width: 100%; max-width: 400px;
+          background: var(--bg-surface); border-radius: 14px;
+          padding: 26px 28px; border: 1px solid var(--border-subtle);
+          box-shadow: 0 20px 50px -20px rgba(15,23,42,0.4);
+          font-family: var(--font-ui);
+        }
+        .forgot-card h3 { font-size: var(--text-xl); font-weight: var(--weight-semibold); color: var(--text-primary); margin-bottom: 6px; }
+        .forgot-card > p { font-size: var(--text-sm); color: var(--text-tertiary); line-height: 1.5; margin-bottom: 16px; }
+        .forgot-actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
+        .forgot-actions .login-submit { flex: 1; margin-top: 0; }
+        .forgot-cancel {
+          background: none; border: 1px solid var(--border-default); border-radius: 8px;
+          padding: 10px 16px; cursor: pointer; color: var(--text-secondary);
+          font-size: var(--text-base); font-weight: var(--weight-medium);
+        }
+        .forgot-cancel:hover { border-color: var(--border-strong); color: var(--text-primary); }
         .login-container {
           display: flex;
           height: 100vh;

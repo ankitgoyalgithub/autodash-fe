@@ -585,7 +585,7 @@
 .lr-agent-desc { font-size: 0.8rem; color: var(--l-mut); line-height: 1.55; margin: 0; }
 .lr-agent-lead { grid-column: span 4; display: flex; flex-direction: column; justify-content: center; background: linear-gradient(150deg, #052e26, #064e3b); border: none; color: #fff; }
 .lr-agent-lead .lr-tag { color: #6ee7b7; background: rgba(52,211,153,0.14); border-color: rgba(52,211,153,0.3); align-self: flex-start; }
-.lr-agent-lead h3 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 10px; color: #fff; line-height: 1.15; }
+.lr-agent-lead h2 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 10px; color: #fff; line-height: 1.15; }
 .lr-agent-lead p { font-size: 0.92rem; color: #a7d8c4; line-height: 1.6; margin: 0; max-width: 90%; }
 
 /* ═══════════════════════ MAKE IT YOURS (brand) ═══════════════════════ */

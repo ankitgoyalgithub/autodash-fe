@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSeo } from '../hooks/useSeo';
 import './LandingPage.css';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -144,6 +145,8 @@ const TYPE_PROMPTS = [
 ];
 
 export default function LandingPage() {
+  // Restore homepage metadata after client-side navigation (e.g. back from /login)
+  useSeo();
   const [scrolled, setScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [typed, setTyped] = useState('');
@@ -606,7 +609,7 @@ export default function LandingPage() {
                 <div className="lr-show-visual" style={{ background: 'linear-gradient(160deg,#faf5ff,#eef2ff)' }}>
                   <div className="lr-mock-share">
                     <div className="lr-mock-avatar" style={{ background: 'linear-gradient(135deg,#22d3ee,#6366f1)' }}><IcLink /></div>
-                    <div className="lr-mock-url"><span className="dot" />lucentreport.app/view/q4-board</div>
+                    <div className="lr-mock-url"><span className="dot" />lucentreport.com/view/q4-board</div>
                   </div>
                 </div>
                 <div className="lr-show-body">
@@ -624,7 +627,7 @@ export default function LandingPage() {
             <div className="lr-agents-grid">
               <div className="lr-agent lr-agent-lead">
                 <span className="lr-tag"><span className="lr-tag-dot" />Finance &amp; compliance</span>
-                <h3 id="fin-h">Seven finance agents, ready on day one</h3>
+                <h2 id="fin-h">Seven finance agents, ready on day one</h2>
                 <p>Specialist AI agents pre-loaded with accounting expertise. No prompt engineering — each already knows the outputs, SQL patterns and escalation logic for its workflow.</p>
               </div>
               {[

@@ -25,8 +25,12 @@ jobs:
 
       # npm run build runs tsc, which currently fails on pre-existing type
       # errors in Workspace.tsx — build with Vite directly until those are fixed.
+      # Prerender bakes the landing page HTML into dist/index.html for SEO
+      # (fails soft — never blocks the deploy).
       - name: Build
-        run: npx vite build
+        run: |
+          npx vite build
+          node scripts/prerender.mjs
 
       - name: Deploy to Netlify (production)
         run: |

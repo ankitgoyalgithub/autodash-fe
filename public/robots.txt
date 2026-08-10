@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /render/
+Disallow: /api/
+
+Sitemap: https://lucentreport.com/sitemap.xml

@@ -12,7 +12,10 @@ import {
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
   Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown, Check,
   Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users, AlertTriangle,
+  FileText,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { createDocumentFromThread } from '../hooks/useDocuments';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
 import {
@@ -36,7 +39,7 @@ import type { Project, DashboardCard, HistoryEntry, UploadedFile, Entity360Paylo
 import { Entity360View } from './Entity360View';
 import { BASE, THEMES, FONTS, PALETTES, TEMPLATES } from './constants';
 import { ProjectLogo, ProjectLogoTile } from './projectLogos';
-import { toast } from './ui';
+import { toast, confirmDialog, Modal, Button } from './ui';
 import { TimeframeChip, DEFAULT_TIMEFRAME } from './TimeframeChip';
 import type { TimeRangeValue } from './TimeframeChip';
 import { ThemeChip, DEFAULT_THEME } from './ThemeChip';
@@ -1029,14 +1032,35 @@ function InfographicEditor({ entry, projectColor }: { entry: any; projectColor: 
   const [headerTitle, setHeaderTitle] = useState(data?.title || entry.query || '');
   const [sections, setSections] = useState<IgSection[]>(data?.sections || []);
   const [accent, setAccent] = useState<string>(data?.accent || projectColor || '#6366f1');
-  const [heroStyleIdx, setHeroStyleIdx] = useState(0);
+  const [heroStyleIdx, setHeroStyleIdx] = useState<number>(data?.hero_style_idx || 0);
+
+  // Skip persistence until the current entry has hydrated, so switching entries
+  // (which resets all state below) doesn't immediately overwrite the server.
+  const skipSaveRef = useRef(true);
+  const saveTimer = useRef<number | null>(null);
 
   useEffect(() => {
     setHeaderTitle(data?.title || entry.query || '');
     setSections(data?.sections || []);
     setAccent(data?.accent || projectColor || '#6366f1');
-    setHeroStyleIdx(0);
+    setHeroStyleIdx(data?.hero_style_idx || 0);
+    skipSaveRef.current = true;
   }, [entry.id]);
+
+  // Debounced autosave — persist local edits back to the entry's infographic_data
+  // so they survive a thread switch or reload (previously lost, all state was local).
+  useEffect(() => {
+    if (!data) return;
+    if (skipSaveRef.current) { skipSaveRef.current = false; return; }
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      const payload = { ...data, title: headerTitle, accent, sections, hero_style_idx: heroStyleIdx };
+      axios.patch(`${BASE}/history/`, { id: entry.id, infographic_data: payload })
+        .then(() => { entry.infographic_data = payload; })
+        .catch(() => {/* non-blocking; edits stay in local state */});
+    }, 1000);
+    return () => { if (saveTimer.current) window.clearTimeout(saveTimer.current); };
+  }, [headerTitle, sections, accent, heroStyleIdx]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1210,6 +1234,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const agentBtnRef = useRef<HTMLButtonElement>(null);
   const [showShare, setShowShare] = useState(false);
   const [showDataModel, setShowDataModel] = useState(false);
+  const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [creditsWarning, setCreditsWarning] = useState<'near_limit' | 'at_limit' | null>(null);
   // Track previous thread so we only clear filters when SWITCHING threads,
   // not when a brand-new thread ID is first assigned (which would wipe filters
@@ -1606,14 +1632,32 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     try {
       const r = await axios.post(`${BASE}/deploy/`, { dashboard_id: activeEntry.id });
       const publicUrl = window.location.origin + r.data.url;
-      prompt("Dashboard deployed successfully! Copy the public link:", publicUrl);
+      setDeployedUrl(publicUrl);
       fetchThreadHistory(currentThreadId!);
     } catch { toast.error('Failed to deploy dashboard.'); }
   };
 
+  const handleOpenAsDocument = async () => {
+    if (!activeEntry) return;
+    const tid = toast.loading('Creating document…');
+    try {
+      const doc = await createDocumentFromThread(project.id, activeEntry.id, activeEntry.query);
+      toast.dismiss(tid);
+      toast.success('Opened as a document');
+      navigate(`/documents/${doc.id}`);
+    } catch (e: any) {
+      toast.dismiss(tid);
+      toast.error(e?.response?.data?.error || 'Could not create document');
+    }
+  };
+
   const handleUndeploy = async () => {
     if (!activeEntry || !activeEntry.is_deployed) return;
-    if (!confirm("Are you sure you want to take this dashboard offline?")) return;
+    if (!(await confirmDialog({
+      title: 'Take dashboard offline?',
+      message: 'The public link will stop working. You can re-deploy it anytime.',
+      confirmLabel: 'Take offline', danger: true,
+    }))) return;
     try {
       await axios.delete(`${BASE}/deploy/?dashboard_id=${activeEntry.id}`);
       fetchThreadHistory(currentThreadId!);
@@ -2103,7 +2147,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={48} accent={project.color} selected />
                 </div>
                 <p className="ttp-title">What would you like to create?</p>
-                <p className="ttp-sub">Choose a format for this conversation. You can't switch after you start.</p>
+                <p className="ttp-sub">Choose a format for this conversation. Each format stays fixed once you send your first message — start a new conversation anytime for a different one.</p>
               </div>
               <div className="ttp-options">
                 <button className="ttp-option" onClick={() => setPendingThreadType('dashboard')}>
@@ -2160,6 +2204,13 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           )}
           {history.length === 0 && !loading && effectiveThreadType !== null && (
             <div className="chat-empty">
+              {/* Before the first message is sent the format isn't committed yet,
+                  so allow going back to the picker instead of stranding the user. */}
+              {pendingThreadType && !threadType && (
+                <button className="chat-change-format" onClick={() => setPendingThreadType(null)}>
+                  <ArrowLeft size={14}/> Change format
+                </button>
+              )}
               <div className="chat-empty-icon">
                 <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={72} accent={project.color} selected />
               </div>
@@ -2529,6 +2580,13 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                     >
                       <Download size={14}/>
                     </button>
+                    <button
+                      className="dp-icon-btn"
+                      onClick={handleOpenAsDocument}
+                      title="Open as an editable document"
+                    >
+                      <FileText size={14}/>
+                    </button>
                   </>
                 )}
                 {activeEntry.is_deployed ? (
@@ -2854,6 +2912,38 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           onClose={() => setShowDataModel(false)}
         />
       )}
+
+      <Modal
+        open={!!deployedUrl}
+        onClose={() => setDeployedUrl(null)}
+        size="sm"
+        eyebrow="Published"
+        title="Your dashboard is live"
+        subtitle="Anyone with this link can view it — no account needed."
+      >
+        <Modal.Body>
+          <div className="deploy-share-row">
+            <input className="deploy-share-input" readOnly value={deployedUrl || ''}
+              onFocus={e => e.currentTarget.select()} />
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (deployedUrl) {
+                  navigator.clipboard?.writeText(deployedUrl)
+                    .then(() => toast.success('Link copied'))
+                    .catch(() => toast.error('Could not copy — select and copy manually'));
+                }
+              }}
+            >Copy</Button>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="ghost" onClick={() => setDeployedUrl(null)}>Done</Button>
+          <Button as="a" href={deployedUrl || '#'} target="_blank" rel="noopener noreferrer">
+            Open link
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {showExportModal && activeEntry && (
         <ExportModal

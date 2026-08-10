@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { X, Loader2, Search, Trash2, Plus, Pin, BookOpen, Calculator, Database, Star } from 'lucide-react';
 import { BASE } from './constants';
-import { toast } from './ui';
+import { toast, confirmDialog } from './ui';
 import type { Datasource } from '../App';
 
 interface Props {
@@ -113,7 +113,11 @@ export function ProjectDataModelModal({ projectId, projectName, datasourceId, av
   };
 
   const removeSourceLink = async (linkId: number) => {
-    if (!confirm('Unlink this datasource? Existing dashboards keep working but new charts will no longer target it.')) return;
+    if (!(await confirmDialog({
+      title: 'Unlink datasource?',
+      message: 'Existing dashboards keep working, but new charts will no longer target this source.',
+      confirmLabel: 'Unlink', danger: true,
+    }))) return;
     setLinkBusy(true);
     try {
       await axios.delete(`${BASE}/projects/${projectId}/datasources/${linkId}/`);

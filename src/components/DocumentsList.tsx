@@ -7,7 +7,7 @@ import { useDocuments, createDocument, deleteDocument } from '../hooks/useDocume
 import type { Document, DocType } from '../types/document';
 import { DOC_SIZES } from '../types/document';
 import type { Project } from '../App';
-import { EmptyState, Button, SkeletonCard, toast } from './ui';
+import { EmptyState, Button, SkeletonCard, toast, confirmDialog } from './ui';
 
 interface Props {
   projects: Project[];
@@ -132,7 +132,11 @@ export function DocumentsList({ projects, onOpen }: Props) {
   useEffect(() => { fetch(); }, [fetch]);
 
   const handleDelete = async (doc: Document) => {
-    if (!confirm(`Delete "${doc.title}"?`)) return;
+    if (!(await confirmDialog({
+      title: 'Delete document?',
+      message: <>This permanently deletes <strong>{doc.title}</strong>.</>,
+      confirmLabel: 'Delete', danger: true,
+    }))) return;
     setDeleting(doc.id);
     try {
       await deleteDocument(doc.id);

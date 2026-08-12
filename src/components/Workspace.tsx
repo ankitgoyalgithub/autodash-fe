@@ -5,14 +5,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area,
 } from 'recharts';
-import type { ReactNode } from 'react';
+import type { ReactNode, CSSProperties } from 'react';
 import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
   Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown, Check,
   Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users, AlertTriangle,
-  FileText,
+  FileText, Newspaper, Image as ImageIcon, Compass, Drama,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { createDocumentFromThread } from '../hooks/useDocuments';
@@ -1936,8 +1936,37 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     ));
   };
 
+  // Per-format metadata for the "chosen format" empty state — icon, accent tint,
+  // a friendly title and a few one-click example prompts to get the user moving.
+  const FORMAT_META: Record<string, { Icon: typeof LayoutDashboard; tint: string; label: string; title: string; examples: string[] }> = {
+    dashboard:         { Icon: LayoutDashboard, tint: '#6366f1', label: 'Dashboard',        title: 'Build a dashboard',
+      examples: ['Revenue trend over the last 12 months', 'Top 10 customers by total spend', 'Compare performance across regions'] },
+    infographic:       { Icon: Palette,         tint: '#d946ef', label: 'Infographic',      title: 'Design an infographic',
+      examples: ['Summarize this quarter’s highlights', 'Our growth story this year'] },
+    report:            { Icon: FileText,        tint: '#0ea5e9', label: 'Report',           title: 'Write a report',
+      examples: ['Analyze what’s driving churn', 'Quarterly business review'] },
+    newsletter:        { Icon: Newspaper,       tint: '#f59e0b', label: 'Newsletter',       title: 'Draft a newsletter',
+      examples: ['This month’s key metrics for the team', 'What changed since last month'] },
+    cartoon:           { Icon: Drama,           tint: '#f43f5e', label: 'Cartoon Story',    title: 'Tell a cartoon story',
+      examples: ['How we turned around Q3', 'The journey of a single order'] },
+    image_infographic: { Icon: ImageIcon,       tint: '#14b8a6', label: 'Single-Image Poster', title: 'Make a shareable poster',
+      examples: ['Top 5 stats from this year', 'Before vs. after the launch'] },
+    entity360:         { Icon: Compass,         tint: '#10b981', label: 'Entity 360° View', title: 'Profile an entity',
+      examples: ['A 360 view of customer Acme Corp', 'Everything about order 10248'] },
+  };
+  const fmtMeta = effectiveThreadType ? FORMAT_META[effectiveThreadType] : null;
+  const fillPrompt = (text: string) => {
+    if (textareaRef.current) {
+      textareaRef.current.value = text;
+      textareaRef.current.focus();
+      setIsQueryEmpty(!text.trim());
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+    }
+  };
+
   return (
-    <div className={`workspace ${theme.id === 'canva' ? 'theme-canva' : ''}`} data-density={density}>
+    <div className={`workspace ${theme.id === 'canva' ? 'theme-canva' : ''} ${history.length === 0 && !loading && effectiveThreadType === null ? 'ws-choosing' : ''}`} data-density={density}>
 
       <div className="workspace-sidebar glass">
         <button className={activeSideTab === 'templates' ? 'active' : ''} onClick={() => setActiveSideTab(s => s === 'templates' ? null : 'templates')} title="Templates"><LayoutTemplate size={20}/><small>Design</small></button>
@@ -2144,61 +2173,43 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
             <div className="thread-type-picker">
               <div className="ttp-header">
                 <div className="ttp-project-badge">
-                  <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={48} accent={project.color} selected />
+                  <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={44} accent={project.color} selected />
                 </div>
+                <p className="ttp-eyebrow">{project.name}</p>
                 <p className="ttp-title">What would you like to create?</p>
-                <p className="ttp-sub">Choose a format for this conversation. Each format stays fixed once you send your first message — start a new conversation anytime for a different one.</p>
+                <p className="ttp-sub">Pick a format for this conversation. It stays fixed once you send your first message — start a new conversation anytime to switch.</p>
               </div>
               <div className="ttp-options">
-                <button className="ttp-option" onClick={() => setPendingThreadType('dashboard')}>
-                  <div className="ttp-option-icon">📊</div>
-                  <div className="ttp-option-body">
-                    <strong>Dashboard</strong>
-                    <span>Interactive charts, filters, drill-downs and a live grid layout. Best for ongoing analysis.</span>
-                  </div>
-                </button>
-                <button className="ttp-option" onClick={() => setPendingThreadType('infographic')}>
-                  <div className="ttp-option-icon">🎨</div>
-                  <div className="ttp-option-body">
-                    <strong>Infographic</strong>
-                    <span>A fully designed, shareable HTML poster generated from your data. Best for sharable visuals.</span>
-                  </div>
-                </button>
-                <button className="ttp-option" onClick={() => setPendingThreadType('report')}>
-                  <div className="ttp-option-icon">📑</div>
-                  <div className="ttp-option-body">
-                    <strong>Report</strong>
-                    <span>Long-form analytical document with sections, exhibits, and an executive summary. Deep research-grade output.</span>
-                  </div>
-                </button>
-                <button className="ttp-option" onClick={() => setPendingThreadType('newsletter')}>
-                  <div className="ttp-option-icon">📰</div>
-                  <div className="ttp-option-body">
-                    <strong>Newsletter</strong>
-                    <span>Sharp, conversational issue with a hook, 3-5 short sections, and a clear point of view. Email-friendly format.</span>
-                  </div>
-                </button>
-                <button className="ttp-option" onClick={() => setPendingThreadType('cartoon')}>
-                  <div className="ttp-option-icon">🎭</div>
-                  <div className="ttp-option-body">
-                    <strong>Cartoon Story</strong>
-                    <span>4-8 panel comic-style narrative that explains a finding through scenes, characters, and short captions.</span>
-                  </div>
-                </button>
-                <button className="ttp-option" onClick={() => setPendingThreadType('image_infographic')}>
-                  <div className="ttp-option-icon">🖼️</div>
-                  <div className="ttp-option-body">
-                    <strong>Single-Image Infographic</strong>
-                    <span>Tall narrow shareable graphic, downloadable as one PNG. Pinterest/social-style stat blocks stacked vertically.</span>
-                  </div>
-                </button>
-                <button className="ttp-option" onClick={() => setPendingThreadType('entity360')}>
-                  <div className="ttp-option-icon">🧭</div>
-                  <div className="ttp-option-body">
-                    <strong>Entity 360° View</strong>
-                    <span>A complete profile of one record — its attributes, KPIs, every related table, and an activity timeline. Name the entity, e.g. "customer Acme Corp".</span>
-                  </div>
-                </button>
+                {[
+                  { type: 'dashboard',         Icon: LayoutDashboard, tint: '#6366f1', label: 'Dashboard',        featured: true,
+                    desc: 'Interactive charts, filters and drill-downs in a live grid. Best for ongoing analysis.' },
+                  { type: 'infographic',       Icon: Palette,         tint: '#d946ef', label: 'Infographic',
+                    desc: 'A fully designed, shareable HTML poster generated from your data.' },
+                  { type: 'report',            Icon: FileText,        tint: '#0ea5e9', label: 'Report',
+                    desc: 'Long-form document with sections, exhibits and an executive summary.' },
+                  { type: 'newsletter',        Icon: Newspaper,       tint: '#f59e0b', label: 'Newsletter',
+                    desc: 'A sharp, conversational issue with a hook and a clear point of view.' },
+                  { type: 'cartoon',           Icon: Drama,           tint: '#f43f5e', label: 'Cartoon Story',
+                    desc: '4–8 panel comic that explains a finding through scenes and captions.' },
+                  { type: 'image_infographic', Icon: ImageIcon,       tint: '#14b8a6', label: 'Single-Image Poster',
+                    desc: 'Tall, social-style graphic with stacked stat blocks — one PNG.' },
+                  { type: 'entity360',         Icon: Compass,         tint: '#10b981', label: 'Entity 360° View',
+                    desc: 'A full profile of one record — attributes, KPIs, related tables and a timeline.' },
+                ].map(({ type, Icon, tint, label, desc, featured }) => (
+                  <button
+                    key={type}
+                    className={`ttp-option${featured ? ' ttp-option--featured' : ''}`}
+                    onClick={() => setPendingThreadType(type as typeof pendingThreadType)}
+                    style={{ '--ttp-tint': tint } as CSSProperties}
+                  >
+                    <span className="ttp-option-icon"><Icon size={20} strokeWidth={2}/></span>
+                    <span className="ttp-option-body">
+                      <strong>{label}</strong>
+                      <span>{desc}</span>
+                    </span>
+                    <ChevronRight size={16} className="ttp-option-chevron"/>
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -2211,9 +2222,14 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   <ArrowLeft size={14}/> Change format
                 </button>
               )}
-              <div className="chat-empty-icon">
-                <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={72} accent={project.color} selected />
+              <div
+                className="chat-empty-icon chat-empty-fmt-icon"
+                style={fmtMeta ? ({ '--fmt-tint': fmtMeta.tint } as CSSProperties) : undefined}
+              >
+                {fmtMeta ? <fmtMeta.Icon size={26} strokeWidth={2}/> :
+                  <ProjectLogoTile id={project.emoji} emoji={project.emoji} size={72} accent={project.color} selected />}
               </div>
+              {fmtMeta && <div className="chat-empty-title">{fmtMeta.title}</div>}
               <p>
                 {effectiveThreadType === 'infographic' ? 'Describe the infographic you want to generate.'
                   : effectiveThreadType === 'report' ? 'What would you like a report on? Be specific about the question or topic.'
@@ -2221,8 +2237,17 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   : effectiveThreadType === 'cartoon' ? 'What story should the cartoon tell? A finding, a problem, or a turnaround works best.'
                   : effectiveThreadType === 'image_infographic' ? 'What stats or comparisons should the infographic highlight?'
                   : effectiveThreadType === 'entity360' ? 'Name the entity to profile — e.g. "a 360 view of customer Acme Corp" or "everything about order 10248".'
-                  : 'How can I help you today?'}
+                  : 'Describe what you want to see and I’ll build it. Try one of these to start:'}
               </p>
+              {fmtMeta && fmtMeta.examples.length > 0 && (
+                <div className="chat-empty-examples">
+                  {fmtMeta.examples.map((ex) => (
+                    <button key={ex} className="chat-example-chip" onClick={() => fillPrompt(ex)}>
+                      <Sparkles size={13}/> <span>{ex}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Infographic style picker */}
               {effectiveThreadType === 'infographic' && (
@@ -2638,11 +2663,13 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         <div ref={dashboardContentRef} className={`dp-content ${layoutMode}-mode ${layout === 'poster' ? 'poster-content' : ''}`}>
           {!activeEntry && !loading && (
             <div className="dp-empty">
-              <div className="dp-empty-icon" style={{ background: project.color + '15', border: `1.5px dashed ${project.color}50` }}>
+              <div className="dp-empty-icon dp-empty-icon--pulse" style={{ background: project.color + '15', border: `1.5px dashed ${project.color}50` }}>
                 <LayoutDashboard size={28} style={{ color: project.color, opacity: 0.7 }}/>
               </div>
-              <h3>No dashboard selected</h3>
-              <p>Send a prompt in the chat or click a previous response to view its charts here.</p>
+              <h3>{history.length === 0 ? 'Your ' + (fmtMeta?.label.toLowerCase() ?? 'dashboard') + ' will appear here' : 'No dashboard selected'}</h3>
+              <p>{history.length === 0
+                ? 'Send a prompt on the left and the live result renders here as it’s built.'
+                : 'Send a prompt in the chat or click a previous response to view its charts here.'}</p>
             </div>
           )}
           {loading && !activeEntry && <DashboardSkeleton />}

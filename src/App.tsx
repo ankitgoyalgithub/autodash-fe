@@ -38,7 +38,7 @@ const RenderView = lazy(() => import('./components/RenderView'));
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
-export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents' | 'brand' | 'profile' | 'myspace' | 'documents';
+export type View = 'home' | 'dashboards' | 'workspace' | 'public' | 'datasources' | 'agents' | 'brand' | 'profile' | 'myspace' | 'documents' | 'admin';
 
 export interface Datasource {
   id: number;

@@ -14,6 +14,7 @@ import { UserProfile } from './components/UserProfile';
 import { MySpace } from './components/MySpace';
 import { DocumentsList } from './components/DocumentsList';
 import { DocumentEditor } from './components/DocumentEditor';
+import { AdminPanel } from './components/AdminPanel';
 import { useBrandKit } from './hooks/useBrandKit';
 import { generatePalette } from './utils/brandPalette';
 import type { View, Project, Datasource } from './App';
@@ -34,6 +35,7 @@ const VIEW_PATH: Record<Exclude<View, 'workspace' | 'public'>, string> = {
   agents:      '/agents',
   brand:       '/brand',
   profile:     '/profile',
+  admin:       '/admin',
 };
 
 /** Derive the current sidebar `view` (for highlighting) from the URL path. */
@@ -47,6 +49,7 @@ function viewFromPath(pathname: string): View {
   if (pathname.startsWith('/agents'))      return 'agents';
   if (pathname.startsWith('/brand'))       return 'brand';
   if (pathname.startsWith('/profile'))     return 'profile';
+  if (pathname.startsWith('/admin'))       return 'admin';
   return 'home';
 }
 
@@ -261,6 +264,9 @@ export default function MainAppContent({ onLogout, user, onUserUpdate }: { onLog
             } />
             <Route path="/profile" element={
               <UserProfile user={user} onUserUpdate={(updates) => onUserUpdate({ ...user, ...updates })} />
+            } />
+            <Route path="/admin" element={
+              user?.is_admin ? <AdminPanel /> : <Navigate to="/" replace />
             } />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

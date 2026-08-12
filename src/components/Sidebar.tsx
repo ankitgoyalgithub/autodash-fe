@@ -55,6 +55,15 @@ function AgentsIcon() {
   );
 }
 
+function AdminIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+      <path d="M10 2.5l5.5 2.2v4c0 3.4-2.3 6.3-5.5 7.3-3.2-1-5.5-3.9-5.5-7.3v-4L10 2.5z" fill="#dc2626"/>
+      <path d="M7.6 9.8l1.7 1.7 3.1-3.4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 function DashboardsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
@@ -103,7 +112,7 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
   onToggle: () => void;
   onLogout: () => void;
   onProfile: () => void;
-  user?: { username?: string; email?: string } | null;
+  user?: { username?: string; email?: string; is_superuser?: boolean; is_admin?: boolean } | null;
 }) {
   const [threads, setThreads] = useState<DashboardThread[]>([]);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
@@ -127,6 +136,10 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
     { id: 'documents',   label: 'Documents',  icon: <DocumentsIcon />,  color: '#6366f1', bg: '#eef2ff' },
     { id: 'datasources', label: 'Data',       icon: <DataIcon />,       color: '#059669', bg: '#ecfdf5' },
     { id: 'brand',       label: 'Brand Kit',  icon: <BrandKitIcon />,   color: '#ec4899', bg: '#fdf2f8' },
+    // Admin control panel — only rendered for allowlisted admins (ankit).
+    ...(user?.is_admin
+      ? [{ id: 'admin' as View, label: 'Admin', icon: <AdminIcon />, color: '#dc2626', bg: '#fef2f2' }]
+      : []),
   ];
 
   return (

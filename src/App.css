@@ -614,19 +614,18 @@ button { cursor: pointer; }
   transition: background var(--duration-fast) var(--ease-out);
 }
 
-/* Collapsed nav item: icon + tiny label stacked */
+/* Collapsed nav item: clean icon-only rail. Long labels ("Dashboards",
+   "My Space", "Brand Kit") wrapped and overflowed the narrow rail, so the
+   text is hidden here — each button keeps its `title` tooltip for discovery. */
 .sidebar.collapsed .nav-item {
-  flex-direction: column; gap: 3px;
-  padding: 8px 0; width: 56px;
+  flex-direction: column; gap: 0;
+  padding: 0; width: 40px; height: 40px;
+  margin: 3px auto;
   justify-content: center; align-items: center;
-  border-radius: 8px;
+  border-radius: 10px;
   position: relative;
 }
-.sidebar.collapsed .nav-item .nav-label {
-  font-size: 9.5px; font-weight: var(--weight-semibold);
-  letter-spacing: 0.01em;
-  text-align: center; line-height: 1;
-}
+.sidebar.collapsed .nav-item .nav-label { display: none; }
 
 /* Collapsed-mode active state needs to be UNMISTAKABLY visible — the
    expanded treatment alone isn't enough at icon-stack scale.
@@ -4236,11 +4235,6 @@ button { cursor: pointer; }
   transition: background 0.15s, color 0.15s;
 }
 .sidebar-toggle:hover { background: #ede9fe; color: #5b21b6; }
-
-.sidebar.collapsed .nav-item {
-  justify-content: center;
-  padding: 10px 0;
-}
 
 .sidebar.collapsed .sidebar-section-label,
 .sidebar.collapsed .sidebar-divider { display: none; }

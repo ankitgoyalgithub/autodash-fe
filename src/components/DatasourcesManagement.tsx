@@ -9,15 +9,16 @@ import { toast, EmptyState, Button, confirmDialog } from './ui';
 
 // Per-engine defaults — single source of truth for the kind picker and the
 // port/username placeholders so adding a new engine is one new row.
-type DSKind = 'postgresql' | 'mssql' | 'clickhouse';
+type DSKind = 'postgresql' | 'mysql' | 'mssql' | 'clickhouse';
 const DS_KIND_META: Record<DSKind, {
   label: string; emoji: string; defaultPort: string; userPlaceholder: string;
 }> = {
   postgresql: { label: 'PostgreSQL', emoji: '🐘', defaultPort: '5432', userPlaceholder: 'postgres' },
+  mysql:      { label: 'MySQL', emoji: '🐬', defaultPort: '3306', userPlaceholder: 'root' },
   mssql:      { label: 'SQL Server', emoji: '🪟', defaultPort: '1433', userPlaceholder: 'sa' },
   clickhouse: { label: 'ClickHouse', emoji: '⚡', defaultPort: '8123', userPlaceholder: 'default' },
 };
-const DS_KIND_ORDER: DSKind[] = ['postgresql', 'mssql', 'clickhouse'];
+const DS_KIND_ORDER: DSKind[] = ['postgresql', 'mysql', 'mssql', 'clickhouse'];
 const DS_DEFAULT_PORTS = new Set(Object.values(DS_KIND_META).map(m => m.defaultPort));
 
 export function DatasourceEditForm({ initialData, onSave, testing, testResult, onTest }: {

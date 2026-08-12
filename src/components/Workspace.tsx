@@ -1613,12 +1613,33 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         setActiveReport(r.data.report);
       }
 
+      if (r.data.credits_warning) setCreditsWarning(r.data.credits_warning);
+      setOptimisticPrompt(null);
+
+      // Generation now runs server-side in the background (HTTP 202). Poll the
+      // report until it's ready/errored so the viewer can show live progress
+      // without holding the request open for the whole multi-minute pipeline.
+      const rid = r.data.report?.id;
+      const startStatus = r.data.report?.status;
+      if (rid && startStatus !== 'ready' && startStatus !== 'error') {
+        for (let i = 0; i < 180; i++) {           // ~6 min at 2s intervals
+          await new Promise(res => setTimeout(res, 2000));
+          try {
+            const pr = await axios.get(`${BASE}/reports/${rid}/`);
+            setActiveReport(pr.data);
+            if (pr.data.status === 'ready' || pr.data.status === 'error') {
+              if (pr.data.status === 'error') {
+                setError(pr.data.error || 'Report generation failed. Try simplifying your prompt.');
+              }
+              break;
+            }
+          } catch { /* transient poll failure — keep trying */ }
+        }
+      }
+
       if (newThreadId) {
         await fetchThreadHistory(newThreadId);
       }
-
-      if (r.data.credits_warning) setCreditsWarning(r.data.credits_warning);
-      setOptimisticPrompt(null);
     } catch (e: any) {
       setError(e.response?.data?.error || 'Report generation failed. Try simplifying your prompt.');
       setOptimisticPrompt(null);

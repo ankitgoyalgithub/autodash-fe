@@ -189,20 +189,20 @@ function AgentCard({ agent, onSelect }: { agent: SpecializedAgent; onSelect: () 
       <div className="agent-card-thumb">
         {agent.thumbnail_url ? (
           <>
-            <img src={agent.thumbnail_url} alt={agent.name} className="agent-thumb-svg" draggable={false} />
-            <div className="agent-thumb-overlay" style={{ background: `linear-gradient(to top, ${agent.color}44 0%, transparent 60%)` }} />
+            <img src={agent.thumbnail_url} alt="" className="agent-thumb-svg" draggable={false} />
+            <div className="agent-thumb-overlay" style={{ background: `linear-gradient(to top, ${agent.color}66 0%, ${agent.color}14 45%, transparent 70%)` }} />
           </>
         ) : (
           /* Fallback: colored strip */
           <div className="agent-card-strip" style={{ background: agent.color }} />
         )}
+        {/* Premium floating logo tile (app-icon style) */}
+        <div className="agent-card-logo" style={{ background: `linear-gradient(135deg, ${agent.color}, ${agent.color}bb)`, boxShadow: `0 6px 16px -4px ${agent.color}80` }}>
+          <span>{agent.emoji}</span>
+        </div>
       </div>
 
       <div className="agent-card-inner">
-        <div className="agent-card-top">
-          <span className="agent-card-emoji">{agent.emoji}</span>
-          <span className="agent-card-category" style={{ color: agent.color }}>{agent.category}</span>
-        </div>
         <h3 className="agent-card-name">{agent.name}</h3>
         <p className="agent-card-desc">{agent.description}</p>
         <div className="tpl-hover-overlay">
@@ -249,28 +249,24 @@ export function AgentsLibrary({
   return (
     <div className="canva-home">
 
-      {/* ── Hero (matches Projects page hero exactly) ── */}
+      {/* ── Hero (centered, matches Projects page hero) ── */}
       <div className="canva-home-hero">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-          <div>
-            <h1 className="canva-home-title">AI Agents</h1>
-            <p style={{ fontSize: 14, color: '#6b6880', marginTop: 4, maxWidth: 520 }}>
-              Domain-expert agents that analyze your database with specialized insight. Pick one, connect your data.
-            </p>
-          </div>
-          <div className="canva-search-wrap" style={{ maxWidth: 280, marginTop: 4 }}>
-            <Search size={15} className="canva-search-icon" />
-            <input
-              className="canva-search-input"
-              placeholder="Search agents…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
+        <h1 className="canva-home-title">AI Agents</h1>
+        <p className="agents-hero-sub">
+          Domain-expert agents that analyze your database with specialized insight. Pick one, connect your data.
+        </p>
+        <div className="canva-search-wrap agents-hero-search">
+          <Search size={15} className="canva-search-icon" />
+          <input
+            className="canva-search-input"
+            placeholder="Search agents…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
 
         {/* Category filter chips */}
-        <div className="canva-filter-row" style={{ marginTop: 4 }}>
+        <div className="canva-filter-row agents-hero-chips">
           {CATEGORIES.map(cat => {
             const count = cat === 'All' ? agents.length : agents.filter(a => a.category === cat).length;
             return (

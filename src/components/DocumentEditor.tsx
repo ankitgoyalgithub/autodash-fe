@@ -13,7 +13,7 @@ import type {
   ImageElement, ShapeElement, ChartElement,
 } from '../types/document';
 import { BASE } from './constants';
-import { toast, confirmDialog } from './ui';
+import { toast } from './ui';
 import type { DashboardCard } from '../App';
 
 // ── Resolved chart cache (entry_id → card[]) ─────────────────────────────────

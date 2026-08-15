@@ -3,7 +3,7 @@ import axios from 'axios';
 import { BASE } from './constants';
 import { toast, confirmDialog } from './ui';
 import {
-  Users, ShieldCheck, Ban, UserPlus, LayoutDashboard, FileText, FolderKanban,
+  Users, ShieldCheck, Ban, UserPlus, LayoutDashboard, FileText,
   LogIn, RefreshCw, Search, Loader2, Activity, KeyRound, MonitorSmartphone,
 } from 'lucide-react';
 

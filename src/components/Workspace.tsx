@@ -12,7 +12,8 @@ import {
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
   Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown, Check,
   Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users, AlertTriangle,
-  FileText, Newspaper, Image as ImageIcon, Compass, Drama,
+  FileText, Newspaper, Image as ImageIcon, Compass, Drama, MoreHorizontal,
+  Undo2, Redo2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { createDocumentFromThread } from '../hooks/useDocuments';
@@ -1235,6 +1236,16 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const [showShare, setShowShare] = useState(false);
   const [showDataModel, setShowDataModel] = useState(false);
   const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
+  const [showToolMenu, setShowToolMenu] = useState(false);
+  useEffect(() => {
+    if (!showToolMenu) return;
+    const close = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest('.dp-more-wrap')) setShowToolMenu(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showToolMenu]);
   const navigate = useNavigate();
   const [creditsWarning, setCreditsWarning] = useState<'near_limit' | 'at_limit' | null>(null);
   // Track previous thread so we only clear filters when SWITCHING threads,
@@ -2578,23 +2589,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                     <button className={density === 'comfortable' ? 'active' : ''} onClick={() => setDensity('comfortable')} title="Comfortable density">L</button>
                   </div>
                 )}
-                {effectiveThreadType !== 'infographic' && (
-                  <button
-                    className={`dp-icon-btn ${dragEnabled ? 'dp-icon-btn--active' : ''}`}
-                    onClick={() => setDragEnabled(!dragEnabled)}
-                    title={dragEnabled ? 'Disable drag to reorder' : 'Enable drag to reorder charts'}
-                  >
-                    <Move size={14}/>
-                  </button>
-                )}
-                <button
-                  className="dp-icon-btn dp-optimize-btn"
-                  onClick={handleOptimizeLayout}
-                  disabled={layoutOptimizing}
-                  title="AI: Optimize layout"
-                >
-                  {layoutOptimizing ? <Loader2 size={14} className="spin"/> : <Wand2 size={14}/>}
-                </button>
+                <span className="dp-toolbar-divider" />
+
+                {/* Frequently used, kept inline */}
                 <button
                   className="dp-icon-btn"
                   onClick={handleRefresh}
@@ -2603,50 +2600,69 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                 >
                   <RefreshCw size={14} className={refreshing ? 'spin' : ''}/>
                 </button>
-                {/* Undo / redo */}
-                <button className="dp-icon-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
-                </button>
-                <button className="dp-icon-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" aria-label="Redo">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M19 9H8.5a5.5 5.5 0 0 0 0 11H13"/></svg>
-                </button>
-                {(storeCards.length ?? 0) > 0 && (
-                  <>
-                    <button
-                      className="dp-icon-btn"
-                      onClick={() => exportAllChartsCSV(storeCards, project.name)}
-                      title="Export all charts as CSV"
-                    >
-                      <FileDown size={14}/>
-                    </button>
-                    <button
-                      className="dp-icon-btn"
-                      onClick={() => setShowExportModal(true)}
-                      title="Export dashboard (PDF / PPTX / PNG)"
-                    >
-                      <Download size={14}/>
-                    </button>
-                    <button
-                      className="dp-icon-btn"
-                      onClick={handleOpenAsDocument}
-                      title="Open as an editable document"
-                    >
-                      <FileText size={14}/>
-                    </button>
-                  </>
-                )}
+
+                {/* Overflow menu — secondary actions grouped out of the row */}
+                <div className="dp-more-wrap">
+                  <button
+                    className={`dp-icon-btn ${showToolMenu ? 'dp-icon-btn--active' : ''}`}
+                    onClick={() => setShowToolMenu(v => !v)}
+                    title="More actions"
+                    aria-haspopup="menu"
+                    aria-expanded={showToolMenu}
+                  >
+                    <MoreHorizontal size={16}/>
+                  </button>
+                  {showToolMenu && (
+                    <div className="dp-more-menu" role="menu" onMouseLeave={() => setShowToolMenu(false)}>
+                      <div className="dp-more-label">Layout</div>
+                      {effectiveThreadType !== 'infographic' && (
+                        <button className="dp-more-item" role="menuitem" onClick={() => { setDragEnabled(!dragEnabled); }}>
+                          <Move size={15}/> {dragEnabled ? 'Disable drag-to-reorder' : 'Enable drag-to-reorder'}
+                        </button>
+                      )}
+                      <button className="dp-more-item" role="menuitem" disabled={layoutOptimizing} onClick={() => { handleOptimizeLayout(); setShowToolMenu(false); }}>
+                        {layoutOptimizing ? <Loader2 size={15} className="spin"/> : <Wand2 size={15}/>} Optimize layout (AI)
+                      </button>
+
+                      <div className="dp-more-label">Edit</div>
+                      <button className="dp-more-item" role="menuitem" disabled={!canUndo} onClick={() => { undo(); }}>
+                        <Undo2 size={15}/> Undo
+                      </button>
+                      <button className="dp-more-item" role="menuitem" disabled={!canRedo} onClick={() => { redo(); }}>
+                        <Redo2 size={15}/> Redo
+                      </button>
+
+                      {(storeCards.length ?? 0) > 0 && (
+                        <>
+                          <div className="dp-more-label">Export</div>
+                          <button className="dp-more-item" role="menuitem" onClick={() => { exportAllChartsCSV(storeCards, project.name); setShowToolMenu(false); }}>
+                            <FileDown size={15}/> Export all charts (CSV)
+                          </button>
+                          <button className="dp-more-item" role="menuitem" onClick={() => { setShowExportModal(true); setShowToolMenu(false); }}>
+                            <Download size={15}/> Export dashboard (PDF / PPTX / PNG)
+                          </button>
+                          <button className="dp-more-item" role="menuitem" onClick={() => { handleOpenAsDocument(); setShowToolMenu(false); }}>
+                            <FileText size={15}/> Open as document
+                          </button>
+                        </>
+                      )}
+
+                      <div className="dp-more-label">Project</div>
+                      <button className="dp-more-item" role="menuitem" onClick={() => { setShowDataModel(true); setShowToolMenu(false); }}>
+                        <Filter size={15}/> Data model
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <span className="dp-toolbar-divider" />
+
+                {/* Primary actions */}
                 {activeEntry.is_deployed ? (
                   <button className="undeploy-btn" onClick={handleUndeploy}><EyeOff size={14}/> Offline</button>
                 ) : (
                   <button className="deploy-btn" onClick={handleDeploy}><Zap size={14}/> Deploy</button>
                 )}
-                <button
-                  className="dp-share-btn"
-                  onClick={() => setShowDataModel(true)}
-                  title="Edit the project data model — pin tables, define a glossary, declare canonical metrics"
-                >
-                  <Filter size={13}/>
-                </button>
                 <button
                   className="dp-share-btn"
                   onClick={() => setShowShare(true)}

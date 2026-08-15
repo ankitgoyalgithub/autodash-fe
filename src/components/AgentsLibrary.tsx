@@ -46,6 +46,18 @@ function AgentApplyModal({
         agent_id: agent.id,
         datasource_id: selectedDs,
       });
+      // The agent may need one clarification (e.g. which column is the date
+      // axis). Surface the question + options instead of a dead-end error.
+      if (r.data.action === 'hitl_required') {
+        const req = r.data.hitl_request || {};
+        const opts = (req.options || []).filter((o: string) => !/^none/i.test(o));
+        setError(
+          (req.question || 'This agent needs one clarification before it can run.') +
+          (opts.length ? ` Likely columns: ${opts.join(', ')}. Open the project and ask in chat, e.g. “use ${opts[0]} as the date”.` : '')
+        );
+        setLoading(false);
+        return;
+      }
       onApplied(r.data.project, r.data.thread_id, r.data.dashboards, r.data.narrative, r.data.suggested_theme);
     } catch (e: any) {
       setError(e.response?.data?.error || 'Generation failed. Try a different datasource.');

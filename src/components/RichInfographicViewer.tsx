@@ -168,7 +168,14 @@ export function RichInfographicViewer({ html, title, onBack, stepId, currentThem
               ref={iframeRef}
               className="rich-ig-iframe"
               title="Infographic"
-              sandbox="allow-same-origin allow-popups allow-modals allow-scripts"
+              // SECURITY: intentionally NO 'allow-scripts'. The HTML is produced by
+              // the LLM from user/DB/CRM data and could carry an injected <script>.
+              // With 'allow-same-origin' present (needed for auto-resize + PNG export
+              // that read contentDocument), also allowing scripts would let that markup
+              // run as a first-party script on lucentreport.com — able to call the API
+              // with the session cookie. Infographics are static (inline CSS + SVG), so
+              // scripts are not needed; keep them disabled.
+              sandbox="allow-same-origin allow-popups allow-modals"
               onLoad={handleIframeLoad}
             />
           </div>

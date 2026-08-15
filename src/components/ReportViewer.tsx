@@ -238,7 +238,12 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
             ref={iframeRef}
             className="report-iframe"
             title={report.title}
-            sandbox="allow-same-origin allow-popups allow-modals allow-scripts"
+            // SECURITY: no 'allow-scripts'. report_html is LLM-generated from
+            // user/DB data; with 'allow-same-origin' present, also allowing
+            // scripts would let injected markup run as first-party JS on
+            // lucentreport.com and call the API with the session cookie. The
+            // report is static HTML/CSS, so scripts are not needed.
+            sandbox="allow-same-origin allow-popups allow-modals"
             onLoad={handleIframeLoad}
           />
         </div>

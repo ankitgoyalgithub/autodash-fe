@@ -36,8 +36,12 @@ function AgentApplyModal({
   const [selectedDs, setSelectedDs] = useState<number | null>(datasources[0]?.id ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [hitl, setHitl] = useState<{ id: string; question: string; options?: string[] } | null>(null);
+  const [hitlProjectId, setHitlProjectId] = useState<number | null>(null);
 
-  const handleRun = async () => {
+  // Run the agent. `extra` carries a resolved clarification (project_id +
+  // hitl_responses) so answering the question re-runs on the SAME project.
+  const run = async (extra: Record<string, any> = {}) => {
     if (!selectedDs) return;
     setLoading(true);
     setError('');
@@ -45,16 +49,11 @@ function AgentApplyModal({
       const r = await axios.post(`${BASE}/agents/apply/`, {
         agent_id: agent.id,
         datasource_id: selectedDs,
+        ...extra,
       });
-      // The agent may need one clarification (e.g. which column is the date
-      // axis). Surface the question + options instead of a dead-end error.
       if (r.data.action === 'hitl_required') {
-        const req = r.data.hitl_request || {};
-        const opts = (req.options || []).filter((o: string) => !/^none/i.test(o));
-        setError(
-          (req.question || 'This agent needs one clarification before it can run.') +
-          (opts.length ? ` Likely columns: ${opts.join(', ')}. Open the project and ask in chat, e.g. “use ${opts[0]} as the date”.` : '')
-        );
+        setHitl(r.data.hitl_request || null);
+        setHitlProjectId(r.data.project?.id ?? null);
         setLoading(false);
         return;
       }
@@ -63,6 +62,13 @@ function AgentApplyModal({
       setError(e.response?.data?.error || 'Generation failed. Try a different datasource.');
       setLoading(false);
     }
+  };
+
+  const handleRun = () => run();
+  const answerHitl = (choice: string) => {
+    const q = hitl;
+    setHitl(null);
+    if (q) run({ project_id: hitlProjectId, hitl_responses: { [q.id]: choice } });
   };
 
   return (
@@ -77,6 +83,38 @@ function AgentApplyModal({
               <div className="apply-tpl-gen-bar-fill" style={{ background: agent.color }} />
             </div>
           </div>
+        ) : hitl ? (
+          <>
+            {/* Inline clarification (HITL) — answer here and re-run */}
+            <div className="apply-tpl-modal-header">
+              <div className="apply-tpl-modal-title">
+                <span className="apply-tpl-emoji">{agent.emoji}</span>
+                <div>
+                  <div className="apply-tpl-name">Quick question</div>
+                  <div className="apply-tpl-desc">{agent.name}</div>
+                </div>
+              </div>
+              <button className="modal-close-btn" onClick={onClose} aria-label="Close"><X size={15} /></button>
+            </div>
+            <div className="apply-tpl-body">
+              <p style={{ fontSize: 14, color: '#334155', margin: '4px 0 14px', lineHeight: 1.5 }}>{hitl.question}</p>
+              <div className="apply-tpl-ds-list">
+                {(hitl.options || []).map(opt => (
+                  <div
+                    key={opt}
+                    className="apply-tpl-ds-item"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => answerHitl(opt)}
+                  >
+                    <div className="apply-tpl-ds-icon" style={{ background: agent.color + '18', color: agent.color }}>
+                      <Database size={15} />
+                    </div>
+                    <div className="apply-tpl-ds-info"><strong>{opt}</strong></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         ) : (
           <>
             {/* Header */}

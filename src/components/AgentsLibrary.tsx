@@ -188,22 +188,20 @@ function AgentCard({ agent, onSelect }: { agent: SpecializedAgent; onSelect: () 
       {/* Thumbnail preview area */}
       <div className="agent-card-thumb">
         {agent.thumbnail_url ? (
-          <>
-            <img src={agent.thumbnail_url} alt="" className="agent-thumb-svg" draggable={false} />
-            <div className="agent-thumb-overlay" style={{ background: `linear-gradient(to top, ${agent.color}66 0%, ${agent.color}14 45%, transparent 70%)` }} />
-          </>
+          <img src={agent.thumbnail_url} alt="" className="agent-thumb-svg" draggable={false} />
         ) : (
           /* Fallback: colored strip */
           <div className="agent-card-strip" style={{ background: agent.color }} />
         )}
-        {/* Premium floating logo tile (app-icon style) */}
-        <div className="agent-card-logo" style={{ background: `linear-gradient(135deg, ${agent.color}, ${agent.color}bb)`, boxShadow: `0 6px 16px -4px ${agent.color}80` }}>
-          <span>{agent.emoji}</span>
-        </div>
       </div>
 
       <div className="agent-card-inner">
-        <h3 className="agent-card-name">{agent.name}</h3>
+        <div className="agent-card-head">
+          <div className="agent-card-icon" style={{ background: `linear-gradient(135deg, ${agent.color}, ${agent.color}c0)` }}>
+            <span>{agent.emoji}</span>
+          </div>
+          <h3 className="agent-card-name">{agent.name}</h3>
+        </div>
         <p className="agent-card-desc">{agent.description}</p>
         <div className="tpl-hover-overlay">
           <span className="tpl-hover-btn">Run Analysis →</span>

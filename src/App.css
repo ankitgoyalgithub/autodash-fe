@@ -12509,3 +12509,18 @@ input[type="password"]:focus, textarea:focus {
 .agent-card:hover { transform: translateY(-2px); }
 .agent-card:hover .agent-card-logo { transform: scale(1.06); transition: transform var(--duration-fast) var(--ease-out); }
 .agent-card-thumb { height: 128px; }
+
+/* Agent card — clean inline icon (replaces the floating tile) */
+.agent-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.agent-card-icon {
+  width: 34px; height: 34px; border-radius: 9px;
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  font-size: 1.05rem; line-height: 1;
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.25);
+}
+.agent-card-icon span { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.28)); }
+.agent-card-head .agent-card-name { margin: 0; }
+.agent-card:hover .agent-card-icon { transform: scale(1.06); transition: transform var(--duration-fast) var(--ease-out); }
+/* retire the old floating logo */
+.agent-card-logo { display: none; }

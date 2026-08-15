@@ -130,6 +130,7 @@
 }
 
 /* ── Dark theme — semantic tokens flip; component CSS stays put ───────── */
+:root[data-theme="dark"],
 .theme-dark-pro,
 .theme-midnight,
 .theme-corporate,

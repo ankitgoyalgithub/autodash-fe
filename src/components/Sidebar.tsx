@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, Hash } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Hash, Sun, Moon } from 'lucide-react';
+import { getTheme, toggleTheme } from '../utils/theme';
 import axios from 'axios';
 import type { View, Project, DashboardThread } from '../App';
 import { BASE } from './constants';
@@ -116,6 +117,7 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
 }) {
   const [threads, setThreads] = useState<DashboardThread[]>([]);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [themeMode, setThemeMode] = useState(getTheme());
   // Identity comes from the authenticated user object (via /me/), not localStorage —
   // auth moved to an httpOnly cookie and nothing writes `autodash_user` anymore.
   const username = user?.username || 'User';
@@ -222,8 +224,15 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
         <CreditsBadge collapsed={collapsed} onClick={() => setShowCreditsModal(true)} />
       </div>
 
-      {/* ��─ Footer ── */}
+      {/* ─── Footer ── */}
       <div className="sidebar-footer">
+        <button
+          className="sidebar-toggle"
+          onClick={() => setThemeMode(toggleTheme())}
+          title={themeMode === 'dark' ? 'Switch to light' : 'Switch to dark'}
+        >
+          {themeMode === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
         <button className="sidebar-toggle" onClick={onToggle} title={collapsed ? 'Expand' : 'Collapse'}>
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>

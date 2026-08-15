@@ -12348,3 +12348,100 @@ input[type="password"]:focus, textarea:focus {
   .admin-audit-row { grid-template-columns: auto 1fr auto; }
   .admin-audit-detail { display: none; }
 }
+
+/* ═══ DARK THEME ═══════════════════════════════════════════════════════════
+   App-wide dark mode. Remaps the legacy variable scales (gray, theme, white)
+   so the ~1000+ variable-based surfaces flip; the semantic bg/text tokens flip
+   via tokens.css. Activated by data-theme="dark" on the root element. */
+:root[data-theme="dark"] {
+  /* Inverted neutral scale: 25 = darkest bg, 900 = lightest text */
+  --white:    #1e293b;   /* most --white usages are card/panel surfaces */
+  --gray-25:  #0b1120;
+  --gray-50:  #0f172a;
+  --gray-100: #1e293b;
+  --gray-200: #334155;
+  --gray-300: #475569;
+  --gray-400: #64748b;
+  --gray-500: #94a3b8;
+  --gray-600: #cbd5e1;
+  --gray-700: #e2e8f0;
+  --gray-800: #f1f5f9;
+  --gray-900: #f8fafc;
+
+  --indigo-50:  #1e1b4b;
+  --indigo-100: #312e81;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 8px -2px rgba(0,0,0,0.5), 0 2px 4px -2px rgba(0,0,0,0.4);
+  --shadow-lg: 0 12px 24px -4px rgba(0,0,0,0.5), 0 4px 8px -2px rgba(0,0,0,0.3);
+
+  --theme-bg-app:        #0f172a;
+  --theme-bg-sidebar:    #0f172a;
+  --theme-bg-card:       #1e293b;
+  --theme-bg-header:     #0f172a;
+  --theme-text-main:     #f1f5f9;
+  --theme-text-secondary:#cbd5e1;
+  --theme-text-muted:    #94a3b8;
+  --theme-border:        #334155;
+  --theme-accent:        #818cf8;
+  --theme-accent-light:  #312e81;
+  --theme-accent-hover:  #a5b4fc;
+  --theme-shadow:        0 2px 8px rgba(0,0,0,0.5);
+  --theme-glass:         rgba(30,41,59,0.6);
+  --theme-blur:          blur(8px);
+  --glass-border:        rgba(148,163,184,0.14);
+
+  --brand-bg:   #0f172a;
+  --brand-text: #f1f5f9;
+
+  color-scheme: dark;
+}
+
+/* Base surfaces */
+:root[data-theme="dark"] body { background: var(--theme-bg-app); color: var(--theme-text-main); }
+
+/* Common hardcoded-white surfaces → dark (targeted, high-visibility) */
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .chat-panel,
+:root[data-theme="dark"] .dashboard-panel,
+:root[data-theme="dark"] .config-panel,
+:root[data-theme="dark"] .workspace-sidebar { background: var(--theme-bg-sidebar); border-color: var(--theme-border); }
+
+:root[data-theme="dark"] .tpl-card,
+:root[data-theme="dark"] .agent-card,
+:root[data-theme="dark"] .ds-card,
+:root[data-theme="dark"] .doc-card,
+:root[data-theme="dark"] .modal,
+:root[data-theme="dark"] .apply-tpl-modal,
+:root[data-theme="dark"] .composer-box,
+:root[data-theme="dark"] .ttp-option { background: var(--theme-bg-card); border-color: var(--theme-border); }
+
+/* Inputs */
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select {
+  background: #1e293b; color: var(--theme-text-main); border-color: var(--theme-border);
+}
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder { color: #64748b; }
+
+/* Buttons that hardcode white text stay readable on colored bg (literal 'white'
+   isn't remapped, so this is mostly a safety net for var(--white) text). */
+:root[data-theme="dark"] .btn-primary,
+:root[data-theme="dark"] .sidebar-create-btn { color: #ffffff; }
+
+/* Dark-mode overrides for hardcoded light gradients/banners */
+:root[data-theme="dark"] .canva-home-hero {
+  background: linear-gradient(160deg, #1e1b4b 0%, #312e5f 40%, #3b1d52 70%, #0f172a 100%);
+}
+:root[data-theme="dark"] .np-hero,
+:root[data-theme="dark"] .config-panel-head,
+:root[data-theme="dark"] .chat-header { background: var(--theme-bg-header); }
+
+/* Dark: brighten section headings + muted labels that read too dim */
+:root[data-theme="dark"] .canva-section-title,
+:root[data-theme="dark"] .dt-section-title,
+:root[data-theme="dark"] .section-title,
+:root[data-theme="dark"] .canva-home-content h2 { color: var(--theme-text-main); }
+:root[data-theme="dark"] .user-name { color: var(--theme-text-main); }

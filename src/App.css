@@ -12445,3 +12445,36 @@ input[type="password"]:focus, textarea:focus {
 :root[data-theme="dark"] .section-title,
 :root[data-theme="dark"] .canva-home-content h2 { color: var(--theme-text-main); }
 :root[data-theme="dark"] .user-name { color: var(--theme-text-main); }
+
+/* Dark: content containers that hardcode white → dark app surface */
+:root[data-theme="dark"] .main-area,
+:root[data-theme="dark"] .canva-home,
+:root[data-theme="dark"] .canva-home-content,
+:root[data-theme="dark"] .view-fade,
+:root[data-theme="dark"] .ms-container,
+:root[data-theme="dark"] .docs-container,
+:root[data-theme="dark"] .ds-container,
+:root[data-theme="dark"] .agents-container,
+:root[data-theme="dark"] .dashboards-container,
+:root[data-theme="dark"] .brand-kit-container { background: var(--theme-bg-app); }
+
+/* Dark: any remaining muted/dim section labels + headings */
+:root[data-theme="dark"] .dt-title,
+:root[data-theme="dark"] .dt-header-title,
+:root[data-theme="dark"] .templates-section-title,
+:root[data-theme="dark"] .section-heading,
+:root[data-theme="dark"] h1, :root[data-theme="dark"] h2, :root[data-theme="dark"] h3 { color: var(--theme-text-main); }
+
+/* Dark: page shells + titles + empty states that hardcode light colors */
+:root[data-theme="dark"] .page { background: var(--theme-bg-app); }
+:root[data-theme="dark"] .page-title { color: var(--theme-text-main); }
+:root[data-theme="dark"] .page-sub { color: var(--theme-text-secondary); }
+:root[data-theme="dark"] .empty-state-title,
+:root[data-theme="dark"] .es-title,
+:root[data-theme="dark"] .empty-title { color: var(--theme-text-main); }
+:root[data-theme="dark"] .empty-state,
+:root[data-theme="dark"] .es-icon,
+:root[data-theme="dark"] .empty-icon { background: var(--theme-bg-card); color: var(--theme-text-secondary); }
+:root[data-theme="dark"] .ui-empty__title { color: var(--theme-text-main); }
+:root[data-theme="dark"] .ui-empty__subtitle { color: var(--theme-text-secondary); }
+:root[data-theme="dark"] .ui-empty__icon { background: var(--theme-bg-card); color: var(--theme-text-secondary); }

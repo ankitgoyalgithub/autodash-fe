@@ -8,7 +8,9 @@ const KEY = 'lr_theme';
 export function getTheme(): ThemeMode {
   const saved = localStorage.getItem(KEY);
   if (saved === 'light' || saved === 'dark') return saved;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  // Light is the default; dark is opt-in via the toggle (we don't follow the
+  // OS preference, so first-time visitors always get the polished light theme).
+  return 'light';
 }
 
 export function applyTheme(mode: ThemeMode): void {

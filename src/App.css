@@ -513,6 +513,32 @@ button { cursor: pointer; }
 }
 .sidebar.collapsed .sidebar-logo { justify-content: center; padding: var(--space-4) 0 var(--space-3); }
 
+/* Customer workspace brand chip (Brand Kit logo + company name) */
+.sidebar-workspace-brand {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-accent-light, #f5f3ff);
+  min-width: 0;
+}
+.sidebar-workspace-brand.collapsed { margin: 0 auto var(--space-2); padding: 6px; justify-content: center; }
+.sidebar-workspace-logo {
+  width: 22px; height: 22px; border-radius: 5px; object-fit: contain; flex-shrink: 0;
+  background: #fff;
+}
+.sidebar-workspace-mono {
+  width: 22px; height: 22px; border-radius: 5px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--theme-accent); color: #fff;
+  font-size: 12px; font-weight: 700;
+}
+.sidebar-workspace-name {
+  font-size: 12.5px; font-weight: 600; color: var(--theme-text-main);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* Post-login sidebar brand mark. The pre-login landing nav has its own
    brand styling (.lr-brand / .lr-brand-name in LandingPage.css); keep the
    two visually aligned if you change either. */

@@ -86,6 +86,51 @@ export function generatePalette(primary: string, secondary: string): string[] {
 }
 
 /**
+ * The chart series palette for a brand kit.
+ *
+ * Honors the user's explicitly curated `chart_colors` when they've set at
+ * least three; otherwise falls back to the harmonious auto-generated palette.
+ * Always returns 10 colours (cycling the source list) so every chart slot and
+ * `--brand-palette-{0..9}` var is populated.
+ */
+export function brandChartColors(kit: {
+  chart_colors?: string[];
+  primary_color: string;
+  secondary_color: string;
+}): string[] {
+  const base =
+    kit.chart_colors && kit.chart_colors.length >= 3
+      ? kit.chart_colors
+      : generatePalette(kit.primary_color, kit.secondary_color);
+  return Array.from({ length: 10 }, (_, i) => base[i % base.length]);
+}
+
+/** [h,s,l] → adjust lightness by `d` points, clamped. */
+function shiftL(hex: string, d: number): string {
+  const [h, s, l] = hexToHsl(hex);
+  return hslToHex(h, s, Math.min(100, Math.max(0, l + d)));
+}
+
+/** Darken a hex colour by `pts` lightness points. */
+export function darken(hex: string, pts: number): string { return shiftL(hex, -pts); }
+/** Lighten a hex colour by `pts` lightness points. */
+export function lighten(hex: string, pts: number): string { return shiftL(hex, pts); }
+
+/** A very light, low-chroma tint of a colour — for subtle accent backgrounds. */
+export function tint(hex: string): string {
+  const [h, s] = hexToHsl(hex);
+  return hslToHex(h, Math.min(s, 72), 95);
+}
+
+/** rgba() string from a hex colour + alpha. */
+export function rgba(hex: string, a: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/**
  * Read the brand palette that was injected into CSS custom properties by
  * applyBrandKitCSS().  Falls back to indigo if a var is missing.
  */

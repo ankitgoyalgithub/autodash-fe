@@ -16,7 +16,7 @@ import { DocumentsList } from './components/DocumentsList';
 import { DocumentEditor } from './components/DocumentEditor';
 import { AdminPanel } from './components/AdminPanel';
 import { useBrandKit } from './hooks/useBrandKit';
-import { generatePalette } from './utils/brandPalette';
+import { brandChartColors } from './utils/brandPalette';
 import type { View, Project, Datasource } from './App';
 
 // ─── Main App Content ─────────────────────────────────────────────────────────
@@ -101,8 +101,9 @@ export default function MainAppContent({ onLogout, user, onUserUpdate }: { onLog
   // Auth is handled by httpOnly cookie sent automatically with withCredentials=true
   const { brandKit, saving: brandSaving, error: brandError, save: saveBrandKit } = useBrandKit();
   const brandPalette = useMemo(
-    () => generatePalette(brandKit.primary_color, brandKit.secondary_color),
-    [brandKit.primary_color, brandKit.secondary_color]
+    () => brandChartColors(brandKit),
+    // Recompute when any input to the chart palette changes.
+    [brandKit.primary_color, brandKit.secondary_color, brandKit.chart_colors]
   );
 
   const fetchBasics = async () => {
@@ -202,6 +203,7 @@ export default function MainAppContent({ onLogout, user, onUserUpdate }: { onLog
         onLogout={onLogout}
         onProfile={() => navigate('/profile')}
         user={user}
+        brand={{ company_name: brandKit.company_name, logo_url: brandKit.logo_url }}
       />
 
       <main id="main-content" className="main-area">

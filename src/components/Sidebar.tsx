@@ -99,7 +99,7 @@ function BrandKitIcon() {
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
-export function Sidebar({ view, setView, projects: _projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle, onLogout, onProfile, user }: {
+export function Sidebar({ view, setView, projects: _projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle, onLogout, onProfile, user, brand }: {
   view: View;
   setView: (v: View) => void;
   projects: Project[];
@@ -114,6 +114,7 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
   onLogout: () => void;
   onProfile: () => void;
   user?: { username?: string; email?: string; is_superuser?: boolean; is_admin?: boolean } | null;
+  brand?: { company_name?: string; logo_url?: string } | null;
 }) {
   const [threads, setThreads] = useState<DashboardThread[]>([]);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
@@ -159,6 +160,20 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
           </span>
         )}
       </div>
+
+      {/* ── Customer workspace brand chip — shown only when the user has
+            configured a Brand Kit logo/company. Brands the workspace without
+            replacing the LucentReport product identity above. */}
+      {(brand?.logo_url || brand?.company_name) && (
+        <div className={`sidebar-workspace-brand ${collapsed ? 'collapsed' : ''}`} title={brand?.company_name || 'Workspace'}>
+          {brand?.logo_url
+            ? <img src={brand.logo_url} alt={brand?.company_name || 'Workspace logo'} className="sidebar-workspace-logo" />
+            : <span className="sidebar-workspace-mono">{(brand?.company_name || '?').charAt(0).toUpperCase()}</span>}
+          {!collapsed && brand?.company_name && (
+            <span className="sidebar-workspace-name">{brand.company_name}</span>
+          )}
+        </div>
+      )}
 
       {/* ── Create button ── */}
       <div className="sidebar-create-wrap">

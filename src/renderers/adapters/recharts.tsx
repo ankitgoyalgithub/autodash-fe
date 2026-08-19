@@ -9,7 +9,7 @@ import type { ChartAdapterProps } from '../types';
 import {
   ChartTooltip, AnomalyTooltip, LegendToggle, TableInsight,
   formatAxisTick, formatXAxis, formatCompact, isCurrencyKey, prettifyCol,
-  getXAxisProps,
+  getXAxisProps, isTimeAxis,
 } from '../utils';
 
 // ── Recharts adapter — all canonical 2D chart types ───────────────────────────
@@ -256,7 +256,8 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
           <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
           <Legend content={legend} />
           {visibleDataKeys.map((k, i) => (
-            <Bar key={k} dataKey={k} fill={`url(#${pfx}-${i})`} radius={[0, 6, 6, 0]} maxBarSize={24}>
+            <Bar key={k} dataKey={k} fill={visibleDataKeys.length === 1 ? undefined : `url(#${pfx}-${i})`} radius={[0, 6, 6, 0]} maxBarSize={24}>
+              {visibleDataKeys.length === 1 && data.map((_, idx) => <Cell key={idx} fill={seriesColor(idx)} />)}
               {data.length <= 12 && (
                 <LabelList dataKey={k} position="right" formatter={(v: any) => typeof v === 'number' ? formatAxisTick(v, k) : ''} style={{ fontSize: 10, fill: tickColor, fontWeight: 600 }} />
               )}
@@ -594,6 +595,9 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
   const needsAngle = numBars > 7 || hasLongLabels;
   const extraBottom = needsAngle ? 60 : 5;
   const pfx = `vbg-${index ?? 0}`;
+  // A single-series categorical bar (brands, segments, …) reads as a flat wall
+  // of one colour. Give each category its own palette colour instead.
+  const perBarColor = visibleDataKeys.length === 1 && numBars > 1 && numBars <= 24 && !isTimeAxis(data, xKey);
   return (
     <ResponsiveContainer debounce={1} width="100%" height={height + (needsAngle ? 28 : 0)}>
       <BarChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: extraBottom }} onClick={handleChartClick} style={onDrillDown ? { cursor: 'pointer' } : undefined} barCategoryGap="28%">
@@ -616,7 +620,8 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
         <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
         <Legend content={legend} />
         {visibleDataKeys.map((k, i) => (
-          <Bar key={k} dataKey={k} fill={`url(#${pfx}-${i})`} radius={[6,6,0,0]} maxBarSize={52}>
+          <Bar key={k} dataKey={k} fill={perBarColor ? undefined : `url(#${pfx}-${i})`} radius={[6,6,0,0]} maxBarSize={52}>
+            {perBarColor && data.map((_, idx) => <Cell key={idx} fill={seriesColor(idx)} />)}
             {numBars <= 8 && dataKeys.length === 1 && (
               <LabelList dataKey={k} position="top" formatter={(v: any) => typeof v === 'number' ? formatAxisTick(v, k) : ''} style={{ fontSize: 10, fill: tickColor, fontWeight: 600 }} />
             )}

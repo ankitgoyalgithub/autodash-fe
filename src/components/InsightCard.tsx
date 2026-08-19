@@ -13,7 +13,7 @@ import type { DashboardCard } from '../App';
 import { COLORS } from './constants';
 import { ChartRenderer } from '../renderers/ChartRenderer';
 import { LazyChart, type SkeletonType } from './LazyChart';
-import { formatCompact, isCurrencyKey, sortByDateLabel, deriveKeys } from '../renderers/utils';
+import { formatCompact, isCurrencyKey, isPercentKey, sortByDateLabel, deriveKeys } from '../renderers/utils';
 
 
 // ── DataTableDrawer ───────────────────────────────────────────────────────────
@@ -472,9 +472,13 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           valueKey = k; val = v as string | number;
         }
       }
-      const isCurr = isCurrencyKey(valueKey || card.title);
+      const fmtKey = valueKey || card.title;
+      const isPct = isPercentKey(fmtKey);
+      const isCurr = !isPct && isCurrencyKey(fmtKey);
       const formatted = typeof val === 'number'
-        ? (isCurr ? '$' : '') + formatCompact(val)
+        ? isPct
+          ? `${parseFloat(val.toFixed(1))}%`
+          : (isCurr ? '$' : '') + formatCompact(val)
         : String(val ?? 'N/A');
       const s = card.stats;
       const trendDir = s?.trend;

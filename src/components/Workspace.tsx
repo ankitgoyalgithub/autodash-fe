@@ -12,7 +12,7 @@ import {
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
   Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown, Check,
   Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users, AlertTriangle,
-  FileText, Newspaper, Image as ImageIcon, Compass, Drama, MoreHorizontal,
+  FileText, Newspaper, Image as ImageIcon, Compass, Drama, MoreHorizontal, ShieldCheck,
   Undo2, Redo2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -49,6 +49,7 @@ import { getBrandPaletteColors } from '../utils/brandPalette';
 import { InsightCard } from './InsightCard';
 import { ShareProjectModal } from './ShareProjectModal';
 import { ProjectDataModelModal } from './ProjectDataModelModal';
+import { DataQualityModal } from './DataQualityModal';
 import ExportModal from './ExportModal';
 import { CreditsWarningBanner } from './CreditsPanel';
 import { RichInfographicViewer } from './RichInfographicViewer';
@@ -91,7 +92,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
     return (
       <>
         {metricCards.length > 0 && (
-          <div className="metrics-strip">
+          <div className={`metrics-strip cols-${Math.min(metricCards.length, 4)}`}>
             {metricCards.map((card, i) => (
               <ChartErrorBoundary key={i} title={card.title}>
                 <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} drillFetch={onDrill ? (path) => onDrill(card, path) : undefined} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)}/>
@@ -124,7 +125,7 @@ function DraggableCardsGrid({ cards, layout, editMode, font, colors, posterTheme
     <>
       {/* Fixed non-draggable metrics strip */}
       {metricCards.length > 0 && (
-        <div className="metrics-strip">
+        <div className={`metrics-strip cols-${Math.min(metricCards.length, 4)}`}>
           {metricCards.map((card, i) => (
             <ChartErrorBoundary key={i} title={card.title}>
               <InsightCard index={i} card={card} layout={layout} editMode={editMode} font={font} colors={colors} posterTheme={posterTheme} onUpdate={(u) => onUpdate(card, u)} onDrillDown={(dim, val) => onDrillDown(card, dim, val)} drillFetch={onDrill ? (path) => onDrill(card, path) : undefined} globalFilters={globalFilters} onDelete={() => onDelete(card)} onSave={() => onSave(card)} />
@@ -1235,6 +1236,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const agentBtnRef = useRef<HTMLButtonElement>(null);
   const [showShare, setShowShare] = useState(false);
   const [showDataModel, setShowDataModel] = useState(false);
+  const [showDataQuality, setShowDataQuality] = useState(false);
   const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
   const [showToolMenu, setShowToolMenu] = useState(false);
   useEffect(() => {
@@ -2651,6 +2653,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                       <button className="dp-more-item" role="menuitem" onClick={() => { setShowDataModel(true); setShowToolMenu(false); }}>
                         <Filter size={15}/> Data model
                       </button>
+                      <button className="dp-more-item" role="menuitem" onClick={() => { setShowDataQuality(true); setShowToolMenu(false); }}>
+                        <ShieldCheck size={15}/> Data quality
+                      </button>
                     </div>
                   )}
                 </div>
@@ -2974,6 +2979,14 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           datasourceId={project.datasource?.id ?? null}
           availableDatasources={datasources}
           onClose={() => setShowDataModel(false)}
+        />
+      )}
+
+      {showDataQuality && (
+        <DataQualityModal
+          projectId={project.id}
+          projectName={project.name}
+          onClose={() => setShowDataQuality(false)}
         />
       )}
 

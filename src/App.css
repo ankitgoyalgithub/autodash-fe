@@ -12588,3 +12588,132 @@ input[type="password"]:focus, textarea:focus {
 .agent-card:hover .agent-card-icon { transform: scale(1.06); transition: transform var(--duration-fast) var(--ease-out); }
 /* retire the old floating logo */
 .agent-card-logo { display: none; }
+
+/* ── Data Quality modal ─────────────────────────────────────────────────── */
+.dq-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.dq-modal {
+  width: min(1040px, 96vw); max-height: 90vh; display: flex; flex-direction: column;
+  background: var(--theme-bg-card, #fff); color: var(--theme-text-main, #1e293b);
+  border: 1px solid var(--theme-border, #e2e8f0); border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.28); overflow: hidden;
+}
+.dq-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--theme-border, #e2e8f0); flex-shrink: 0;
+}
+.dq-head-title { display: flex; align-items: center; gap: 12px; color: var(--theme-accent, #7c3aed); }
+.dq-head-title h2 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--theme-text-main, #1e293b); }
+.dq-head-sub { font-size: 0.78rem; color: var(--theme-text-muted, #64748b); }
+.dq-head-actions { display: flex; gap: 6px; }
+.dq-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border: 1px solid var(--theme-border, #e2e8f0); border-radius: 9px; background: transparent;
+  color: var(--theme-text-secondary, #475569); cursor: pointer; transition: background .12s;
+}
+.dq-icon-btn:hover:not(:disabled) { background: var(--theme-hover, #f1f5f9); }
+.dq-icon-btn:disabled { opacity: 0.5; cursor: default; }
+
+.dq-loading, .dq-error { padding: 56px 24px; text-align: center; color: var(--theme-text-muted, #64748b); }
+.dq-loading svg { color: var(--theme-accent, #7c3aed); }
+.dq-loading p { margin: 14px 0 4px; font-weight: 600; color: var(--theme-text-main, #1e293b); }
+.dq-loading span { font-size: 0.82rem; }
+.dq-error { display: flex; align-items: center; justify-content: center; gap: 10px; color: #dc2626; }
+
+.dq-summary { display: flex; gap: 12px; padding: 16px 20px; flex-shrink: 0; }
+.dq-stat {
+  flex: 1; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--theme-border, #e2e8f0);
+  display: flex; flex-direction: column; gap: 2px; background: var(--theme-bg-app, #fafafa);
+}
+.dq-stat-n { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.dq-stat-l { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--theme-text-muted, #64748b); }
+.dq-stat.is-serious { background: #fef2f2; border-color: #fecaca; } .dq-stat.is-serious .dq-stat-n { color: #dc2626; }
+.dq-stat.is-warning { background: #fffbeb; border-color: #fde68a; } .dq-stat.is-warning .dq-stat-n { color: #b45309; }
+.dq-stat.is-pass    { background: #ecfdf5; border-color: #a7f3d0; } .dq-stat.is-pass .dq-stat-n { color: #059669; }
+.dq-stat.is-clear .dq-stat-n { color: var(--theme-text-muted, #94a3b8); }
+
+.dq-list { overflow-y: auto; padding: 4px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+.dq-card { border: 1px solid var(--theme-border, #e2e8f0); border-radius: 12px; overflow: hidden; }
+.dq-card.dq-fail.dq-sev-serious { border-left: 3px solid #dc2626; }
+.dq-card.dq-fail.dq-sev-warning { border-left: 3px solid #f59e0b; }
+.dq-card.dq-pass { border-left: 3px solid #10b981; opacity: 0.92; }
+.dq-card-head { display: flex; gap: 12px; padding: 13px 15px; align-items: flex-start; }
+.dq-card-head.clickable { cursor: pointer; }
+.dq-card-head.clickable:hover { background: var(--theme-hover, #f8fafc); }
+.dq-card-status { flex-shrink: 0; padding-top: 1px; }
+.dq-ok { color: #10b981; } .dq-warn { color: #f59e0b; }
+.dq-badge { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 3px 7px; border-radius: 6px; white-space: nowrap; }
+.dq-badge-serious { background: #fef2f2; color: #dc2626; }
+.dq-badge-warning { background: #fffbeb; color: #b45309; }
+.dq-badge-info    { background: #eff6ff; color: #2563eb; }
+.dq-card-main { flex: 1; min-width: 0; }
+.dq-card-title { font-weight: 650; font-size: 0.92rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dq-card-table { font-family: var(--font-mono, monospace); font-size: 0.7rem; background: var(--theme-hover, #f1f5f9); color: var(--theme-text-secondary, #475569); padding: 2px 6px; border-radius: 5px; }
+.dq-card-cat { font-size: 0.66rem; text-transform: uppercase; letter-spacing: .05em; color: var(--theme-text-muted, #94a3b8); }
+.dq-card-desc { margin: 5px 0 0; font-size: 0.82rem; color: var(--theme-text-secondary, #475569); line-height: 1.45; }
+.dq-card-rec { margin: 6px 0 0; font-size: 0.8rem; color: var(--theme-text-main, #334155); }
+.dq-err-text { color: #dc2626; }
+.dq-card-right { flex-shrink: 0; display: flex; align-items: center; gap: 8px; color: var(--theme-text-muted, #94a3b8); }
+.dq-count { font-size: 1.05rem; font-weight: 800; color: var(--theme-text-main, #1e293b); display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; }
+.dq-count small { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--theme-text-muted, #94a3b8); }
+.dq-pass-tag { font-size: 0.72rem; font-weight: 700; color: #059669; }
+
+.dq-rows { border-top: 1px dashed var(--theme-border, #e2e8f0); background: var(--theme-bg-app, #fafafa); }
+.dq-rows-scroll { overflow-x: auto; }
+.dq-rows table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+.dq-rows th { text-align: left; padding: 8px 12px; font-weight: 700; color: var(--theme-text-muted, #64748b); white-space: nowrap; border-bottom: 1px solid var(--theme-border, #e2e8f0); text-transform: uppercase; font-size: 0.66rem; letter-spacing: .03em; }
+.dq-rows td { padding: 7px 12px; white-space: nowrap; border-bottom: 1px solid var(--theme-border, #eef2f6); font-variant-numeric: tabular-nums; }
+.dq-rows-foot { padding: 8px 12px; font-size: 0.72rem; color: var(--theme-text-muted, #94a3b8); }
+
+:root[data-theme="dark"] .dq-stat.is-serious { background: rgba(220,38,38,0.12); border-color: rgba(220,38,38,0.3); }
+:root[data-theme="dark"] .dq-stat.is-warning { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); }
+:root[data-theme="dark"] .dq-stat.is-pass    { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); }
+:root[data-theme="dark"] .dq-badge-serious { background: rgba(220,38,38,0.15); }
+:root[data-theme="dark"] .dq-badge-warning { background: rgba(245,158,11,0.15); }
+
+/* ═══ Dashboard polish: composition + card design (Canva pass) ═══════════════ */
+
+/* KPI strip fills by count instead of always reserving 4 columns (2 KPIs no
+   longer leave half the row empty). Desktop only — narrow panels keep 2-col. */
+@media (min-width: 1101px) {
+  .metrics-strip.cols-1 { grid-template-columns: repeat(1, 1fr) !important; }
+  .metrics-strip.cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+  .metrics-strip.cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
+}
+
+/* Premium card surface: softer resting shadow + a real hover lift. */
+.charts-strip .chart-card,
+.drag-cards-flat-grid .chart-card,
+.metrics-strip .chart-card {
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 4px 14px rgba(15,23,42,0.05);
+  transition: box-shadow .22s var(--ease-out), transform .22s var(--ease-out), border-color .18s;
+}
+.charts-strip .chart-card:hover,
+.drag-cards-flat-grid .chart-card:hover {
+  box-shadow: 0 2px 6px rgba(15,23,42,0.06), 0 12px 30px rgba(15,23,42,0.10);
+  transform: translateY(-2px);
+  border-color: var(--theme-accent-light, #e2ddf5);
+}
+
+/* Insight line reads as a designed callout chip, not a raw stat string. */
+.chart-card .insight-row {
+  background: var(--theme-accent-light, #f5f3ff);
+  border-left: 3px solid var(--theme-accent, #7c3aed);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+:root[data-theme="dark"] .chart-card .insight-row { background: rgba(129,140,248,0.10); }
+
+/* De-clutter: the per-card action buttons fade in on hover, so the board reads
+   clean at rest and controls appear when you reach for them. */
+.chart-card .chart-actions-menu { opacity: 0; transition: opacity .16s var(--ease-out); }
+.chart-card:hover .chart-actions-menu,
+.chart-card:focus-within .chart-actions-menu { opacity: 1; }
+
+/* Chart title: a touch more weight/hierarchy. */
+.chart-card-head h4 { font-weight: 650; letter-spacing: -0.01em; }

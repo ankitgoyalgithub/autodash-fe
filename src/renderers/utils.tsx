@@ -2,16 +2,27 @@ import { useState, useMemo } from 'react';
 
 // ── Number & label helpers ─────────────────────────────────────────────────────
 
+// Trim trailing zeros so compact numbers read like a designer set them:
+// 120.00M → 120M, 90.0M → 90M, 1.87B → 1.87B, 1.5K → 1.5K.
+function _trim(n: number, decimals: number): string {
+  return n.toFixed(decimals).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+}
+
 export function formatCompact(v: number): string {
   const abs = Math.abs(v);
-  if (abs >= 1e9) return `${(v / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${(v / 1e3).toFixed(1)}K`;
+  if (abs >= 1e9) return `${_trim(v / 1e9, 2)}B`;
+  if (abs >= 1e6) return `${_trim(v / 1e6, 1)}M`;
+  if (abs >= 1e3) return `${_trim(v / 1e3, 1)}K`;
   return parseFloat(v.toFixed(2)).toLocaleString();
 }
 
 export function isCurrencyKey(key: string): boolean {
   return /revenue|sales|profit|cost|price|amount|budget|spend|earning|income|value|gmv|arr|mrr|ltv|cac|fee|payment|invoice/i.test(key);
+}
+
+// Percent-valued columns render with a % suffix instead of $/compact.
+export function isPercentKey(key: string): boolean {
+  return /(pct|percent|_rate\b|ratio|share_pct)/i.test(key);
 }
 
 export function prettifyCol(col: string): string {
@@ -20,6 +31,7 @@ export function prettifyCol(col: string): string {
 
 export function formatAxisTick(val: any, dataKey?: string): string {
   if (typeof val !== 'number') return String(val ?? '');
+  if (dataKey && isPercentKey(dataKey)) return `${parseFloat(val.toFixed(1))}%`;
   const prefix = dataKey && isCurrencyKey(dataKey) ? '$' : '';
   return prefix + formatCompact(val);
 }
@@ -27,8 +39,18 @@ export function formatAxisTick(val: any, dataKey?: string): string {
 export function formatTooltipValue(val: any, name: string | number | undefined): [string, string] {
   const nameStr = String(name ?? '');
   if (typeof val !== 'number') return [String(val ?? ''), nameStr];
+  if (isPercentKey(nameStr)) return [`${parseFloat(val.toFixed(1))}%`, nameStr];
   const prefix = isCurrencyKey(nameStr) ? '$' : '';
   return [prefix + formatCompact(val), nameStr];
+}
+
+// Majority of x-labels parse as dates → treat as a time axis (single-hue bars,
+// date tick formatting). Categorical axes (brands, segments) get per-bar colors.
+export function isTimeAxis(data: any[], xKey: string): boolean {
+  if (!data?.length) return false;
+  const sample = data.slice(0, Math.min(6, data.length));
+  const parseable = sample.filter(r => parseDateLabelToMs(String(r[xKey] ?? '')) !== null).length;
+  return parseable >= Math.ceil(sample.length / 2);
 }
 
 export function formatXAxis(val: any): string {
@@ -44,6 +66,7 @@ export function formatXAxis(val: any): string {
 export function formatCellValue(val: any, col: string): string {
   if (val === null || val === undefined) return '—';
   if (typeof val === 'number') {
+    if (isPercentKey(col)) return `${parseFloat(val.toFixed(1))}%`;
     if (isCurrencyKey(col)) return '$' + formatCompact(val);
     if (Number.isInteger(val)) return val.toLocaleString();
     return parseFloat(val.toFixed(2)).toLocaleString();
@@ -83,7 +106,9 @@ export function getXAxisProps(data: any[], key: string, forceAngle?: boolean) {
   const n = data.length;
   const maxLabelLen = Math.max(...data.slice(0, 20).map(r => String(r[key] ?? '').length));
   const needsAngle = forceAngle || n > 8 || maxLabelLen > 10;
-  const interval = n > 24 ? Math.ceil(n / 12) - 1 : n > 12 ? 1 : 0;
+  // Aim for ~8 evenly-spaced labels max so a long time series doesn't cram the
+  // axis into an unreadable smear of rotated text.
+  const interval = n > 16 ? Math.ceil(n / 8) - 1 : n > 10 ? 1 : 0;
   return {
     interval,
     angle: needsAngle ? -35 : 0,

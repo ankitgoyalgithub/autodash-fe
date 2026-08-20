@@ -9,29 +9,16 @@ import './LandingPage.css';
 
 type IconProps = { size?: number; className?: string };
 
-/* ── Brand mark (echoes the favicon: data bars + a beam of light) ── */
+/* ── Brand mark — the app icon, matching the post-login sidebar logo ── */
 function BrandMark({ size = 34 }: IconProps) {
   return (
-    <svg className="lr-brand-mark" width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="lrbg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#1b2260" /><stop offset="1" stopColor="#0b0f33" />
-        </linearGradient>
-        <linearGradient id="lrbar1" x1="0" y1="1" x2="0" y2="0"><stop stopColor="#6366f1" /><stop offset="1" stopColor="#a855f7" /></linearGradient>
-        <linearGradient id="lrbar2" x1="0" y1="1" x2="0" y2="0"><stop stopColor="#818cf8" /><stop offset="1" stopColor="#c084fc" /></linearGradient>
-        <linearGradient id="lrray" x1="0" y1="1" x2="1" y2="0">
-          <stop stopColor="#6366f1" stopOpacity="0" /><stop offset="0.5" stopColor="#a5b4fc" /><stop offset="1" stopColor="#22d3ee" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <rect width="48" height="48" rx="13" fill="url(#lrbg)" />
-      <rect x="0.5" y="0.5" width="47" height="47" rx="12.5" fill="none" stroke="#6366f1" strokeOpacity="0.4" />
-      <rect x="8" y="30" width="7" height="11" rx="2.4" fill="url(#lrbar2)" opacity="0.75" />
-      <rect x="20.5" y="21" width="7" height="20" rx="2.4" fill="url(#lrbar1)" opacity="0.9" />
-      <rect x="33" y="12" width="7" height="29" rx="2.4" fill="url(#lrbar1)" />
-      <rect x="-4" y="19" width="60" height="3.4" rx="1.7" transform="rotate(-33 24 24)" fill="url(#lrray)" />
-      <circle cx="38" cy="10" r="4.6" fill="#818cf8" fillOpacity="0.25" />
-      <circle cx="38" cy="10" r="2.4" fill="#c7d2fe" />
-    </svg>
+    <img
+      src="/app-icon.png"
+      alt=""
+      aria-hidden="true"
+      className="lr-brand-mark"
+      style={{ width: size, height: size, borderRadius: Math.round(size * 0.28), objectFit: 'contain' }}
+    />
   );
 }
 
@@ -114,6 +101,7 @@ const glyphCrm = (c: string) => <svg width="16" height="16" viewBox="0 0 24 24" 
 /* ── FAQ data ── */
 const FAQ_ITEMS = [
   { q: 'Do I need to know SQL or BI tools?', a: 'No. You describe what you want in plain English — "Show monthly revenue by product category" — and LucentReport\'s multi-agent AI plans the query, writes the SQL, runs it on your live data, picks the right charts, and writes the insights. No SQL, no drag-and-drop, no DAX.' },
+  { q: 'Is LucentReport an AI reporting tool?', a: 'Yes. LucentReport is an AI reporting tool: ask a question in plain English and it generates automated reports, dashboards, and narrative summaries directly from your live data. Every report is board-ready — charts, forecasts, and written insights — and exports to PDF or PowerPoint in one click.' },
   { q: 'Which data sources can I connect?', a: 'A wide range: PostgreSQL, MySQL, SQL Server, Snowflake, Google BigQuery, Amazon Redshift, Amazon S3 (via Athena), Salesforce, HubSpot, Google Sheets, Supabase, and more. If your data lives somewhere, LucentReport can usually reach it.' },
   { q: 'Is my data safe?', a: 'Yes. Your database credentials stay encrypted on your own server and are never sent to us. Every query runs in strict read-only mode — LucentReport can never modify, delete, or write to your database. Auth uses httpOnly cookies so tokens can\'t be stolen by scripts.' },
   { q: 'What can it actually build?', a: 'Complete, styled dashboards with 15+ chart types, plus a full analytics layer (forecasts, anomaly detection, priority matrices, Pareto analysis, correlation heatmaps). It also generates narrative reports, poster-style infographics, and single-entity 360° profiles — all from your data.' },
@@ -246,12 +234,13 @@ export default function LandingPage() {
               </span>
               <h1 className="lr-h1">
                 Ask your data.<br />
-                Get the <span className="lr-grad-text">dashboard</span> in seconds.
+                Get <span className="lr-grad-text">dashboards &amp; reports</span> in seconds.
               </h1>
               <p className="lr-hero-sub">
-                LucentReport connects to any database or cloud source, understands a plain-English
-                question, and builds a complete, on-brand dashboard — charts, forecasts, insights and
-                narrative — automatically. No SQL. No BI training. No setup.
+                LucentReport is the AI reporting tool that connects to any database or cloud source,
+                understands a plain-English question, and builds a complete, on-brand dashboard or
+                report — charts, forecasts, insights and narrative — automatically. No SQL. No BI
+                training. No setup.
               </p>
               <div className="lr-hero-actions">
                 <a href="/login" className="lr-btn lr-btn-primary lr-btn-lg">Start free <ArrowRight /></a>
@@ -560,8 +549,8 @@ export default function LandingPage() {
           <div className="lr-section-inner">
             <div className="lr-head">
               <span className="lr-tag"><span className="lr-tag-dot" />More than dashboards</span>
-              <h2 className="lr-h2" id="rep-h">Reports, profiles and shareable links</h2>
-              <p className="lr-sub">The same AI that builds dashboards can write the whole story — and put it anywhere your audience is.</p>
+              <h2 className="lr-h2" id="rep-h">AI-generated reports, profiles and shareable links</h2>
+              <p className="lr-sub">The same AI reporting engine that builds dashboards can write the whole story — and put it anywhere your audience is.</p>
             </div>
 
             <div className="lr-show-grid">
@@ -767,7 +756,7 @@ export default function LandingPage() {
                 <BrandMark size={30} />
                 <span className="lr-brand-name"><span className="lc">Lucent</span>Report</span>
               </a>
-              <p className="lr-footer-brand-blurb">The AI dashboard builder that turns plain-English questions into complete, on-brand analytics — from any data source.</p>
+              <p className="lr-footer-brand-blurb">The AI reporting tool and dashboard builder that turns plain-English questions into complete, on-brand reports and analytics — from any data source.</p>
             </div>
             <div className="lr-footer-col">
               <h4>Product</h4>
@@ -789,7 +778,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="lr-footer-bottom">
-            <span className="lr-footer-copy">© 2026 LucentReport. AI-powered multi-database analytics.</span>
+            <span className="lr-footer-copy">© 2026 LucentReport. AI reporting &amp; analytics from any data source.</span>
             <span className="lr-footer-made"><span className="lr-spark-dot" />Turning questions into dashboards.</span>
           </div>
         </div>

@@ -85,6 +85,19 @@ export interface ChartSpec {
   matrix_config?: MatrixConfig;
   _ts_config?: TSConfig;
   _pareto_config?: ParetoConfig;
+  _hist_config?: {
+    kind?: 'monte_carlo' | 'binning';
+    value_col?: string;
+    mean?: number;
+    markers?: { x: number; label: string }[];
+  };
+  _cluster_config?: {
+    centroids?: Record<string, any>[];
+    k?: number;
+    x_col?: string;
+    y_col?: string;
+    features?: string[];
+  };
 }
 
 // ── Adapter contract — every adapter must accept this ─────────────────────────

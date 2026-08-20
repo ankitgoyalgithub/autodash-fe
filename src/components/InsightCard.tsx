@@ -602,6 +602,8 @@ function InsightCardInner({ card, layout, onUpdate, editMode, font, colors, post
           matrix_config: card.matrix_config,
           _ts_config: (card as any)._ts_config,
           _pareto_config: (card as any)._pareto_config,
+          _hist_config: (card as any)._hist_config,
+          _cluster_config: (card as any)._cluster_config,
         }}
       />
     );

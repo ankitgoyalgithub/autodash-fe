@@ -20,6 +20,7 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
     gridStroke = '#f1f5f9', gridDash = '3 3',
     hiddenSeries, onToggleSeries, onDrillDown, onChartClick,
     anomaly_info, matrix_config, _ts_config, _pareto_config,
+    _hist_config, _cluster_config,
   } = spec;
 
   const tickColor = '#64748b';
@@ -586,6 +587,80 @@ export function RechartsAdapter({ spec }: ChartAdapterProps) {
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: 10, color: '#94a3b8', pointerEvents: 'none' }}>← {xColKey} (effort) →</div>
         <div style={{ position: 'absolute', top: '50%', left: 0, fontSize: 10, color: '#94a3b8', transform: 'rotate(-90deg) translateX(-50%)', transformOrigin: 'left center', pointerEvents: 'none' }}>↑ {yColKey}</div>
       </div>
+    );
+  }
+
+  // ── Histogram / distribution (Monte Carlo + optimal binning) ──────────────
+  if (chart_type === 'histogram') {
+    const cfg = _hist_config || {};
+    const isMC = cfg.kind === 'monte_carlo';
+    const barColor = seriesColor(isMC ? 4 : 0);
+    // Map each numeric marker (P10/median/…) to the nearest bin's label so it
+    // lines up on the categorical axis.
+    const markerLines = (cfg.markers || []).map(m => {
+      let best = data[0], bd = Infinity;
+      for (const b of data) { const d = Math.abs((b.x ?? 0) - m.x); if (d < bd) { bd = d; best = b; } }
+      return { label: String(best?.label ?? ''), text: m.label };
+    });
+    const nBins = data.length;
+    return (
+      <ResponsiveContainer debounce={1} width="100%" height={height}>
+        <BarChart data={data} margin={{ top: 8, right: 20, left: 0, bottom: 40 }} barCategoryGap="8%">
+          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 10, fill: tickColor, angle: -30, textAnchor: 'end' }}
+            height={52} axisLine={false} tickLine={false} interval={nBins > 12 ? Math.floor(nBins / 10) : 0} />
+          <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={44}
+            label={{ value: isMC ? 'Trials' : 'Count', angle: -90, position: 'insideLeft', fontSize: 10, fill: tickColor }} />
+          <RTooltip content={ChartTooltip} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
+          <Bar dataKey="count" fill={barColor} radius={[3, 3, 0, 0]} />
+          {markerLines.map((m, i) => (
+            <ReferenceLine key={i} x={m.label} stroke={i === 1 && isMC ? '#dc2626' : '#64748b'} strokeDasharray="4 3"
+              label={{ value: m.text, position: 'top', fontSize: 10, fill: i === 1 && isMC ? '#dc2626' : '#64748b', fontWeight: 700 }} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  // ── K-means clustering scatter ────────────────────────────────────────────
+  if (chart_type === 'cluster_scatter') {
+    const cfg = _cluster_config || {};
+    const xk = cfg.x_col || dataKeys[0] || 'x';
+    const yk = cfg.y_col || dataKeys[1] || 'y';
+    const centroids = cfg.centroids || [];
+    const clusters = Array.from(new Set(data.map((r: any) => String(r.cluster))));
+    return (
+      <ResponsiveContainer debounce={1} width="100%" height={height}>
+        <ScatterChart margin={{ top: 12, right: 24, left: 4, bottom: 30 }}>
+          <CartesianGrid strokeDasharray={gridDash} stroke={gridStroke} />
+          <XAxis type="number" dataKey={xk} name={prettifyCol(xk)} tickFormatter={(v) => formatAxisTick(v, xk)}
+            tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false}
+            label={{ value: prettifyCol(xk), position: 'insideBottom', offset: -8, fontSize: 11, fill: tickColor }} />
+          <YAxis type="number" dataKey={yk} name={prettifyCol(yk)} tickFormatter={(v) => formatAxisTick(v, yk)}
+            tick={{ fontSize: 11, fill: tickColor }} axisLine={false} tickLine={false} width={56}
+            label={{ value: prettifyCol(yk), angle: -90, position: 'insideLeft', fontSize: 11, fill: tickColor }} />
+          <RTooltip cursor={{ strokeDasharray: '3 3' }} content={({ active, payload }: any) => {
+            if (!active || !payload?.length) return null;
+            const p = payload[0]?.payload || {};
+            return (
+              <div className="chart-tooltip">
+                {p.label ? <div className="ct-label">{p.label}</div> : null}
+                <div className="ct-row"><span className="ct-name">{p.cluster}</span></div>
+                <div className="ct-row"><span className="ct-name">{prettifyCol(xk)}</span><span className="ct-value">{formatAxisTick(p[xk], xk)}</span></div>
+                <div className="ct-row"><span className="ct-name">{prettifyCol(yk)}</span><span className="ct-value">{formatAxisTick(p[yk], yk)}</span></div>
+              </div>
+            );
+          }} />
+          <Legend content={legend} />
+          {clusters.map((cl, i) => (
+            <Scatter key={cl} name={cl} data={data.filter((r: any) => String(r.cluster) === cl)}
+              fill={seriesColor(i)} fillOpacity={0.7} />
+          ))}
+          {centroids.length > 0 && (
+            <Scatter name="Centroids" data={centroids} fill="#0f172a" shape="star" legendType="none" />
+          )}
+        </ScatterChart>
+      </ResponsiveContainer>
     );
   }
 

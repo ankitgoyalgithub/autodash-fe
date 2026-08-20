@@ -2547,7 +2547,16 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               </div>
             </div>
           </div>
-          <p className="comp-hint">Enter to send · Shift+Enter for new line</p>
+          <p className="comp-hint">
+            Enter to send · Shift+Enter for new line
+            {currentUser && !currentUser.prompts_unlimited && typeof currentUser.prompts_remaining === 'number' && (
+              <span className={`comp-quota${currentUser.prompts_remaining <= 1 ? ' comp-quota--low' : ''}`}>
+                {currentUser.prompts_remaining > 0
+                  ? `· ${currentUser.prompts_remaining} free prompt${currentUser.prompts_remaining === 1 ? '' : 's'} left`
+                  : '· Free prompts used'}
+              </span>
+            )}
+          </p>
         </div>
       </div>
 

@@ -12717,3 +12717,45 @@ input[type="password"]:focus, textarea:focus {
 
 /* Chart title: a touch more weight/hierarchy. */
 .chart-card-head h4 { font-weight: 650; letter-spacing: -0.01em; }
+
+/* ── Prompt-limit (free tier) modal + composer quota chip ─────────────────── */
+.plimit-overlay {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(15,23,42,0.55); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.plimit-modal {
+  position: relative; width: min(420px, 94vw);
+  background: var(--theme-bg-card, #fff); color: var(--theme-text-main, #1e293b);
+  border: 1px solid var(--theme-border, #e2e8f0); border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.3); padding: 30px 26px 24px; text-align: center;
+  animation: plimit-in .16s ease;
+}
+@keyframes plimit-in { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+.plimit-close {
+  position: absolute; top: 12px; right: 12px; width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--theme-text-muted, #94a3b8);
+  border-radius: 8px; cursor: pointer;
+}
+.plimit-close:hover { background: var(--theme-hover, #f1f5f9); }
+.plimit-icon {
+  width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: linear-gradient(135deg, var(--theme-accent, #7c3aed), #ec4899);
+}
+.plimit-title { margin: 0 0 8px; font-size: 1.2rem; font-weight: 750; }
+.plimit-body { margin: 0 0 22px; font-size: 0.9rem; line-height: 1.55; color: var(--theme-text-secondary, #475569); }
+.plimit-actions { display: flex; flex-direction: column; gap: 10px; }
+.plimit-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 16px; border-radius: 10px; font-size: 0.9rem; font-weight: 650;
+  cursor: pointer; border: 1px solid transparent; text-decoration: none;
+}
+.plimit-btn--primary { background: var(--theme-accent, #7c3aed); color: #fff; }
+.plimit-btn--primary:hover { background: var(--theme-accent-hover, #6d28d9); }
+.plimit-btn--ghost { background: transparent; color: var(--theme-text-secondary, #475569); border-color: var(--theme-border, #e2e8f0); }
+.plimit-btn--ghost:hover { background: var(--theme-hover, #f1f5f9); }
+
+.comp-quota { margin-left: 8px; color: var(--theme-text-muted, #94a3b8); font-weight: 600; }
+.comp-quota--low { color: #d97706; }

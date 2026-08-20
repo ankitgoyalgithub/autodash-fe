@@ -11,11 +11,21 @@ import ResetPassword from './components/ResetPassword';
 import LandingPage from './components/LandingPage';
 import { BASE } from './components/constants';
 import { Toaster, ConfirmHost } from './components/ui';
+import { PromptLimitModal } from './components/PromptLimitModal';
 
 // Global 401 interceptor — expired or deleted token → force re-login.
 // Skips /me/, /login/, /logout/ to avoid redirect loops.
+const _GEN_ENDPOINTS = ['/query/', '/infographic/', '/reports/', '/agents/', '/entity360'];
 axios.interceptors.response.use(
-  res => res,
+  res => {
+    // After a successful generation, refresh the cached user so the prompt-quota
+    // meter stays accurate mid-session.
+    const url: string = res?.config?.url ?? '';
+    if ((res?.config?.method || '').toLowerCase() === 'post' && _GEN_ENDPOINTS.some(e => url.includes(e))) {
+      window.dispatchEvent(new CustomEvent('lr:refresh-me'));
+    }
+    return res;
+  },
   err => {
     const url: string = err?.config?.url ?? '';
     const is401 = err?.response?.status === 401;
@@ -24,6 +34,11 @@ axios.interceptors.response.use(
       // Best-effort server logout (clears DB token), then hard-reload to /
       axios.post(`${BASE}/logout/`).catch(() => {});
       window.location.href = '/';
+    }
+    // Free-tier prompt cap reached — broadcast so a global upgrade modal shows
+    // (regardless of which generation endpoint hit the limit).
+    if (err?.response?.status === 402 && err?.response?.data?.code === 'prompt_limit_reached') {
+      window.dispatchEvent(new CustomEvent('lr:prompt-limit', { detail: err.response.data }));
     }
     return Promise.reject(err);
   }
@@ -325,6 +340,15 @@ export default function App() {
       .finally(() => setAuthChecked(true));
   }, []);
 
+  // Keep the user (and its prompt-quota fields) fresh after each generation.
+  useEffect(() => {
+    const refresh = () => {
+      axios.get(`${BASE}/me/`).then(r => setUser((prev: any) => prev ? r.data : prev)).catch(() => {});
+    };
+    window.addEventListener('lr:refresh-me', refresh);
+    return () => window.removeEventListener('lr:refresh-me', refresh);
+  }, []);
+
   const handleLogin = (_token: string, userData: any) => {
     // Cookie is already set by the server's Set-Cookie header; just update state
     setUser(userData);
@@ -359,6 +383,7 @@ export default function App() {
       </BrowserRouter>
       <Toaster position="bottom-right" />
       <ConfirmHost />
+      <PromptLimitModal />
     </>
   );
 }

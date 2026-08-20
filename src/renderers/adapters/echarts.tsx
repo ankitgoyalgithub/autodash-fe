@@ -2,13 +2,19 @@ import ReactECharts from 'echarts-for-react';
 import 'echarts-gl';
 import type { ChartAdapterProps } from '../types';
 import { prettifyCol } from '../utils';
+import { GeoMapChart } from './geoMap';
 
-// ── ECharts adapter — 3D chart types ─────────────────────────────────────────
-// Handles: bar3d | scatter3d | pie3d
+// ── ECharts adapter — 3D chart types + geographic maps ────────────────────────
+// Handles: bar3d | scatter3d | pie3d | map/choropleth
 // All other types fall through to the Recharts adapter.
 
 export function EChartsAdapter({ spec }: ChartAdapterProps) {
   const { chart_type, data, xKey, dataKeys, colors, height } = spec;
+
+  // Geographic choropleth (US states / world countries)
+  if (chart_type === 'map' || chart_type === 'choropleth') {
+    return <GeoMapChart spec={spec} />;
+  }
 
   // ── 3D Bar ────────────────────────────────────────────────────────────────
   if (chart_type === 'bar3d') {

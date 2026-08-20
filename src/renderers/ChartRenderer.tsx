@@ -4,7 +4,7 @@ import { EChartsAdapter } from './adapters/echarts';
 import { D3Adapter } from './adapters/d3';
 
 // ── Types that require a specific adapter ─────────────────────────────────────
-const ECHARTS_TYPES = new Set(['bar3d', 'scatter3d', 'pie3d']);
+const ECHARTS_TYPES = new Set(['bar3d', 'scatter3d', 'pie3d', 'map', 'choropleth']);
 const D3_TYPES      = new Set(['treemap', 'sunburst', 'sankey', 'bump', 'force']);
 
 // ── ChartRenderer ─────────────────────────────────────────────────────────────

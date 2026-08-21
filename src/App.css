@@ -12759,3 +12759,12 @@ input[type="password"]:focus, textarea:focus {
 
 .comp-quota { margin-left: 8px; color: var(--theme-text-muted, #94a3b8); font-weight: 600; }
 .comp-quota--low { color: #d97706; }
+
+/* Filter apply: signal that charts are re-querying (Power BI-style visual dim). */
+.dp-charts.is-filtering { position: relative; }
+.dp-charts.is-filtering .chart-card {
+  opacity: 0.55;
+  filter: saturate(0.7);
+  pointer-events: none;
+  transition: opacity .18s var(--ease-out), filter .18s var(--ease-out);
+}

@@ -2895,7 +2895,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           )}
 
           {activeEntry && !activeEntry.infographic_data && effectiveThreadType !== 'report' && effectiveThreadType !== 'newsletter' && effectiveThreadType !== 'cartoon' && effectiveThreadType !== 'image_infographic' && (
-            <div key={activeEntry.id} className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''}`}>
+            <div key={activeEntry.id} className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''} ${filterLoading ? 'is-filtering' : ''}`}>
               {theme.id === 'canva' ? (
                 <div className="canvas-container">
                   <div className="canvas-page">

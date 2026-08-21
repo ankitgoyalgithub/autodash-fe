@@ -12126,6 +12126,45 @@ input[type="password"]:focus, textarea:focus {
   font-size: var(--text-sm);
 }
 
+/* ── Relationships editor ──────────────────────────────────────────────── */
+.dsrel-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.dsrel-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  border-radius: 8px;
+}
+.dsrel-pair { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
+.dsrel-col {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  background: var(--bg-muted, rgba(0,0,0,0.04));
+  color: var(--text-secondary);
+  padding: 2px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+.dsrel-arrow { color: var(--text-tertiary); flex: 0 0 auto; }
+.dsrel-badge {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: var(--weight-medium);
+  padding: 2px 8px; border-radius: 999px;
+  white-space: nowrap;
+}
+.dsrel-badge--fk   { background: rgba(59,130,246,0.12);  color: #1d4ed8; }
+.dsrel-badge--auto { background: rgba(148,163,184,0.18); color: #475569; }
+.dsrel-badge--you  { background: rgba(16,185,129,0.14);  color: #047857; }
+
+.dsrel-builder {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px;
+  border: 1px dashed var(--border-default);
+  border-radius: 8px;
+}
+.dsrel-builder .dscur-input { flex: 1 1 130px; min-width: 110px; }
+.dsrel-add { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; }
+
 /* ── Project data-model modal ──────────────────────────────────────────── */
 .dscur-chip--pinned {
   background: var(--accent-subtle);

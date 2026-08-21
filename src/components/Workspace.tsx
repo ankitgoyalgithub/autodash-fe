@@ -1818,11 +1818,18 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
 
     setFilterLoading(true);
     try {
+      // {filter_column: dimension_table} so the backend can propagate a filter
+      // to charts that don't reference the dimension directly (via the join graph).
+      const filterTables: Record<string, string> = {};
+      for (const f of dashboardFilters) {
+        if (f.column && (f as any).table) filterTables[f.column] = (f as any).table;
+      }
       // Pass empty {} to restore original data; backend returns full unfiltered rows.
       const r = await axios.post(`${BASE}/filter/`, {
         project_id: project.id,
         charts,
         filter_overrides: filterOverrides,
+        filter_tables: filterTables,
       });
       const updatedResults = [...storeCards];
       let errorCount = 0;

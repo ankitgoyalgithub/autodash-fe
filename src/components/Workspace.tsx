@@ -1855,7 +1855,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       if (v === 'deck') { openDeckReport(rid); }
     }
     if (a) {
-      setAnalysisTool(a);
+      // 'pick' (from the sidebar "New slide deck") opens the tool list with
+      // nothing preselected.
+      setAnalysisTool(a === 'pick' ? null : a);
       if (initialThreadId) setAnalysisModal(true);
       else setPendingThreadType('analysis');
       // Consume the param so a refresh doesn't reopen the flow.

@@ -99,7 +99,7 @@ function BrandKitIcon() {
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
-export function Sidebar({ view, setView, projects: _projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, collapsed, onToggle, onLogout, onProfile, user, brand }: {
+export function Sidebar({ view, setView, projects: _projects, activeProject, activeThreadId, onSelectProject, onNewProject, onSelectThread, onAddThread, onAddDeck, collapsed, onToggle, onLogout, onProfile, user, brand }: {
   view: View;
   setView: (v: View) => void;
   projects: Project[];
@@ -109,6 +109,8 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
   onNewProject: () => void;
   onSelectThread: (tId: number) => void;
   onAddThread: () => void;
+  /** Start a new conversation in the Analysis & Deck flow. */
+  onAddDeck?: () => void;
   collapsed: boolean;
   onToggle: () => void;
   onLogout: () => void;
@@ -240,6 +242,11 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
               <button className="sidebar-new-thread" onClick={onAddThread}>
                 <Plus size={11} /> New dashboard
               </button>
+              {onAddDeck && (
+                <button className="sidebar-new-thread" onClick={onAddDeck} title="Run the demand forecast or promotion economics model and get a dashboard plus a slide deck">
+                  <Presentation size={11} /> New slide deck
+                </button>
+              )}
             </div>
           </div>
         </>

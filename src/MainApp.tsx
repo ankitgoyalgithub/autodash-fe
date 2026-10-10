@@ -204,6 +204,7 @@ export default function MainAppContent({ onLogout, user, onUserUpdate }: { onLog
         onSelectProject={openProject}
         onSelectThread={(tId) => activeProject && navigate(`/projects/${activeProject.id}/threads/${tId}`)}
         onAddThread={() => activeProject && navigate(`/projects/${activeProject.id}`)}
+        onAddDeck={() => activeProject && navigate(`/projects/${activeProject.id}?analysis=pick`)}
         onNewProject={() => setShowNewModal(true)}
         collapsed={isSidebarCollapsed}
         onToggle={toggleSidebar}

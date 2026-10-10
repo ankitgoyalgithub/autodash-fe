@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, ChevronRight, ChevronLeft, Hash, Sun, Moon } from 'lucide-react';
+import { Plus, ChevronRight, ChevronLeft, Hash, Sun, Moon, Presentation } from 'lucide-react';
 import { getTheme, toggleTheme } from '../utils/theme';
 import axios from 'axios';
 import type { View, Project, DashboardThread } from '../App';
@@ -220,12 +220,23 @@ export function Sidebar({ view, setView, projects: _projects, activeProject, act
               <span className="proj-name">{activeProject.name}</span>
             </button>
             <div className="sidebar-threads">
-              {threads.map(t => (
-                <button key={t.id} className={`sidebar-thread ${activeThreadId === t.id ? 'active' : ''}`} onClick={() => onSelectThread(t.id)}>
-                  <Hash size={10} />
-                  <span>{t.title}</span>
-                </button>
-              ))}
+              {threads.map(t => {
+                // Deck threads hold a slide deck built by an analysis job —
+                // give them a distinct icon + tag so they stand out from chats.
+                const isDeck = t.thread_type === 'deck';
+                return (
+                  <button
+                    key={t.id}
+                    className={`sidebar-thread ${activeThreadId === t.id ? 'active' : ''}${isDeck ? ' sidebar-thread--deck' : ''}`}
+                    onClick={() => onSelectThread(t.id)}
+                    title={isDeck ? `Slide deck: ${t.title}` : t.title}
+                  >
+                    {isDeck ? <Presentation size={10} /> : <Hash size={10} />}
+                    <span>{t.title}</span>
+                    {isDeck && <span className="sidebar-thread-tag">Deck</span>}
+                  </button>
+                );
+              })}
               <button className="sidebar-new-thread" onClick={onAddThread}>
                 <Plus size={11} /> New dashboard
               </button>

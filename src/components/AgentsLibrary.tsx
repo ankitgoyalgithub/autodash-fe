@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Database, Sparkles, Search, SearchX } from 'lucide-react';
+import { X, Database, Sparkles, Search, SearchX, FlaskConical } from 'lucide-react';
 import type { Datasource, Project } from '../App';
 import { BASE } from './constants';
-import { EmptyState, Skeleton, Button } from './ui';
+import { EmptyState, Skeleton, Button, HITLCard, type HITLRequest } from './ui';
+import { fetchTools, toolLabel, type ToolSpec } from './analysisTools';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,8 @@ export interface SpecializedAgent {
   bg_from: string;
   bg_to: string;
   thumbnail_url?: string;
+  /** Analysis job tools this agent can hand off to (e.g. 'demand_forecast'). */
+  tools?: string[];
 }
 
 // ─── Apply Modal (matches apply-tpl-modal design exactly) ────────────────────
@@ -25,23 +28,32 @@ export interface SpecializedAgent {
 function AgentApplyModal({
   agent,
   datasources,
+  toolCatalog,
   onClose,
   onApplied,
+  onRunTool,
 }: {
   agent: SpecializedAgent;
   datasources: Datasource[];
+  toolCatalog: ToolSpec[] | null;
   onClose: () => void;
   onApplied: (project: Project, threadId: number, dashboards: any[], narrative: string, theme: string) => void;
+  /** Open the Workspace analysis flow for the created project with `tool` preselected. */
+  onRunTool?: (project: Project, tool: string) => void;
 }) {
   const [selectedDs, setSelectedDs] = useState<number | null>(datasources[0]?.id ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [hitl, setHitl] = useState<{ id: string; question: string; options?: string[] } | null>(null);
+  const [hitl, setHitl] = useState<HITLRequest | null>(null);
   const [hitlProjectId, setHitlProjectId] = useState<number | null>(null);
+  // Tool the user asked to run once the agent has created its project.
+  const [pendingTool, setPendingTool] = useState<string | null>(null);
 
   // Run the agent. `extra` carries a resolved clarification (project_id +
   // hitl_responses) so answering the question re-runs on the SAME project.
-  const run = async (extra: Record<string, any> = {}) => {
+  // `tool` (or the remembered pendingTool) hands off to the analysis flow
+  // instead of the dashboard thread once the project exists.
+  const run = async (extra: Record<string, any> = {}, tool: string | null = pendingTool) => {
     if (!selectedDs) return;
     setLoading(true);
     setError('');
@@ -57,6 +69,10 @@ function AgentApplyModal({
         setLoading(false);
         return;
       }
+      if (tool && onRunTool && r.data.project) {
+        onRunTool(r.data.project, tool);
+        return;
+      }
       onApplied(r.data.project, r.data.thread_id, r.data.dashboards, r.data.narrative, r.data.suggested_theme);
     } catch (e: any) {
       setError(e.response?.data?.error || 'Generation failed. Try a different datasource.');
@@ -64,12 +80,14 @@ function AgentApplyModal({
     }
   };
 
-  const handleRun = () => run();
-  const answerHitl = (choice: string) => {
-    const q = hitl;
+  const handleRun = () => { setPendingTool(null); run({}, null); };
+  const handleRunTool = (tool: string) => { setPendingTool(tool); run({}, tool); };
+  const answerHitl = (questionId: string, answer: any) => {
     setHitl(null);
-    if (q) run({ project_id: hitlProjectId, hitl_responses: { [q.id]: choice } });
+    run({ project_id: hitlProjectId, hitl_responses: { [questionId]: answer } });
   };
+
+  const agentTools = (agent.tools || []).filter(t => typeof t === 'string' && t);
 
   return (
     <div className="apply-tpl-modal-overlay" onClick={onClose}>
@@ -97,22 +115,12 @@ function AgentApplyModal({
               <button className="modal-close-btn" onClick={onClose} aria-label="Close"><X size={15} /></button>
             </div>
             <div className="apply-tpl-body">
-              <p style={{ fontSize: 14, color: '#334155', margin: '4px 0 14px', lineHeight: 1.5 }}>{hitl.question}</p>
-              <div className="apply-tpl-ds-list">
-                {(hitl.options || []).map(opt => (
-                  <div
-                    key={opt}
-                    className="apply-tpl-ds-item"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => answerHitl(opt)}
-                  >
-                    <div className="apply-tpl-ds-icon" style={{ background: agent.color + '18', color: agent.color }}>
-                      <Database size={15} />
-                    </div>
-                    <div className="apply-tpl-ds-info"><strong>{opt}</strong></div>
-                  </div>
-                ))}
-              </div>
+              {/* Same HITL card as the Workspace chat — handles select / number / text / form. */}
+              <HITLCard
+                request={hitl}
+                onAnswer={answerHitl}
+                projectColor={agent.color}
+              />
             </div>
           </>
         ) : (
@@ -172,6 +180,28 @@ function AgentApplyModal({
               >
                 <Sparkles size={15} /> Run {agent.name}
               </button>
+
+              {/* Analysis hand-off: create the project with this agent, then
+                  open the Workspace analysis flow with the tool preselected. */}
+              {agentTools.length > 0 && onRunTool && (
+                <>
+                  <div className="agent-tools-label">Or run an analysis model</div>
+                  <div className="agent-tools-row">
+                    {agentTools.map(t => (
+                      <button
+                        key={t}
+                        className="agent-tool-btn"
+                        style={{ borderColor: agent.color + '70', color: agent.color }}
+                        onClick={() => handleRunTool(t)}
+                        disabled={!selectedDs || datasources.length === 0}
+                        title={`Create the project with ${agent.name}, then run ${toolLabel(t, toolCatalog)}`}
+                      >
+                        <FlaskConical size={14} /> Run {toolLabel(t, toolCatalog)} analysis
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}
@@ -182,7 +212,7 @@ function AgentApplyModal({
 
 // ─── Agent Card (styled like tpl-card) ───────────────────────────────────────
 
-function AgentCard({ agent, onSelect }: { agent: SpecializedAgent; onSelect: () => void }) {
+function AgentCard({ agent, toolCatalog, onSelect }: { agent: SpecializedAgent; toolCatalog: ToolSpec[] | null; onSelect: () => void }) {
   return (
     <div className="agent-card" onClick={onSelect}>
       {/* Thumbnail preview area */}
@@ -203,6 +233,13 @@ function AgentCard({ agent, onSelect }: { agent: SpecializedAgent; onSelect: () 
           <h3 className="agent-card-name">{agent.name}</h3>
         </div>
         <p className="agent-card-desc">{agent.description}</p>
+        {agent.tools && agent.tools.length > 0 && (
+          <div className="agent-card-tools">
+            {agent.tools.map(t => (
+              <span key={t} className="agent-card-tool"><FlaskConical size={10} /> {toolLabel(t, toolCatalog)}</span>
+            ))}
+          </div>
+        )}
         <div className="tpl-hover-overlay">
           <span className="tpl-hover-btn">Run Analysis →</span>
         </div>
@@ -218,11 +255,16 @@ const CATEGORIES = ['All', 'Data', 'Compliance', 'Policy', 'Marketing', 'Finance
 export function AgentsLibrary({
   datasources,
   onApplied,
+  onRunTool,
 }: {
   datasources: Datasource[];
   onApplied: (project: Project, threadId: number, dashboards: any[], narrative: string, theme: string) => void;
+  /** Open the Workspace analysis flow for `project` with `tool` preselected. */
+  onRunTool?: (project: Project, tool: string) => void;
 }) {
   const [agents, setAgents] = useState<SpecializedAgent[]>([]);
+  // Tool catalogue (labels for the `tools` chips); only fetched when an agent carries tools.
+  const [toolCatalog, setToolCatalog] = useState<ToolSpec[] | null>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [selectedAgent, setSelectedAgent] = useState<SpecializedAgent | null>(null);
   const [search, setSearch] = useState('');
@@ -230,7 +272,13 @@ export function AgentsLibrary({
 
   useEffect(() => {
     axios.get(`${BASE}/agents/`)
-      .then(r => setAgents(r.data))
+      .then(r => {
+        const list: SpecializedAgent[] = r.data;
+        setAgents(list);
+        if (list.some(a => Array.isArray(a.tools) && a.tools.length > 0)) {
+          fetchTools().then(setToolCatalog).catch(() => setToolCatalog([]));
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -323,7 +371,7 @@ export function AgentsLibrary({
                     </div>
                     <div className="agents-grid">
                       {catAgents.map(agent => (
-                        <AgentCard key={agent.id} agent={agent} onSelect={() => setSelectedAgent(agent)} />
+                        <AgentCard key={agent.id} agent={agent} toolCatalog={toolCatalog} onSelect={() => setSelectedAgent(agent)} />
                       ))}
                     </div>
                   </div>
@@ -332,7 +380,7 @@ export function AgentsLibrary({
             ) : (
               <div className="agents-grid">
                 {filtered.map(agent => (
-                  <AgentCard key={agent.id} agent={agent} onSelect={() => setSelectedAgent(agent)} />
+                  <AgentCard key={agent.id} agent={agent} toolCatalog={toolCatalog} onSelect={() => setSelectedAgent(agent)} />
                 ))}
               </div>
             )}
@@ -345,11 +393,13 @@ export function AgentsLibrary({
         <AgentApplyModal
           agent={selectedAgent}
           datasources={datasources}
+          toolCatalog={toolCatalog}
           onClose={() => setSelectedAgent(null)}
           onApplied={(project, threadId, dashboards, narrative, theme) => {
             setSelectedAgent(null);
             onApplied(project, threadId, dashboards, narrative, theme);
           }}
+          onRunTool={onRunTool ? (project, tool) => { setSelectedAgent(null); onRunTool(project, tool); } : undefined}
         />
       )}
     </div>

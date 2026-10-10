@@ -37,3 +37,6 @@ export { toast, Toaster } from './toast';
 export { confirmDialog, ConfirmHost } from './confirm';
 export type { ConfirmOptions } from './confirm';
 export type { ToastOptions } from './toast';
+
+export { HITLCard } from './HITLCard';
+export type { HITLRequest, HITLField } from './HITLCard';

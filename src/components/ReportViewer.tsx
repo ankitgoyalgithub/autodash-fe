@@ -11,7 +11,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import {
-  Maximize2, Minimize2, Printer, FileText, FileImage, ChevronLeft, Mail,
+  Maximize2, Minimize2, Printer, FileText, FileImage, ChevronLeft, ChevronRight, Mail, Presentation,
 } from 'lucide-react';
 import { ErrorState, Spinner } from './ui';
 import { BASE } from './constants';
@@ -30,7 +30,7 @@ export interface ReportData {
   title:             string;
   subtitle:          string;
   query:             string;
-  format:            'report' | 'newsletter' | 'cartoon' | 'image_infographic';
+  format:            'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'deck';
   style:             string;
   length:            'brief' | 'standard' | 'deep';
   status:            string;
@@ -50,8 +50,13 @@ interface ReportViewerProps {
 
 // ── Reading progress + status messages ───────────────────────────────────────
 
+/** Slide stage geometry — every deck slide is a 1280×720 <section class="slide">. */
+const SLIDE_W = 1280;
+const SLIDE_H = 720;
+
 const STATUS_MESSAGES: Record<string, string> = {
   queued:      'Preparing your report...',
+  modeling:    'Running the analysis model...',
   outlining:   'Planning the report structure...',
   fetching:    'Fetching data from your database...',
   writing:     'Writing chapter narratives...',
@@ -66,6 +71,12 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
+  const isDeck = report.format === 'deck';
+  // Deck mode: the iframe is a fixed 1280×720 stage scaled to the viewport.
+  const deckViewportRef = useRef<HTMLDivElement>(null);
+  const [deckScale, setDeckScale] = useState(1);
+  const [slideCount, setSlideCount] = useState(0);
+  const [slideIdx, setSlideIdx] = useState(0);
 
   // IMPORTANT: every hook in this component MUST run on every render.
   // The early-return for the loading state below comes AFTER all hooks,
@@ -83,6 +94,27 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
     doc.write(report.report_html);
     doc.close();
 
+    if (report.format === 'deck') {
+      // Pin the document to the stage: no margins, no scrollbars; navigation
+      // scrolls the document programmatically one slide at a time.
+      try {
+        const style = doc.createElement('style');
+        style.textContent = 'html,body{margin:0!important;padding:0!important;overflow:hidden!important;background:#fff}';
+        (doc.head || doc.documentElement).appendChild(style);
+      } catch { /* ignore */ }
+      const count = () => {
+        try {
+          const n = doc.querySelectorAll('.slide').length;
+          setSlideCount(n);
+          setSlideIdx(0);
+          doc.documentElement.scrollTop = 0;
+        } catch { /* same-origin guard */ }
+      };
+      count();
+      setTimeout(count, 300);
+      return;
+    }
+
     // Auto-resize iframe
     const resize = () => {
       try {
@@ -97,7 +129,7 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
     setTimeout(resize, 300);
     setTimeout(resize, 1200);
     setTimeout(resize, 2500);
-  }, [report.report_html]);
+  }, [report.report_html, report.format]);
 
   useEffect(() => { handleIframeLoad(); }, [handleIframeLoad]);
 
@@ -112,6 +144,57 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
+
+  // Deck: scale the 1280×720 stage to the viewport (width-bound; height-bound
+  // too in fullscreen so a whole slide is always visible).
+  useEffect(() => {
+    if (!isDeck) return;
+    const el = deckViewportRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      const sw = w > 0 ? w / SLIDE_W : 1;
+      const sh = h > 0 ? h / SLIDE_H : sw;
+      setDeckScale(Math.max(0.1, Math.min(sw, sh)));
+    };
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', measure);
+    return () => { ro?.disconnect(); window.removeEventListener('resize', measure); };
+  }, [isDeck, report.status, isFullscreen]);
+
+  // Deck: scroll the iframe document to the nth slide.
+  const goToSlide = useCallback((n: number) => {
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    if (!doc) return;
+    const slides = doc.querySelectorAll('.slide');
+    if (!slides.length) return;
+    const idx = Math.max(0, Math.min(slides.length - 1, n));
+    const target = slides[idx] as HTMLElement;
+    try {
+      // scrollIntoView works on overflow:hidden documents; fall back to manual offset.
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {
+      doc.documentElement.scrollTop = target.offsetTop;
+    }
+    setSlideIdx(idx);
+  }, []);
+
+  // Deck: arrow-key navigation while the viewer is on screen.
+  useEffect(() => {
+    if (!isDeck || report.status !== 'ready') return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); goToSlide(slideIdx + 1); }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goToSlide(slideIdx - 1); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isDeck, report.status, slideIdx, goToSlide]);
 
   // Loading / error states — early return AFTER all hooks so the hook
   // order stays consistent across renders.
@@ -139,6 +222,7 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
   const fmtLabel = report.format === 'newsletter' ? 'Newsletter'
     : report.format === 'cartoon' ? 'Cartoon'
     : report.format === 'image_infographic' ? 'Infographic'
+    : report.format === 'deck' ? 'Deck'
     : 'Report';
 
   const handleDownloadPNG = async () => {
@@ -182,16 +266,28 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
             </button>
           )}
           <span className="report-tb-title">
-            <FileText size={13} /> {report.title}
+            {isDeck ? <Presentation size={13} /> : <FileText size={13} />} {report.title}
           </span>
           <span className={`report-style-badge report-fmt-${report.format}`}>
             {report.format === 'newsletter' ? 'NEWSLETTER'
               : report.format === 'cartoon' ? 'CARTOON'
               : report.format === 'image_infographic' ? 'INFOGRAPHIC'
+              : report.format === 'deck' ? 'DECK'
               : 'REPORT'}
           </span>
         </div>
         <div className="report-toolbar-right">
+          {isDeck && (
+            <div className="deck-nav" role="group" aria-label="Slide navigation">
+              <button className="report-tb-btn" onClick={() => goToSlide(slideIdx - 1)} disabled={slideIdx <= 0} title="Previous slide (←)">
+                <ChevronLeft size={14} />
+              </button>
+              <span className="deck-nav-count">{slideCount ? `${slideIdx + 1} / ${slideCount}` : '—'}</span>
+              <button className="report-tb-btn" onClick={() => goToSlide(slideIdx + 1)} disabled={slideCount === 0 || slideIdx >= slideCount - 1} title="Next slide (→)">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
           {(report.format === 'image_infographic' || report.format === 'cartoon') && (
             <button className="report-tb-btn report-tb-btn--primary" onClick={handleDownloadPNG} title="Download as PNG">
               <FileImage size={14} /> <span>Download PNG</span>
@@ -210,7 +306,7 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
       </div>
 
       {/* Body: TOC sidebar (reports only) + iframe canvas */}
-      <div className={`report-body ${report.format === 'newsletter' ? 'report-body--newsletter' : ''} ${report.format === 'cartoon' ? 'report-body--cartoon' : ''} ${report.format === 'image_infographic' ? 'report-body--imginfo' : ''}`}>
+      <div className={`report-body ${report.format === 'newsletter' ? 'report-body--newsletter' : ''} ${report.format === 'cartoon' ? 'report-body--cartoon' : ''} ${report.format === 'image_infographic' ? 'report-body--imginfo' : ''} ${isDeck ? 'report-body--deck' : ''}`}>
         {/* Sticky TOC sidebar — only for long-form reports */}
         {report.format === 'report' && (
           <aside className="report-toc-sidebar">
@@ -232,21 +328,51 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
           </aside>
         )}
 
-        {/* Iframe canvas */}
-        <div className="report-canvas">
-          <iframe
-            ref={iframeRef}
-            className="report-iframe"
-            title={report.title}
-            // SECURITY: no 'allow-scripts'. report_html is LLM-generated from
-            // user/DB data; with 'allow-same-origin' present, also allowing
-            // scripts would let injected markup run as first-party JS on
-            // lucentreport.com and call the API with the session cookie. The
-            // report is static HTML/CSS, so scripts are not needed.
-            sandbox="allow-same-origin allow-popups allow-modals"
-            onLoad={handleIframeLoad}
-          />
-        </div>
+        {/* Iframe canvas. In deck mode the iframe is a fixed 1280×720 stage
+            scaled with a CSS transform to fit the viewport; the same sandboxed
+            iframe path is used (see SECURITY note below). */}
+        {isDeck ? (
+          <div className="report-canvas report-canvas--deck">
+            <div className="deck-viewport" ref={deckViewportRef}>
+              <div className="deck-stage-box" style={{ width: SLIDE_W * deckScale, height: SLIDE_H * deckScale }}>
+                <div className="deck-stage" style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${deckScale})` }}>
+                  <iframe
+                    ref={iframeRef}
+                    className="report-iframe report-iframe--deck"
+                    title={report.title}
+                    width={SLIDE_W}
+                    height={SLIDE_H}
+                    scrolling="no"
+                    sandbox="allow-same-origin allow-popups allow-modals"
+                    onLoad={handleIframeLoad}
+                  />
+                </div>
+              </div>
+              {slideCount > 1 && (
+                <div className="deck-dots" aria-hidden="true">
+                  {Array.from({ length: slideCount }).map((_, i) => (
+                    <button key={i} className={`deck-dot${i === slideIdx ? ' active' : ''}`} onClick={() => goToSlide(i)} tabIndex={-1} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="report-canvas">
+            <iframe
+              ref={iframeRef}
+              className="report-iframe"
+              title={report.title}
+              // SECURITY: no 'allow-scripts'. report_html is LLM-generated from
+              // user/DB data; with 'allow-same-origin' present, also allowing
+              // scripts would let injected markup run as first-party JS on
+              // lucentreport.com and call the API with the session cookie. The
+              // report is static HTML/CSS, so scripts are not needed.
+              sandbox="allow-same-origin allow-popups allow-modals"
+              onLoad={handleIframeLoad}
+            />
+          </div>
+        )}
       </div>
 
       {showEmail && (
@@ -287,8 +413,9 @@ function ReportLoadingState({ report }: { report: ReportData }) {
         <div className="report-progress-fill" style={{ width: `${report.progress}%` }} />
       </div>
       <p className="report-loading-hint">
-        Reports take 60-90 seconds. We are running outline planning, data fetching,
-        chapter writing, and assembly steps.
+        {report.format === 'deck'
+          ? 'Decks are built from the analysis job results. This usually takes a few minutes while the model runs.'
+          : 'Reports take 60-90 seconds. We are running outline planning, data fetching, chapter writing, and assembly steps.'}
       </p>
     </div>
   );

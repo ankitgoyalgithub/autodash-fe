@@ -10,12 +10,12 @@ import {
   LayoutDashboard, X, Send, AlertCircle, Loader2, ArrowLeft,
   Eye, EyeOff, Zap, Sparkles, Upload, LayoutGrid, LayoutList, Square,
   Palette, LayoutTemplate, Columns, MousePointer2, Move, Download, Plus, Filter,
-  Brain, ChevronRight, Wand2, Bot, RefreshCw, FileDown, Check,
+  ChevronRight, Wand2, Bot, RefreshCw, FileDown, Check,
   Library, Trash2, PlusCircle, BarChart2 as BarChartIcon, Users, AlertTriangle,
   FileText, Newspaper, Image as ImageIcon, Compass, Drama, MoreHorizontal, ShieldCheck,
-  Undo2, Redo2,
+  Undo2, Redo2, FlaskConical, Presentation,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createDocumentFromThread } from '../hooks/useDocuments';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
@@ -36,11 +36,14 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 const logo = '/app-icon.png';
-import type { Project, DashboardCard, HistoryEntry, UploadedFile, Entity360Payload } from '../App';
+import type { Project, DashboardCard, HistoryEntry, UploadedFile, Entity360Payload, ThreadType } from '../App';
 import { Entity360View } from './Entity360View';
 import { BASE, THEMES, FONTS, PALETTES, TEMPLATES } from './constants';
 import { ProjectLogo, ProjectLogoTile } from './projectLogos';
-import { toast, confirmDialog, Modal, Button } from './ui';
+import { toast, confirmDialog, Modal, Button, HITLCard } from './ui';
+import type { HITLRequest } from './ui';
+import { AnalysisPanel } from './AnalysisPanel';
+import { fetchTools, toolLabel, type ToolJob, type ToolSpec } from './analysisTools';
 import { TimeframeChip, DEFAULT_TIMEFRAME } from './TimeframeChip';
 import type { TimeRangeValue } from './TimeframeChip';
 import { ThemeChip, DEFAULT_THEME } from './ThemeChip';
@@ -60,6 +63,9 @@ import { ReportViewer, type ReportData } from './ReportViewer';
 // Specialized layouts (exec, hub, split, etc.) use plain renderCards instead.
 
 type LayoutMode = 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
+
+/** Thread types whose content is a Report (rendered by ReportViewer) rather than a card grid. */
+const REPORT_LIKE_TYPES: string[] = ['report', 'newsletter', 'cartoon', 'image_infographic', 'deck'];
 
 interface DraggableCardsGridProps {
   cards: DashboardCard[];
@@ -222,147 +228,6 @@ function SortableGridCard({ id, card, index, layout, editMode, font, colors, pos
     </div>
   );
 }
-
-// ─── HITL Types ───────────────────────────────────────────────────────────────
-
-interface HITLField {
-  id: string;
-  label: string;
-  type: 'select' | 'number' | 'text';
-  options?: string[];
-  default?: string;
-  hint?: string;
-}
-
-interface HITLRequest {
-  id: string;
-  question: string;
-  type: 'select' | 'number' | 'text' | 'form';
-  options?: string[];
-  default?: string;
-  fields?: HITLField[];
-  placeholder?: string;
-}
-
-// ─── HITL Card ────────────────────────────────────────────────────────────────
-
-function HITLCard({ request, onAnswer, projectColor }: {
-  request: HITLRequest;
-  onAnswer: (questionId: string, answer: any) => void;
-  projectColor: string;
-}) {
-  const [simpleAnswer, setSimpleAnswer] = useState<string>(
-    request.default || request.options?.[0] || ''
-  );
-  const [formValues, setFormValues] = useState<Record<string, string>>(() => {
-    if (request.fields) {
-      return Object.fromEntries(
-        request.fields.map(f => [f.id, f.default || f.options?.[0] || ''])
-      );
-    }
-    return {};
-  });
-
-  const handleSubmit = () => {
-    if (request.type === 'form') {
-      onAnswer(request.id, formValues);
-    } else {
-      onAnswer(request.id, simpleAnswer);
-    }
-  };
-
-  return (
-    <div className="hitl-card">
-      <div className="hitl-header">
-        <Brain size={14} className="hitl-brain-icon"/>
-        <span className="hitl-label">Input Required</span>
-      </div>
-      <p className="hitl-question">{request.question}</p>
-
-      {/* Simple select */}
-      {request.type === 'select' && request.options && (
-        <div className="hitl-options-grid">
-          {request.options.map(opt => (
-            <button
-              key={opt}
-              className={`hitl-option ${simpleAnswer === opt ? 'selected' : ''}`}
-              style={simpleAnswer === opt ? { borderColor: projectColor, background: projectColor + '18', color: projectColor } : {}}
-              onClick={() => setSimpleAnswer(opt)}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Simple number */}
-      {request.type === 'number' && (
-        <input
-          type="number"
-          className="hitl-input"
-          value={simpleAnswer}
-          onChange={e => setSimpleAnswer(e.target.value)}
-          placeholder={request.placeholder || 'Enter a number'}
-        />
-      )}
-
-      {/* Simple text */}
-      {request.type === 'text' && (
-        <input
-          type="text"
-          className="hitl-input"
-          value={simpleAnswer}
-          onChange={e => setSimpleAnswer(e.target.value)}
-          placeholder={request.placeholder || 'Type your answer…'}
-        />
-      )}
-
-      {/* Form (compound fields) */}
-      {request.type === 'form' && request.fields && (
-        <div className="hitl-form">
-          {request.fields.map(field => (
-            <div key={field.id} className="hitl-field">
-              <label className="hitl-field-label">
-                {field.label}
-                {field.hint && <span className="hitl-field-hint"> — {field.hint}</span>}
-              </label>
-              {field.type === 'select' && field.options ? (
-                <div className="hitl-options-grid hitl-options-sm">
-                  {field.options.map(opt => (
-                    <button
-                      key={opt}
-                      className={`hitl-option ${formValues[field.id] === opt ? 'selected' : ''}`}
-                      style={formValues[field.id] === opt ? { borderColor: projectColor, background: projectColor + '18', color: projectColor } : {}}
-                      onClick={() => setFormValues(prev => ({ ...prev, [field.id]: opt }))}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <input
-                  type={field.type === 'number' ? 'number' : 'text'}
-                  className="hitl-input"
-                  value={formValues[field.id] || ''}
-                  onChange={e => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <button
-        className="hitl-submit-btn"
-        style={{ background: projectColor }}
-        onClick={handleSubmit}
-      >
-        Continue <ChevronRight size={13}/>
-      </button>
-    </div>
-  );
-}
-
 
 function ThemePicker({ selected, onSelect }: { selected: any; onSelect: (t: any) => void }) {
   const [open, setOpen] = useState(false);
@@ -1159,8 +1024,25 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
 }) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<number | null>(initialThreadId || null);
-  const [threadType, setThreadType] = useState<'dashboard' | 'infographic' | 'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'entity360' | null>(null);
-  const [pendingThreadType, setPendingThreadType] = useState<'dashboard' | 'infographic' | 'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'entity360' | null>(null);
+  // 'analysis' is a frontend-only picker state: the analysis job creates a
+  // 'dashboard' thread (and a 'deck' thread) on the server, so it never comes
+  // back as a persisted thread_type.
+  const [threadType, setThreadType] = useState<ThreadType | null>(null);
+  const [pendingThreadType, setPendingThreadType] = useState<ThreadType | 'analysis' | null>(null);
+  // Analysis flow state — see AnalysisPanel. `analysisTool` preselects a tool
+  // (from a suggested_tools chip or the ?analysis= query param); `analysisModal`
+  // hosts the flow when the current thread already has history.
+  const [analysisTool, setAnalysisTool] = useState<string | null>(null);
+  const [analysisModal, setAnalysisModal] = useState(false);
+  const [suggestedTools, setSuggestedTools] = useState<string[]>([]);
+  const [toolCatalog, setToolCatalog] = useState<ToolSpec[] | null>(null);
+  // Deck produced by the analysis job that created this dashboard thread
+  // (carried through the remount via ?deck=<report_id>). `deckView` swaps the
+  // right panel to the ReportViewer for that deck.
+  const [deckReportId, setDeckReportId] = useState<number | null>(null);
+  const [deckReport, setDeckReport] = useState<ReportData | null>(null);
+  const [deckView, setDeckView] = useState(false);
+  const [deckLoading, setDeckLoading] = useState(false);
   const [igStyle, setIgStyle] = useState<string>('executive');
   // Infographic timeframe — defaults to last 90 days so a user can press
   // Send and get something sensible without touching the chip. Persists
@@ -1249,6 +1131,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     return () => document.removeEventListener('mousedown', close);
   }, [showToolMenu]);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [creditsWarning, setCreditsWarning] = useState<'near_limit' | 'at_limit' | null>(null);
   // Track previous thread so we only clear filters when SWITCHING threads,
   // not when a brand-new thread ID is first assigned (which would wipe filters
@@ -1298,8 +1181,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         setActiveEntry(threadHistory[threadHistory.length - 1]);
       }
 
-      // For long-form threads (report / newsletter / cartoon / image_infographic), fetch the latest report
-      if (['report', 'newsletter', 'cartoon', 'image_infographic'].includes(r.data.thread_type)) {
+      // For long-form threads (report / newsletter / cartoon / image_infographic / deck), fetch the latest report
+      if (REPORT_LIKE_TYPES.includes(r.data.thread_type)) {
         try {
           const reps = await axios.get(`${BASE}/reports/list/?project_id=${project.id}`);
           const matchingReport = (reps.data || []).find((rep: any) => rep.thread_id === tId);
@@ -1476,6 +1359,9 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
 
       // Credits warning
       if (r.data.credits_warning) setCreditsWarning(r.data.credits_warning);
+
+      // Analysis tools the backend thinks fit this question — rendered as chips under the composer.
+      setSuggestedTools(Array.isArray(r.data.suggested_tools) ? r.data.suggested_tools.filter((t: unknown) => typeof t === 'string') : []);
 
       setOptimisticPrompt(null);
     } catch (e: any) {
@@ -1912,12 +1798,93 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
     await handleSubmit(hitlQueryRef, newResponses);
   };
 
+  // ── Analysis & Deck flow ─────────────────────────────────────────────────────
+  // Jobs run server-side; the dashboard thread they create is opened through
+  // the normal thread route (which remounts Workspace), so the deck pointer is
+  // carried in the URL (?deck=<report_id>) rather than component state.
+  const openJobDashboard = (job: ToolJob) => {
+    if (!job.thread_id) return;
+    setAnalysisModal(false);
+    const q = job.report_id ? `?deck=${job.report_id}` : '';
+    navigate(`/projects/${project.id}/threads/${job.thread_id}${q}`);
+  };
+  const openJobDeck = async (job: ToolJob) => {
+    if (!job.report_id) return;
+    setAnalysisModal(false);
+    if (job.thread_id) {
+      navigate(`/projects/${project.id}/threads/${job.thread_id}?deck=${job.report_id}&view=deck`);
+      return;
+    }
+    await openDeckReport(job.report_id);
+  };
+  /** Fetch a deck Report and show it in the right panel (toggles back if already shown). */
+  const openDeckReport = async (reportId: number) => {
+    if (deckView) { setDeckView(false); return; }
+    setDeckLoading(true);
+    try {
+      const r = await axios.get(`${BASE}/reports/${reportId}/`);
+      // Separate from `activeReport`: fetchThreadHistory clears that for
+      // dashboard threads, and the deck is viewed on top of a dashboard thread.
+      setDeckReport(r.data);
+      setDeckView(true);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || 'Could not load the slide deck.');
+    } finally {
+      setDeckLoading(false);
+    }
+  };
+  /** Jump into the analysis flow with a tool preselected (chips, agents, ?analysis=). */
+  const startAnalysis = (tool: string | null) => {
+    setAnalysisTool(tool);
+    if (history.length === 0 && !threadType) {
+      setPendingThreadType('analysis');
+    } else {
+      setAnalysisModal(true);
+    }
+  };
+
+  // ?analysis=<tool> opens the flow; ?deck=<report_id> remembers the deck built
+  // with this dashboard; &view=deck opens it straight away.
+  useEffect(() => {
+    const a = searchParams.get('analysis');
+    const d = searchParams.get('deck');
+    const v = searchParams.get('view');
+    if (d && /^\d+$/.test(d)) {
+      const rid = parseInt(d, 10);
+      setDeckReportId(rid);
+      if (v === 'deck') { openDeckReport(rid); }
+    }
+    if (a) {
+      setAnalysisTool(a);
+      if (initialThreadId) setAnalysisModal(true);
+      else setPendingThreadType('analysis');
+      // Consume the param so a refresh doesn't reopen the flow.
+      const next = new URLSearchParams(searchParams);
+      next.delete('analysis'); next.delete('view');
+      setSearchParams(next, { replace: true });
+    } else if (v) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('view');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Tool labels for the suggested_tools chips (catalogue is cached per session).
+  useEffect(() => {
+    if (suggestedTools.length === 0 || toolCatalog) return;
+    fetchTools().then(setToolCatalog).catch(() => setToolCatalog([]));
+  }, [suggestedTools, toolCatalog]);
+
   const activeColors = palette === 'brand'
     ? (brandPalette ?? getBrandPaletteColors())
     : (PALETTES[palette as keyof typeof PALETTES] ?? PALETTES.vibrant);
 
   // Effective thread type: set once the user picks, or once the thread is loaded
   const effectiveThreadType = threadType ?? pendingThreadType;
+  const isReportLike = effectiveThreadType !== null && REPORT_LIKE_TYPES.includes(effectiveThreadType);
+  // Deck threads and the analysis flow don't take free-text prompts.
+  const composerHidden = effectiveThreadType === 'deck' || effectiveThreadType === 'analysis';
 
   // ── Drag reorder callback (called by DraggableCardsGrid) ────────────────────
   const handleReorder = (oldIndex: number, newIndex: number) => {
@@ -1994,6 +1961,10 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
       examples: ['Top 5 stats from this year', 'Before vs. after the launch'] },
     entity360:         { Icon: Compass,         tint: '#10b981', label: 'Entity 360° View', title: 'Profile an entity',
       examples: ['A 360 view of customer Acme Corp', 'Everything about order 10248'] },
+    analysis:          { Icon: FlaskConical,    tint: '#8b5cf6', label: 'Analysis & Deck',  title: 'Run an analysis',
+      examples: [] },
+    deck:              { Icon: Presentation,    tint: '#8b5cf6', label: 'Slide Deck',       title: 'Slide deck',
+      examples: [] },
   };
   const fmtMeta = effectiveThreadType ? FORMAT_META[effectiveThreadType] : null;
   const fillPrompt = (text: string) => {
@@ -2236,6 +2207,8 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                     desc: 'Tall, social-style graphic with stacked stat blocks — one PNG.' },
                   { type: 'entity360',         Icon: Compass,         tint: '#10b981', label: 'Entity 360° View',
                     desc: 'A full profile of one record — attributes, KPIs, related tables and a timeline.' },
+                  { type: 'analysis',          Icon: FlaskConical,    tint: '#8b5cf6', label: 'Analysis & Deck',
+                    desc: 'Run the demand forecast or promotion economics model on this project and get an interactive dashboard plus a slide deck.' },
                 ].map(({ type, Icon, tint, label, desc, featured }) => (
                   <button
                     key={type}
@@ -2254,7 +2227,20 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               </div>
             </div>
           )}
-          {history.length === 0 && !loading && effectiveThreadType !== null && (
+          {history.length === 0 && !loading && effectiveThreadType === 'analysis' && (
+            <div className="chat-empty chat-empty--analysis">
+              <AnalysisPanel
+                projectId={project.id}
+                projectColor={project.color}
+                preselectedTool={analysisTool}
+                onReady={job => { toast.success(`${toolLabel(job.tool, toolCatalog)} is ready`); openJobDashboard(job); }}
+                onOpenDashboard={openJobDashboard}
+                onOpenDeck={openJobDeck}
+                onBack={!threadType ? () => { setPendingThreadType(null); setAnalysisTool(null); } : undefined}
+              />
+            </div>
+          )}
+          {history.length === 0 && !loading && effectiveThreadType !== null && effectiveThreadType !== 'analysis' && (
             <div className="chat-empty">
               {/* Before the first message is sent the format isn't committed yet,
                   so allow going back to the picker instead of stranding the user. */}
@@ -2278,6 +2264,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   : effectiveThreadType === 'cartoon' ? 'What story should the cartoon tell? A finding, a problem, or a turnaround works best.'
                   : effectiveThreadType === 'image_infographic' ? 'What stats or comparisons should the infographic highlight?'
                   : effectiveThreadType === 'entity360' ? 'Name the entity to profile — e.g. "a 360 view of customer Acme Corp" or "everything about order 10248".'
+                  : effectiveThreadType === 'deck' ? 'This deck was built by an analysis job. Open it on the right, or start a new conversation to run another analysis.'
                   : 'Describe what you want to see and I’ll build it. Try one of these to start:'}
               </p>
               {fmtMeta && fmtMeta.examples.length > 0 && (
@@ -2446,7 +2433,34 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           <div ref={chatBottomRef}/>
         </div>
 
-        <div className="composer">
+        {/* Deck built by the analysis job that created this dashboard thread */}
+        {deckReportId && !composerHidden && (
+          <div className="deck-ready-banner" style={{ '--fmt-tint': '#8b5cf6' } as CSSProperties}>
+            <Presentation size={15} className="deck-ready-icon"/>
+            <div className="deck-ready-text">
+              <strong>Slide deck ready</strong>
+              <span>Built alongside this dashboard by the analysis job.</span>
+            </div>
+            <button className="deck-ready-btn" onClick={() => openDeckReport(deckReportId)} disabled={deckLoading}>
+              {deckLoading ? <Loader2 size={13} className="spin"/> : <Presentation size={13}/>}
+              {deckView ? 'Back to dashboard' : 'Open deck'}
+            </button>
+          </div>
+        )}
+
+        {/* "Run analysis" chips — tools the backend suggested for the last question */}
+        {suggestedTools.length > 0 && !composerHidden && (
+          <div className="suggested-tools-row">
+            <span className="suggested-tools-label"><FlaskConical size={12}/> Run analysis:</span>
+            {suggestedTools.map(t => (
+              <button key={t} className="suggested-tool-chip" onClick={() => startAnalysis(t)} title={`Run ${toolLabel(t, toolCatalog)} on this project`}>
+                {toolLabel(t, toolCatalog)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="composer" style={composerHidden ? { display: 'none' } : undefined}>
           {uploads.length > 0 && (
             <div className="upload-strip">
               {uploads.map((u, i) => (
@@ -2506,9 +2520,10 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
+                  if (composerHidden) return;
                   if (effectiveThreadType === 'infographic') handleInfographicSubmit();
                   else if (effectiveThreadType === 'entity360') handleEntity360Submit();
-                  else if (effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') handleReportSubmit();
+                  else if (isReportLike) handleReportSubmit();
                   else handleSubmit();
                 }
               }}
@@ -2544,9 +2559,10 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               </div>
               <div className="composer-actions-right">
                 <button className="comp-send" style={{ background: project.color }} onClick={() => {
+                  if (composerHidden) return;
                   if (effectiveThreadType === 'infographic') handleInfographicSubmit();
                   else if (effectiveThreadType === 'entity360') handleEntity360Submit();
-                  else if (effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') handleReportSubmit();
+                  else if (isReportLike) handleReportSubmit();
                   else handleSubmit();
                 }} disabled={loading || (isQueryEmpty && !uploads.length)}>
                   {loading ? <Loader2 size={15} className="spin"/> : <Send size={15}/>}
@@ -2873,13 +2889,17 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
               : <InfographicEditor entry={activeEntry} projectColor={project.color} />
           )}
 
-          {/* Report / Newsletter viewer */}
-          {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') && activeReport && (
+          {/* Report / Newsletter / Deck viewer. `deckView` shows the deck an
+              analysis job built for this dashboard thread, with a way back. */}
+          {isReportLike && activeReport && !deckView && (
             <ReportViewer report={activeReport} />
+          )}
+          {deckView && deckReport && (
+            <ReportViewer report={deckReport} onBack={() => { setDeckView(false); }} />
           )}
 
           {/* Loading message while report/newsletter is being generated */}
-          {(effectiveThreadType === 'report' || effectiveThreadType === 'newsletter' || effectiveThreadType === 'cartoon' || effectiveThreadType === 'image_infographic') && !activeReport && loading && (
+          {isReportLike && !activeReport && loading && (
             <div className="report-loading-state">
               <Loader2 size={32} className="report-loading-icon spin" />
               <h3>
@@ -2901,7 +2921,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
             </div>
           )}
 
-          {activeEntry && !activeEntry.infographic_data && effectiveThreadType !== 'report' && effectiveThreadType !== 'newsletter' && effectiveThreadType !== 'cartoon' && effectiveThreadType !== 'image_infographic' && (
+          {activeEntry && !activeEntry.infographic_data && !isReportLike && !deckView && (
             <div key={activeEntry.id} className={`dp-charts layout-${layout} ${editMode ? 'edit-mode' : ''} ${theme.id === 'canva' ? 'canvas-mode' : ''} ${filterLoading ? 'is-filtering' : ''}`}>
               {theme.id === 'canva' ? (
                 <div className="canvas-container">
@@ -3037,6 +3057,29 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {analysisModal && (
+        <Modal
+          open
+          onClose={() => setAnalysisModal(false)}
+          size="lg"
+          title="Analysis & Deck"
+          subtitle="Runs on this project's data in the background and creates a new dashboard thread plus a slide deck."
+          dismissOnOverlayClick={false}
+        >
+          <Modal.Body>
+            <AnalysisPanel
+              projectId={project.id}
+              projectColor={project.color}
+              preselectedTool={analysisTool}
+              onReady={job => toast.success(`${toolLabel(job.tool, toolCatalog)} is ready — open the dashboard or the deck.`)}
+              onOpenDashboard={openJobDashboard}
+              onOpenDeck={openJobDeck}
+              compact
+            />
+          </Modal.Body>
+        </Modal>
+      )}
 
       {showExportModal && activeEntry && (
         <ExportModal

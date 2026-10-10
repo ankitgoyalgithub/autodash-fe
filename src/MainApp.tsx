@@ -149,6 +149,13 @@ export default function MainAppContent({ onLogout, user, onUserUpdate }: { onLog
     navigate(`/projects/${p.id}/threads/${threadId}`);
   };
 
+  // Agent → analysis hand-off: open the project's Workspace with the analysis
+  // flow and the tool preselected (Workspace reads ?analysis=<tool> on mount).
+  const handleRunTool = (project: Project, tool: string) => {
+    setProjects(prev => prev.find(p => p.id === project.id) ? prev : [project, ...prev]);
+    navigate(`/projects/${project.id}?analysis=${encodeURIComponent(tool)}`);
+  };
+
   const handleTemplateApplied = (
     project: Project,
     threadId: number,
@@ -259,7 +266,7 @@ export default function MainAppContent({ onLogout, user, onUserUpdate }: { onLog
               ) : null
             } />
             <Route path="/agents" element={
-              <AgentsLibrary datasources={datasources} onApplied={handleTemplateApplied} />
+              <AgentsLibrary datasources={datasources} onApplied={handleTemplateApplied} onRunTool={handleRunTool} />
             } />
             <Route path="/brand" element={
               <BrandKitEditor brandKit={brandKit} saving={brandSaving} error={brandError} save={saveBrandKit} />

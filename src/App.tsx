@@ -304,12 +304,12 @@ export interface Entity360Payload {
 }
 
 /** Every thread_type the backend can return. 'deck' threads hold a slide-deck Report built by an analysis job. */
-export type ThreadType = 'dashboard' | 'infographic' | 'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'entity360' | 'deck';
+export type ThreadType = 'dashboard' | 'infographic' | 'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'entity360' | 'deck' | 'eda';
 
 export interface DashboardThread {
   id: number;
   title: string;
-  thread_type: 'dashboard' | 'infographic' | 'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'entity360' | 'deck';
+  thread_type: 'dashboard' | 'infographic' | 'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'entity360' | 'deck' | 'eda';
   updated_at: string;
   created_at: string;
 }

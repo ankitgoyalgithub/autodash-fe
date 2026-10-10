@@ -30,7 +30,7 @@ export interface ReportData {
   title:             string;
   subtitle:          string;
   query:             string;
-  format:            'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'deck';
+  format:            'report' | 'newsletter' | 'cartoon' | 'image_infographic' | 'deck' | 'eda';
   style:             string;
   length:            'brief' | 'standard' | 'deep';
   status:            string;
@@ -115,6 +115,19 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
       return;
     }
 
+    if (report.format === 'eda') {
+      // EDA reports switch tabs with CSS (scripts are disabled in the frame),
+      // so each tab has its own height. html is forced to height:auto so its
+      // box is the content height (scrollHeight never shrinks below the
+      // frame), and the effect below re-measures it while the report is open.
+      try {
+        const style = doc.createElement('style');
+        style.textContent = 'html,body{height:auto!important;min-height:0!important}';
+        (doc.head || doc.documentElement).appendChild(style);
+      } catch { /* ignore */ }
+      return;
+    }
+
     // Auto-resize iframe
     const resize = () => {
       try {
@@ -132,6 +145,29 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
   }, [report.report_html, report.format]);
 
   useEffect(() => { handleIframeLoad(); }, [handleIframeLoad]);
+
+  // EDA reports: follow the active tab's height. A light poll is used rather
+  // than event listeners because the frame runs without scripts and tab
+  // changes happen purely through CSS :checked selectors.
+  useEffect(() => {
+    if (report.format !== 'eda' || !report.report_html) return;
+    let last = 0;
+    const measure = () => {
+      try {
+        const iframe = iframeRef.current;
+        const html = iframe?.contentDocument?.documentElement;
+        if (!iframe || !html) return;
+        const h = Math.ceil(html.getBoundingClientRect().height);
+        if (h > 0 && Math.abs(h - last) > 4) {
+          last = h;
+          iframe.style.height = `${h + 24}px`;
+        }
+      } catch { /* same-origin guard */ }
+    };
+    measure();
+    const id = window.setInterval(measure, 400);
+    return () => window.clearInterval(id);
+  }, [report.format, report.report_html]);
 
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -223,6 +259,7 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
     : report.format === 'cartoon' ? 'Cartoon'
     : report.format === 'image_infographic' ? 'Infographic'
     : report.format === 'deck' ? 'Deck'
+    : report.format === 'eda' ? 'EDA report'
     : 'Report';
 
   const handleDownloadPNG = async () => {
@@ -273,6 +310,7 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
               : report.format === 'cartoon' ? 'CARTOON'
               : report.format === 'image_infographic' ? 'INFOGRAPHIC'
               : report.format === 'deck' ? 'DECK'
+              : report.format === 'eda' ? 'EDA'
               : 'REPORT'}
           </span>
         </div>
@@ -306,7 +344,7 @@ export function ReportViewer({ report, onBack }: ReportViewerProps) {
       </div>
 
       {/* Body: TOC sidebar (reports only) + iframe canvas */}
-      <div className={`report-body ${report.format === 'newsletter' ? 'report-body--newsletter' : ''} ${report.format === 'cartoon' ? 'report-body--cartoon' : ''} ${report.format === 'image_infographic' ? 'report-body--imginfo' : ''} ${isDeck ? 'report-body--deck' : ''}`}>
+      <div className={`report-body ${report.format === 'newsletter' ? 'report-body--newsletter' : ''} ${report.format === 'cartoon' ? 'report-body--cartoon' : ''} ${report.format === 'image_infographic' ? 'report-body--imginfo' : ''} ${isDeck ? 'report-body--deck' : ''} ${report.format === 'eda' ? 'report-body--eda' : ''}`}>
         {/* Sticky TOC sidebar — only for long-form reports */}
         {report.format === 'report' && (
           <aside className="report-toc-sidebar">
@@ -413,8 +451,8 @@ function ReportLoadingState({ report }: { report: ReportData }) {
         <div className="report-progress-fill" style={{ width: `${report.progress}%` }} />
       </div>
       <p className="report-loading-hint">
-        {report.format === 'deck'
-          ? 'Decks are built from the analysis job results. This usually takes a few minutes while the model runs.'
+        {report.format === 'deck' || report.format === 'eda'
+          ? 'Built from the analysis job results. This usually takes a few minutes while the analysis runs.'
           : 'Reports take 60-90 seconds. We are running outline planning, data fetching, chapter writing, and assembly steps.'}
       </p>
     </div>

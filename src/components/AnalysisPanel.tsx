@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { BASE } from './constants';
 import { HITLCard, type HITLRequest } from './ui';
-import { fetchTools, toolLabel, NO_DECK_TOOLS, type ToolSpec, type ToolJob } from './analysisTools';
+import { fetchTools, toolLabel, NO_DECK_TOOLS, deckOutputLabel, type ToolSpec, type ToolJob } from './analysisTools';
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -243,7 +243,7 @@ export function AnalysisPanel({
                     <span className="analysis-tool-desc">{t.description}</span>
                     <span className="analysis-tool-outputs">
                       <span><LayoutDashboard size={11}/> Dashboard</span>
-                      {!NO_DECK_TOOLS.has(t.name) && <span><Presentation size={11}/> Deck</span>}
+                      {!NO_DECK_TOOLS.has(t.name) && <span><Presentation size={11}/> {t.name === 'eda_profile' ? 'EDA report' : 'Deck'}</span>}
                     </span>
                   </button>
                 );
@@ -301,7 +301,7 @@ export function AnalysisPanel({
               <div className="analysis-stage">
                 {step === 'running'
                   ? (job.stage || (job.status === 'queued' ? 'Queued — waiting for a worker' : 'Starting…'))
-                  : step === 'ready' ? 'Dashboard and deck have been built.'
+                  : step === 'ready' ? `Dashboard and ${deckOutputLabel(job.tool)} have been built.`
                   : (error || job.error || 'The analysis job failed.')}
               </div>
             </div>
@@ -330,7 +330,7 @@ export function AnalysisPanel({
               )}
               {job.report_id && (
                 <button className="hitl-option analysis-action-secondary" onClick={() => onOpenDeck?.(job)}>
-                  <Presentation size={13}/> Open slide deck
+                  <Presentation size={13}/> Open {deckOutputLabel(job.tool)}
                 </button>
               )}
               {!job.thread_id && !job.report_id && (

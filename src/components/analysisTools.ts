@@ -54,6 +54,10 @@ export interface ToolJob {
 /** Tools whose output is a decomposition only — no slide deck is built. */
 export const NO_DECK_TOOLS = new Set(['distribution_velocity']);
 
+/** What the tool's `make_deck` output is called in the UI (eda_profile builds an EDA report, not slides). */
+export const deckOutputLabel = (tool?: string | null): string =>
+  tool === 'eda_profile' ? 'EDA report' : 'slide deck';
+
 /** Fetch the tool catalogue once per session (shared by Workspace chips too). */
 let _toolsCache: ToolSpec[] | null = null;
 let _toolsInflight: Promise<ToolSpec[]> | null = null;

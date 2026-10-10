@@ -11843,6 +11843,9 @@ input[type="password"]:focus, textarea:focus {
 
 .report-body--imginfo .report-canvas { padding: 32px 16px; }
 .report-body--imginfo .report-iframe { max-width: 760px; }
+/* EDA report: the reference dashboard layout needs room for six KPI tiles and two-up figures. */
+.report-body--eda .report-canvas { padding: 16px 12px; }
+.report-body--eda .report-iframe { max-width: 1320px; min-height: 600px; }
 
 /* Primary toolbar button (used for "Download PNG") */
 .report-tb-btn--primary {

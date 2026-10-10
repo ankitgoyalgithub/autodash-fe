@@ -65,7 +65,7 @@ import { ReportViewer, type ReportData } from './ReportViewer';
 type LayoutMode = 'grid' | 'masonry' | 'single' | 'exec' | 'poster' | 'hub' | 'split' | 'magazine' | 'presentation';
 
 /** Thread types whose content is a Report (rendered by ReportViewer) rather than a card grid. */
-const REPORT_LIKE_TYPES: string[] = ['report', 'newsletter', 'cartoon', 'image_infographic', 'deck'];
+const REPORT_LIKE_TYPES: string[] = ['report', 'newsletter', 'cartoon', 'image_infographic', 'deck', 'eda'];
 
 interface DraggableCardsGridProps {
   cards: DashboardCard[];
@@ -1886,7 +1886,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
   const effectiveThreadType = threadType ?? pendingThreadType;
   const isReportLike = effectiveThreadType !== null && REPORT_LIKE_TYPES.includes(effectiveThreadType);
   // Deck threads and the analysis flow don't take free-text prompts.
-  const composerHidden = effectiveThreadType === 'deck' || effectiveThreadType === 'analysis';
+  const composerHidden = effectiveThreadType === 'deck' || effectiveThreadType === 'eda' || effectiveThreadType === 'analysis';
 
   // ── Drag reorder callback (called by DraggableCardsGrid) ────────────────────
   const handleReorder = (oldIndex: number, newIndex: number) => {
@@ -2267,6 +2267,7 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
                   : effectiveThreadType === 'image_infographic' ? 'What stats or comparisons should the infographic highlight?'
                   : effectiveThreadType === 'entity360' ? 'Name the entity to profile — e.g. "a 360 view of customer Acme Corp" or "everything about order 10248".'
                   : effectiveThreadType === 'deck' ? 'This deck was built by an analysis job. Open it on the right, or start a new conversation to run another analysis.'
+                  : effectiveThreadType === 'eda' ? 'This EDA report was built by an analysis job. Browse its tabs on the right, or start a new conversation to run another analysis.'
                   : 'Describe what you want to see and I’ll build it. Try one of these to start:'}
               </p>
               {fmtMeta && fmtMeta.examples.length > 0 && (

@@ -2735,7 +2735,10 @@ export function Workspace({ project, onBack, initialThreadId, brandPalette, curr
         )}
 
         <div ref={dashboardContentRef} className={`dp-content ${layoutMode}-mode ${layout === 'poster' ? 'poster-content' : ''}`}>
-          {!activeEntry && !loading && (
+          {/* A deck thread built by an analysis job has a report but no
+              dashboard history step, so gate the placeholder on the report
+              viewer too, or it renders above the deck. */}
+          {!activeEntry && !loading && !(isReportLike && activeReport) && !deckView && (
             <div className="dp-empty">
               <div className="dp-empty-icon dp-empty-icon--pulse" style={{ background: project.color + '15', border: `1.5px dashed ${project.color}50` }}>
                 <LayoutDashboard size={28} style={{ color: project.color, opacity: 0.7 }}/>
